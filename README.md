@@ -1,2 +1,1 @@
-# core-tester
-Ella Core Tester
+# Ella Core Tester
