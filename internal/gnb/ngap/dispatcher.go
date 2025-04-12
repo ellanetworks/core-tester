@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
+func Dispatch(ella *context.GNBElla, gnb *context.GNBContext, message []byte) {
 	if message == nil {
 		log.Info("[GNB][NGAP] NGAP message is nil")
 	}
@@ -56,14 +56,14 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			// handler NGAP AMF Configuration Update
 			log.Info("[GNB][NGAP] Receive AMF Configuration Update")
-			HandlerAmfConfigurationUpdate(amf, gnb, ngapMsg)
+			HandlerEllaConfigurationUpdate(ella, gnb, ngapMsg)
 		case ngapType.ProcedureCodeAMFStatusIndication:
 			log.Info("[GNB][NGAP] Receive AMF Status Indication")
-			HandlerAmfStatusIndication(amf, gnb, ngapMsg)
+			HandlerEllaStatusIndication(ella, gnb, ngapMsg)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
 			// handler NGAP Handover Request
 			log.Info("[GNB][NGAP] Receive Handover Request")
-			HandlerHandoverRequest(amf, gnb, ngapMsg)
+			HandlerHandoverRequest(ella, gnb, ngapMsg)
 
 		case ngapType.ProcedureCodePaging:
 			// handler NGAP Paging
@@ -85,7 +85,7 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Response.
 			log.Info("[GNB][NGAP] Receive NG Setup Response")
-			HandlerNgSetupResponse(amf, gnb, ngapMsg)
+			HandlerNgSetupResponse(ella, gnb, ngapMsg)
 
 		case ngapType.ProcedureCodePathSwitchRequest:
 			// handler PathSwitchRequestAcknowledge
@@ -95,7 +95,7 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		case ngapType.ProcedureCodeHandoverPreparation:
 			// handler NGAP AMF Handover Command
 			log.Info("[GNB][NGAP] Receive Handover Command")
-			HandlerHandoverCommand(amf, gnb, ngapMsg)
+			HandlerHandoverCommand(ella, gnb, ngapMsg)
 
 		default:
 			log.Warnf("[GNB][NGAP] Received unknown NGAP message 0x%x", ngapMsg.SuccessfulOutcome.ProcedureCode.Value)
@@ -107,7 +107,7 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Failure.
 			log.Info("[GNB][NGAP] Receive Ng Setup Failure")
-			HandlerNgSetupFailure(amf, gnb, ngapMsg)
+			HandlerNgSetupFailure(ella, gnb, ngapMsg)
 
 		default:
 			log.Warnf("[GNB][NGAP] Received unknown NGAP message 0x%x", ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value)

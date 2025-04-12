@@ -141,34 +141,3 @@ func SendInitialUeMessage(registrationRequest []byte, ue *context.GNBUe, gnb *co
 
 	return sendMsg, nil
 }
-
-/*
-
-func InitialUEMessage(connN2 *sctp.SCTPConn, registrationRequest []byte, ue *context.RanUeContext, gnb *context.RanGnbContext) error {
-
-	// new UE Context
-	// ue.NewRanUeContext(imsi, ranUeId, security.AlgCiphering128NEA0, security.AlgIntegrity128NIA2, key, opc, "c9e8763286b5b9ffbdf56e1297d0887b", amf)
-
-	// ueSecurityCapability := context.SetUESecurityCapability(ue)
-	// registrationRequest := mm_5gs.GetRegistrationRequestWith5GMM(nasMessage.RegistrationType5GSInitialRegistration, ue.Suci, nil, nil, ueSecurityCapability)
-	sendMsg, err := GetInitialUEMessage(ue.RanUeNgapId, registrationRequest, "", gnb.GetMccAndMncInOctets(), gnb.GetTacInBytes())
-	if err != nil {
-		return fmt.Errorf("Error in %s ue initial message", ue.Supi)
-	}
-
-	_, err = connN2.Write(sendMsg)
-	if err != nil {
-		return fmt.Errorf("Error sending %s ue initial message", ue.Supi)
-	}
-
-	log.WithFields(log.Fields{
-		"protocol":    "NGAP",
-		"source":      fmt.Sprintf("GNB[ID:%s]", gnb.GetGnbId()),
-		"destination": "AMF",
-		"message":     "INITIAL UE MESSAGE",
-	}).Info("Sending message")
-
-	return nil
-}
-
-*/

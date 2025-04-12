@@ -29,7 +29,7 @@ func SendPduSessionResourceSetupResponse(pduSessions []*context.GnbPDUSession, u
 
 	// Send PDU Session Resource Setup Response.
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][AMF] Error sending PDU Session Resource Setup Response.: ", err)
 	}
@@ -48,7 +48,7 @@ func SendPduSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *co
 	}
 
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending PDU Session Release Response.: ", err)
 	}
@@ -65,7 +65,7 @@ func SendInitialContextSetupResponse(ue *context.GNBUe, gnb *context.GNBContext)
 
 	// Send Initial Context Setup Response.
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][AMF] Error sending Initial Context Setup Response: ", err)
 	}
@@ -82,7 +82,7 @@ func SendUeContextReleaseRequest(ue *context.GNBUe) {
 
 	// Send UE Context Release Complete
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][AMF] Error sending UE Context Release Request: ", err)
 	}
@@ -99,30 +99,30 @@ func SendUeContextReleaseComplete(ue *context.GNBUe) {
 
 	// Send UE Context Release Complete
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][AMF] Error sending UE Context Complete: ", err)
 	}
 }
 
-func SendAmfConfigurationUpdateAcknowledge(amf *context.GNBAmf) {
+func SendEllaConfigurationUpdateAcknowledge(ella *context.GNBElla) {
 	log.Info("[GNB] Initiating AMF Configuration Update Acknowledge")
 
 	// send AMF Configure Update Acknowledge
-	ngapMsg, err := interface_management.AmfConfigurationUpdateAcknowledge()
+	ngapMsg, err := interface_management.EllaConfigurationUpdateAcknowledge()
 	if err != nil {
 		log.Warn("[GNB][NGAP] Error sending AMF Configuration Update Acknowledge: ", err)
 	}
 
 	// Send AMF Configure Update Acknowledge
-	conn := amf.GetSCTPConn()
-	err = sender.SendToAmF(ngapMsg, conn)
+	conn := ella.GetSCTPConn()
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Warn("[GNB][NGAP] Error sending AMF Configuration Update Acknowledge: ", err)
 	}
 }
 
-func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
+func SendNgSetupRequest(gnb *context.GNBContext, ella *context.GNBElla) {
 	log.Info("[GNB] Initiating NG Setup Request")
 
 	// send NG setup response.
@@ -131,8 +131,8 @@ func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
 		log.Info("[GNB][NGAP] Error sending NG Setup Request: ", err)
 	}
 
-	conn := amf.GetSCTPConn()
-	err = sender.SendToAmF(ngapMsg, conn)
+	conn := ella.GetSCTPConn()
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Info("[GNB][AMF] Error sending NG Setup Request: ", err)
 	}
@@ -148,7 +148,7 @@ func SendPathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) {
 	}
 
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending Path Switch Request: ", err)
 	}
@@ -164,7 +164,7 @@ func SendHandoverRequestAcknowledge(gnb *context.GNBContext, ue *context.GNBUe) 
 	}
 
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending Handover Request Acknowledge: ", err)
 	}
@@ -180,7 +180,7 @@ func SendHandoverNotify(gnb *context.GNBContext, ue *context.GNBUe) {
 	}
 
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending Handover Notify: ", err)
 	}
@@ -220,7 +220,7 @@ func TriggerNgapHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext,
 	}
 
 	conn := gnbUeContext.GetSCTP()
-	err = sender.SendToAmF(ngapMsg, conn)
+	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending Handover Required: ", err)
 	}

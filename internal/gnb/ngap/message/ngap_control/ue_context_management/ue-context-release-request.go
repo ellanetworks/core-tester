@@ -18,7 +18,7 @@ type UeContextReleaseRequestBuilder struct {
 
 func UeContextReleaseRequest(ue *context.GNBUe) ([]byte, error) {
 	return NewUeContextReleaseRequestBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetPduSessionResourceListCxtRelReq(ue.GetPduSessions()).
 		SetCause(ngapType.CauseRadioNetworkPresentUserInactivity).
 		Build()
@@ -43,7 +43,7 @@ func NewUeContextReleaseRequestBuilder() *UeContextReleaseRequestBuilder {
 	return &UeContextReleaseRequestBuilder{pdu, ies}
 }
 
-func (builder *UeContextReleaseRequestBuilder) SetAmfUeNgapId(amfUeNgapID int64) *UeContextReleaseRequestBuilder {
+func (builder *UeContextReleaseRequestBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *UeContextReleaseRequestBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.UEContextReleaseRequestIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -52,7 +52,7 @@ func (builder *UeContextReleaseRequestBuilder) SetAmfUeNgapId(amfUeNgapID int64)
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 

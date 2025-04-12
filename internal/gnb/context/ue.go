@@ -23,8 +23,8 @@ const (
 
 type GNBUe struct {
 	ranUeNgapId    int64          // Identifier for UE in GNB Context.
-	amfUeNgapId    int64          // Identifier for UE in AMF Context.
-	amfId          int64          // Identifier for AMF in UE/GNB Context.
+	ellaUeNgapId   int64          // Identifier for UE in AMF Context.
+	ellaId         int64          // Identifier for AMF in UE/GNB Context.
 	state          int            // State of UE in NAS/GNB Context.
 	sctpConnection *sctp.SCTPConn // Sctp association in using by the UE.
 	gnbRx          chan UEMessage
@@ -78,7 +78,7 @@ func (ue *GNBUe) CreateUeContext(plmn string, imeisv string, sst []string, sd []
 }
 
 func (ue *GNBUe) CopyFromPreviousContext(oldUeContext *GNBUe) {
-	ue.SetAmfUeId(oldUeContext.GetAmfUeId())
+	ue.SetEllaUeId(oldUeContext.GetEllaUeId())
 	ue.context = oldUeContext.context
 }
 
@@ -172,12 +172,12 @@ func (ue *GNBUe) isWantedNssai(sst string, sd string) bool {
 	return false
 }
 
-func (ue *GNBUe) GetAmfId() int64 {
-	return ue.amfId
+func (ue *GNBUe) GetEllaId() int64 {
+	return ue.ellaId
 }
 
-func (ue *GNBUe) SetAmfId(id int64) {
-	ue.amfId = id
+func (ue *GNBUe) SetEllaId(id int64) {
+	ue.ellaId = id
 }
 
 func (ue *GNBUe) GetSCTP() *sctp.SCTPConn {
@@ -318,10 +318,10 @@ func (ue *GNBUe) SetRanUeId(id int64) {
 	ue.ranUeNgapId = id
 }
 
-func (ue *GNBUe) GetAmfUeId() int64 {
-	return ue.amfUeNgapId
+func (ue *GNBUe) GetEllaUeId() int64 {
+	return ue.ellaUeNgapId
 }
 
-func (ue *GNBUe) SetAmfUeId(amfUeId int64) {
-	ue.amfUeNgapId = amfUeId
+func (ue *GNBUe) SetEllaUeId(ellaUeId int64) {
+	ue.ellaUeNgapId = ellaUeId
 }

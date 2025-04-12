@@ -24,7 +24,7 @@ type PathSwitchRequestBuilder struct {
 
 func PathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
 	return NewPathSwitchRequestBuilder().
-		SetSourceAmfUeNgapId(ue.GetAmfUeId()).
+		SetSourceEllaUeNgapId(ue.GetEllaUeId()).
 		SetRanUeNgapId(ue.GetRanUeId()).
 		PathSwitchRequestTransfer(gnb.GetN3GnbIp(), ue.GetPduSessions()).
 		SetUserLocation(gnb).
@@ -51,7 +51,7 @@ func NewPathSwitchRequestBuilder() *PathSwitchRequestBuilder {
 	return &PathSwitchRequestBuilder{pdu, ies}
 }
 
-func (builder *PathSwitchRequestBuilder) SetSourceAmfUeNgapId(amfUeNgapID int64) *PathSwitchRequestBuilder {
+func (builder *PathSwitchRequestBuilder) SetSourceEllaUeNgapId(ellaUeNgapID int64) *PathSwitchRequestBuilder {
 	// SOURCE AMF UE NGAP ID
 	ie := ngapType.PathSwitchRequestIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDSourceAMFUENGAPID
@@ -60,7 +60,7 @@ func (builder *PathSwitchRequestBuilder) SetSourceAmfUeNgapId(amfUeNgapID int64)
 	ie.Value.SourceAMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.SourceAMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 

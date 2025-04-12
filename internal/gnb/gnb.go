@@ -11,10 +11,8 @@ import (
 )
 
 func InitGnb(conf config.Config) (*context.GNBContext, error) {
-	// instance new gnb.
 	gnb := &context.GNBContext{}
 
-	// new gnb context.
 	gnb.NewRanGnbContext(
 		conf.GNodeB.PlmnList.GnbId,
 		conf.GNodeB.PlmnList.Mcc,
@@ -26,20 +24,15 @@ func InitGnb(conf config.Config) (*context.GNBContext, error) {
 		conf.GNodeB.N3.AddrPort,
 	)
 
-	// start communication with Ella (server SCTP).
-	// new Ella context.
-	ella := conf.Ella
-	amf := gnb.NewGnBAmf(ella.N2.AddrPort)
+	ellaConfig := conf.Ella
+	ella := gnb.NewGnbElla(ellaConfig.N2.AddrPort)
 
-	// start communication with Ella(SCTP).
-	err := ngap.InitConn(amf, gnb)
+	err := ngap.InitConn(ella, gnb)
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to SCTP: %w", err)
 	}
 
-	trigger.SendNgSetupRequest(gnb, amf)
-
-	// start communication with UE (server UNIX sockets).
+	trigger.SendNgSetupRequest(gnb, ella)
 	serviceNas.InitServer(gnb)
 
 	return gnb, nil

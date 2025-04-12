@@ -11,11 +11,11 @@ import (
 )
 
 func PDUSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *context.GNBUe) ([]byte, error) {
-	message := buildPDUSessionReleaseResponse(ue.GetAmfUeId(), ue.GetRanUeId(), pduSessionIds)
+	message := buildPDUSessionReleaseResponse(ue.GetEllaUeId(), ue.GetRanUeId(), pduSessionIds)
 	return ngap.Encoder(message)
 }
 
-func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) ngapType.NGAPPDU {
+func buildPDUSessionReleaseResponse(ellaUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
@@ -38,7 +38,7 @@ func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionId
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	pDUSessionResourceReleaseResponseIEs.List = append(pDUSessionResourceReleaseResponseIEs.List, ie)
 

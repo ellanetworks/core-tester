@@ -11,9 +11,9 @@ import (
 )
 
 /*
-func initialContextSetupResponse(connN2 *sctp.SCTPConn, amfUeNgapID int64, ranUeNgapID int64, supi string) error {
+func initialContextSetupResponse(connN2 *sctp.SCTPConn, ellaUeNgapID int64, ranUeNgapID int64, supi string) error {
 
-	sendMsg, err := InitialContextSetupResponse(amfUeNgapID, ranUeNgapID)
+	sendMsg, err := InitialContextSetupResponse(ellaUeNgapID, ranUeNgapID)
 	if err != nil {
 		return fmt.Errorf("Error getting %s ue ngap Initial Context Setup Response Msg", supi)
 	}
@@ -27,12 +27,12 @@ func initialContextSetupResponse(connN2 *sctp.SCTPConn, amfUeNgapID int64, ranUe
 */
 
 func UeContextReleaseComplete(ue *context.GNBUe) ([]byte, error) {
-	message := BuildUeContextReleaseComplete(ue.GetAmfUeId(), ue.GetRanUeId())
+	message := BuildUeContextReleaseComplete(ue.GetEllaUeId(), ue.GetRanUeId())
 
 	return ngap.Encoder(message)
 }
 
-func BuildUeContextReleaseComplete(amfUeNgapID, ranUeNgapID int64) (pdu ngapType.NGAPPDU) {
+func BuildUeContextReleaseComplete(ellaUeNgapID, ranUeNgapID int64) (pdu ngapType.NGAPPDU) {
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
 
@@ -54,7 +54,7 @@ func BuildUeContextReleaseComplete(amfUeNgapID, ranUeNgapID int64) (pdu ngapType
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	initialContextSetupResponseIEs.List = append(initialContextSetupResponseIEs.List, ie)
 

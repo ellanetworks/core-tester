@@ -20,7 +20,7 @@ type InitialContextSetupResponseBuilder struct {
 
 func InitialContextSetupResponse(ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {
 	return NewInitialContextSetupResponseBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetPDUSessionResourceSetupListCxtRes(gnb, ue.GetPduSessions()).
 		Build()
 }
@@ -44,7 +44,7 @@ func NewInitialContextSetupResponseBuilder() *InitialContextSetupResponseBuilder
 	return &InitialContextSetupResponseBuilder{pdu, initialContextSetupResponseIEs}
 }
 
-func (builder *InitialContextSetupResponseBuilder) SetAmfUeNgapId(amfUeNgapID int64) *InitialContextSetupResponseBuilder {
+func (builder *InitialContextSetupResponseBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *InitialContextSetupResponseBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.InitialContextSetupResponseIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -53,7 +53,7 @@ func (builder *InitialContextSetupResponseBuilder) SetAmfUeNgapId(amfUeNgapID in
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 
