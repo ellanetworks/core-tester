@@ -3,10 +3,9 @@ package main
 import (
 	"flag"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
