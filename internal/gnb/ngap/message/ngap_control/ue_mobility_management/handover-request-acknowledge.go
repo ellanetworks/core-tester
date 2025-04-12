@@ -8,13 +8,11 @@ import (
 	"encoding/binary"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	log "github.com/sirupsen/logrus"
 )
 
 type HandoverRequestAcknowledgeBuilder struct {
@@ -94,7 +92,7 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetPduSessionResourceAdmittedL
 		if pduSession == nil {
 			continue
 		}
-		//PDU SessionResource Admittedy Item
+		// PDU SessionResource Admittedy Item
 		pDUSessionResourceAdmittedItem := ngapType.PDUSessionResourceAdmittedItem{}
 		pDUSessionResourceAdmittedItem.PDUSessionID.Value = pduSession.GetPduSessionId()
 		pDUSessionResourceAdmittedItem.HandoverRequestAcknowledgeTransfer = GetHandoverRequestAcknowledgeTransfer(gnb, pduSession)
@@ -141,7 +139,6 @@ func GetHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *
 }
 
 func buildHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *context.GnbPDUSession) (data ngapType.HandoverRequestAcknowledgeTransfer) {
-
 	// DL NG-U UP TNL information
 	dlTransportLayerInformation := &data.DLNGUUPTNLInformation
 	dlTransportLayerInformation.Present = ngapType.UPTransportLayerInformationPresentGTPTunnel

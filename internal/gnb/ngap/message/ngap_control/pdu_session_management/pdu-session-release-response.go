@@ -6,20 +6,17 @@ package pdu_session_management
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
 func PDUSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *context.GNBUe) ([]byte, error) {
-
 	message := buildPDUSessionReleaseResponse(ue.GetAmfUeId(), ue.GetRanUeId(), pduSessionIds)
 	return ngap.Encoder(message)
 }
 
-func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) (pdu ngapType.NGAPPDU) {
-
+func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) ngapType.NGAPPDU {
+	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
 
@@ -70,12 +67,12 @@ func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionId
 		pDUSessionResourceReleasedItemRelRes := ngapType.PDUSessionResourceReleasedItemRelRes{}
 
 		pDUSessionResourceReleasedItemRelRes.PDUSessionID = pduSessionId
-		pDUSessionResourceReleasedItemRelRes.PDUSessionResourceReleaseResponseTransfer = []byte{00}
+		pDUSessionResourceReleasedItemRelRes.PDUSessionResourceReleaseResponseTransfer = []byte{0o0}
 
 		pDUSessionResourceReleasedListRelRes.List = append(pDUSessionResourceReleasedListRelRes.List, pDUSessionResourceReleasedItemRelRes)
 	}
 
 	pDUSessionResourceReleaseResponseIEs.List = append(pDUSessionResourceReleaseResponseIEs.List, ie)
 
-	return
+	return pdu
 }

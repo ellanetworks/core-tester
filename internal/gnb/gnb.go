@@ -1,23 +1,21 @@
 package gnb
 
 import (
+	"os"
+	"os/signal"
+	"sync"
+	"time"
+
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
 	serviceNas "github.com/ellanetworks/core-tester/internal/gnb/nas/service"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
 	"github.com/ellanetworks/core-tester/internal/monitoring"
-
-	"os"
-	"os/signal"
-	"sync"
-	"time"
-
 	log "github.com/sirupsen/logrus"
 )
 
 func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
-
 	// instance new gnb.
 	gnb := &context.GNBContext{}
 
@@ -59,7 +57,7 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 
 		// Block until a signal is received.
 		<-sigGnb
-		//gnb.Terminate()
+		// gnb.Terminate()
 		wg.Done()
 	}()
 
@@ -67,8 +65,8 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 }
 
 func InitGnbForLoadSeconds(conf config.Config, wg *sync.WaitGroup,
-	monitor *monitoring.Monitor) {
-
+	monitor *monitoring.Monitor,
+) {
 	// instance new gnb.
 	gnb := &context.GNBContext{}
 
@@ -89,7 +87,10 @@ func InitGnbForLoadSeconds(conf config.Config, wg *sync.WaitGroup,
 		amf := gnb.NewGnBAmf(amf.AddrPort)
 
 		// start communication with AMF(SCTP).
-		ngap.InitConn(amf, gnb)
+		err := ngap.InitConn(amf, gnb)
+		if err != nil {
+			log.Errorf("could not connect to AMF: %v", err)
+		}
 
 		trigger.SendNgSetupRequest(gnb, amf)
 
@@ -109,8 +110,8 @@ func InitGnbForLoadSeconds(conf config.Config, wg *sync.WaitGroup,
 }
 
 func InitGnbForAvaibility(conf config.Config,
-	monitor *monitoring.Monitor) {
-
+	monitor *monitoring.Monitor,
+) {
 	// instance new gnb.
 	gnb := &context.GNBContext{}
 
@@ -133,12 +134,9 @@ func InitGnbForAvaibility(conf config.Config,
 		// start communication with AMF(SCTP).
 		if err := ngap.InitConn(amf, gnb); err != nil {
 			log.Info("Error in ", err)
-
 			return
-
 		} else {
 			log.Info("[GNB] SCTP/NGAP service is running")
-
 		}
 
 		trigger.SendNgSetupRequest(gnb, amf)
@@ -150,7 +148,6 @@ func InitGnbForAvaibility(conf config.Config,
 		// means AMF is available
 		if amf.GetState() == 0x01 {
 			monitor.IncAvaibility()
-
 		}
 	}
 

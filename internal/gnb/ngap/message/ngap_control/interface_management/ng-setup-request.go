@@ -6,16 +6,13 @@ package interface_management
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
-	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/aper"
-
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
+func BuildNGSetupRequest(gnb *context.GNBContext) ngapType.NGAPPDU {
+	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -118,11 +115,10 @@ func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
 	pagingDRX.Value = ngapType.PagingDRXPresentV128
 	nGSetupRequestIEs.List = append(nGSetupRequestIEs.List, ie)
 
-	return
+	return pdu
 }
 
 func NGSetupRequest(gnb *context.GNBContext, name string) ([]byte, error) {
-
 	message := BuildNGSetupRequest(gnb)
 	// GlobalRANNodeID
 	ie := message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[0]

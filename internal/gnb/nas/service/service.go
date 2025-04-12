@@ -10,7 +10,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb/nas"
 	"github.com/ellanetworks/core-tester/internal/gnb/nas/message/sender"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,8 +33,6 @@ func gnbListen(gnb *context.GNBContext) {
 			continue
 		}
 
-		// TODO this region of the code may induces race condition.
-
 		// new instance GNB UE context
 		// store UE in UE Pool
 		// store UE connection
@@ -44,7 +41,7 @@ func gnbListen(gnb *context.GNBContext) {
 		ue, _ := gnb.GetGnbUeByPrUeId(message.PrUeId)
 		if ue != nil && message.IsHandover {
 			// We already have a context for this UE since it was sent to us by the AMF from a NGAP Handover
-			// Notify the AMF that the UE has succesfully been handed over to US
+			// Notify the AMF that the UE has successfully been handed over to US
 			ue.SetGnbRx(message.GNBRx)
 			ue.SetGnbTx(message.GNBTx)
 
@@ -59,7 +56,7 @@ func gnbListen(gnb *context.GNBContext) {
 			var err error
 			ue, err = gnb.NewGnBUe(message.GNBTx, message.GNBRx, message.PrUeId, message.Tmsi)
 			if ue == nil && err != nil {
-				log.Errorf("[GNB] UE was not created succesfully: %s. Closing connection with UE.", err)
+				log.Errorf("[GNB] UE was not created successfully: %s. Closing connection with UE.", err)
 				close(message.GNBTx)
 				continue
 			}
@@ -69,7 +66,6 @@ func gnbListen(gnb *context.GNBContext) {
 				ue.SetStateReady()
 				ue.CopyFromPreviousContext(message.UEContext)
 				trigger.SendPathSwitchRequest(gnb, ue)
-
 			} else {
 				// Usual first UE connection to a gNodeB
 				log.Info("[GNB] Received incoming connection from new UE")

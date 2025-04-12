@@ -133,7 +133,7 @@ func TestToSupi(t *testing.T) {
 func TestSupiToSuciToSupi(t *testing.T) {
 	testCases := []string{"0010020862"}
 
-	for _ = range 100 {
+	for range 100 {
 		testCases = append(testCases, fmt.Sprintf("%010d", rand.Int64N(10000000000)))
 	}
 

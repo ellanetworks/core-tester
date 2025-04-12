@@ -15,8 +15,10 @@ import (
 
 const gtpuPort = 2152
 
-var teidUPF uint32 = 0x000000001
-var teidRAN uint32 = 0x000000010
+var (
+	teidUPF uint32 = 0x000000001
+	teidRAN uint32 = 0x000000010
+)
 
 const (
 	ueIPAddress = "10.45.0.10/24"

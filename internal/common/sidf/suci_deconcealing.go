@@ -23,7 +23,6 @@ import (
 )
 
 // suci-0(SUPI type: IMSI)-mcc-mnc-routingIndicator-protectionScheme-homeNetworkPublicKeyID-schemeOutput.
-// TODO: suci-1(SUPI type: NAI)-homeNetworkID-routingIndicator-protectionScheme-homeNetworkPublicKeyID-schemeOutput.
 
 const (
 	PrefixIMSI     = "imsi-"
@@ -242,7 +241,7 @@ func ecdhP256(privateKey *ecdh.PrivateKey, transmittedPubKey []byte) (sharedKey,
 	return sharedKey, kdfPubKey, nil
 }
 
-func profileADecrypt(input, supiType string, privateKey *ecdh.PrivateKey) (string, error) {
+func profileADecrypt(input string, privateKey *ecdh.PrivateKey) (string, error) {
 	s, err := hex.DecodeString(input)
 	if err != nil {
 		return "", err
@@ -271,7 +270,7 @@ func profileADecrypt(input, supiType string, privateKey *ecdh.PrivateKey) (strin
 	return Tbcd(hex.EncodeToString(plainText)), nil
 }
 
-func profileBDecrypt(input, supiType string, privateKey *ecdh.PrivateKey) (string, error) {
+func profileBDecrypt(input string, privateKey *ecdh.PrivateKey) (string, error) {
 	s, err := hex.DecodeString(input)
 	if err != nil || len(s) < 1 {
 		return "", fmt.Errorf("hex DecodeString error: %w", err)
@@ -344,13 +343,13 @@ func ToSupi(suci string, suciProfiles []HomeNetworkPrivateKey) (string, error) {
 
 	switch scheme {
 	case ProfileAScheme:
-		result, err := profileADecrypt(parsedSuci.SchemeOutput, SupiTypeIMSI, profile.PrivateKey)
+		result, err := profileADecrypt(parsedSuci.SchemeOutput, profile.PrivateKey)
 		if err != nil {
 			return "", err
 		}
 		return supiPrefix + mccMnc + result, nil
 	case ProfileBScheme:
-		result, err := profileBDecrypt(parsedSuci.SchemeOutput, SupiTypeIMSI, profile.PrivateKey)
+		result, err := profileBDecrypt(parsedSuci.SchemeOutput, profile.PrivateKey)
 		if err != nil {
 			return "", err
 		}

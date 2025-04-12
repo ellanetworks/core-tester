@@ -10,12 +10,9 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
+	customNgapType "github.com/ellanetworks/core-tester/lib/ngap/ngapType"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
-
-	customNgapType "github.com/ellanetworks/core-tester/lib/ngap/ngapType"
-
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -114,7 +111,6 @@ func (builder *PDUSessionResourceSetupResponseBuilder) SetPDUSessionResourceSetu
 }
 
 func (builder *PDUSessionResourceSetupResponseBuilder) SetPDUSessionResourceFailedToSetupListSURes(gnb *context.GNBContext, pduSessions []*context.GnbPDUSession) *PDUSessionResourceSetupResponseBuilder {
-
 	// PDU Sessuin Resource Failed to Setup List
 	// ie = ngapType.PDUSessionResourceSetupResponseIEs{}
 	// ie.Id.Value = ngapType.ProtocolIEIDPDUSessionResourceFailedToSetupListSURes
@@ -147,7 +143,6 @@ func GetPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qo
 }
 
 func buildPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) (data customNgapType.PDUSessionResourceSetupResponseTransfer) {
-
 	// QoS Flow per TNL Information
 	qosFlowPerTNLInformation := &data.QosFlowPerTNLInformation
 	qosFlowPerTNLInformation.UPTransportLayerInformation.Present = ngapType.UPTransportLayerInformationPresentGTPTunnel

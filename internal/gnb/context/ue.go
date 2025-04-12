@@ -14,10 +14,12 @@ import (
 )
 
 // UE main states in the GNB Context.
-const Initialized = 0x00
-const Ongoing = 0x01
-const Ready = 0x02
-const Down = 0x03
+const (
+	Initialized = 0x00
+	Ongoing     = 0x01
+	Ready       = 0x02
+	Down        = 0x03
+)
 
 type GNBUe struct {
 	ranUeNgapId    int64          // Identifier for UE in GNB Context.
@@ -81,8 +83,8 @@ func (ue *GNBUe) CopyFromPreviousContext(oldUeContext *GNBUe) {
 }
 
 func (ue *GNBUe) CreatePduSession(pduSessionId int64, upfIp string, sst string, sd string, pduType uint64,
-	qosId int64, priArp int64, fiveQi int64, ulTeid uint32, dlTeid uint32) (*GnbPDUSession, error) {
-
+	qosId int64, priArp int64, fiveQi int64, ulTeid uint32, dlTeid uint32,
+) (*GnbPDUSession, error) {
 	if pduSessionId < 1 && pduSessionId > 16 {
 		return nil, fmt.Errorf("PDU Session Id must lies between 0 and 15, id: %d", pduSessionId)
 	}
@@ -91,7 +93,7 @@ func (ue *GNBUe) CreatePduSession(pduSessionId int64, upfIp string, sst string, 
 		return nil, fmt.Errorf("unable to create PDU Session %d as such PDU Session already exists", pduSessionId)
 	}
 
-	var pduSession = new(GnbPDUSession)
+	pduSession := new(GnbPDUSession)
 	pduSession.pduSessionId = pduSessionId
 	pduSession.upfIp = upfIp
 	if !ue.isWantedNssai(sst, sd) {
@@ -295,7 +297,6 @@ func (pduSession *GnbPDUSession) GetPriorityARP() int64 {
 }
 
 func (pduSession *GnbPDUSession) GetPduType() (valor string) {
-
 	switch pduSession.pduType {
 	case 0:
 		valor = "ipv4"
@@ -305,7 +306,6 @@ func (pduSession *GnbPDUSession) GetPduType() (valor string) {
 		valor = "Ipv4Ipv6"
 	case 3:
 		valor = "ethernet"
-
 	}
 	return
 }

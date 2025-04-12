@@ -6,7 +6,6 @@ package sender
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
 	log "github.com/sirupsen/logrus"
 )
 

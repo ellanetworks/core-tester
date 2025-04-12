@@ -9,12 +9,11 @@ import (
 
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-
 	"github.com/ishidawataru/sctp"
 )
 
 func NgSetupResponse(connN2 *sctp.SCTPConn) (*ngapType.NGAPPDU, error) {
-	var recvMsg = make([]byte, 2048)
+	recvMsg := make([]byte, 2048)
 	var n int
 
 	// receive NGAP message from AMF.

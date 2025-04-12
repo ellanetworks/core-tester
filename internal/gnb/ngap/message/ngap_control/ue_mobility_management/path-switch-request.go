@@ -10,14 +10,11 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
-	"github.com/free5gc/ngap"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/free5gc/aper"
-
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	log "github.com/sirupsen/logrus"
 )
 
 type PathSwitchRequestBuilder struct {
@@ -53,6 +50,7 @@ func NewPathSwitchRequestBuilder() *PathSwitchRequestBuilder {
 
 	return &PathSwitchRequestBuilder{pdu, ies}
 }
+
 func (builder *PathSwitchRequestBuilder) SetSourceAmfUeNgapId(amfUeNgapID int64) *PathSwitchRequestBuilder {
 	// SOURCE AMF UE NGAP ID
 	ie := ngapType.PathSwitchRequestIEs{}
@@ -136,7 +134,10 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 		}
 		item := ngapType.PDUSessionResourceToBeSwitchedDLItem{PDUSessionID: ngapType.PDUSessionID{Value: pduSession.GetPduSessionId()}}
 		buf := new(bytes.Buffer)
-		binary.Write(buf, binary.BigEndian, pduSession.GetTeidDownlink())
+		err := binary.Write(buf, binary.BigEndian, pduSession.GetTeidDownlink())
+		if err != nil {
+			log.Errorf("[GNB][NGAP] Failed to write teid: %v", err)
+		}
 		transfer := ngapType.PathSwitchRequestTransfer{
 			DLNGUUPTNLInformation: ngapType.UPTransportLayerInformation{
 				Present: ngapType.UPTransportLayerInformationPresentGTPTunnel,
@@ -144,7 +145,8 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 					TransportLayerAddress: ngapConvert.IPAddressToNgap(gnbN3Ip.String(), ""),
 					GTPTEID:               ngapType.GTPTEID{Value: aper.OctetString(buf.Bytes())},
 					IEExtensions:          nil,
-				}},
+				},
+			},
 			DLNGUTNLInformationReused:    nil,
 			UserPlaneSecurityInformation: nil,
 			QosFlowAcceptedList:          ngapType.QosFlowAcceptedList{List: []ngapType.QosFlowAcceptedItem{{QosFlowIdentifier: ngapType.QosFlowIdentifier{Value: pduSession.GetQosId()}}}},

@@ -6,12 +6,10 @@ package pdu_session_management
 
 import (
 	"github.com/free5gc/aper"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
 func getGtpTeidFromNgUpUpTnlInformation(payload []byte) ([]byte, error) {
-
 	// per aligned PDUSessionResourceSetupRequestTransfer value( octet string )
 	pdu := &ngapType.PDUSessionResourceSetupRequestTransfer{}
 	err := aper.UnmarshalWithParams(payload, pdu, "valueExt")

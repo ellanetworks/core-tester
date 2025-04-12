@@ -8,9 +8,7 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -19,8 +17,8 @@ func getUplinkNASTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *c
 	return ngap.Encoder(message)
 }
 
-func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
+func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) ngapType.NGAPPDU {
+	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -65,7 +63,6 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 	ie.Value.Present = ngapType.UplinkNASTransportIEsPresentNASPDU
 	ie.Value.NASPDU = new(ngapType.NASPDU)
 
-	// TODO: complete NAS-PDU
 	nASPDU := ie.Value.NASPDU
 	nASPDU.Value = nasPdu
 
@@ -91,11 +88,10 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 
 	uplinkNasTransportIEs.List = append(uplinkNasTransportIEs.List, ie)
 
-	return
+	return pdu
 }
 
 func SendUplinkNasTransport(message []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {
-
 	sendMsg, err := getUplinkNASTransport(ue.GetAmfUeId(), ue.GetRanUeId(), message, gnb)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting UE Id %d NAS Authentication Response", ue.GetRanUeId())

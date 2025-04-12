@@ -8,7 +8,6 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-
 	"github.com/ishidawataru/sctp"
 	log "github.com/sirupsen/logrus"
 )
@@ -16,8 +15,6 @@ import (
 var ConnCount int
 
 func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
-
-	// check AMF IP and AMF port.
 	remote := amf.GetAmfIpPort().String()
 	gnbAddrPort := gnb.GetGnbIpPort()
 	local := netip.AddrPortFrom(gnbAddrPort.Addr(), gnbAddrPort.Port()+uint16(ConnCount)).String()
@@ -32,8 +29,6 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 		return err
 	}
 
-	// streams := amf.GetTNLAStreams()
-
 	conn, err := sctp.DialSCTPExt(
 		"sctp",
 		loc,
@@ -44,13 +39,13 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 		return err
 	}
 
-	// set streams and other information about TNLA
-
-	// successful established SCTP (TNLA - N2)
 	amf.SetSCTPConn(conn)
 	gnb.SetN2(conn)
 
-	conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
+	err = conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
+	if err != nil {
+		log.Errorf("[GNB][SCTP] Error in subscribing SCTP events for %v AMF\n", amf.GetAmfId())
+	}
 
 	go GnbListen(amf, gnb)
 
@@ -58,21 +53,10 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 }
 
 func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
-
 	buf := make([]byte, 65535)
 	conn := amf.GetSCTPConn()
 
-	/*
-		defer func() {
-			err := conn.Close()
-			if err != nil {
-				log.Info("[GNB][SCTP] Error in closing SCTP association for %d AMF\n", amf.GetAmfId())
-			}
-		}()
-	*/
-
 	for {
-
 		n, info, err := conn.SCTPRead(buf[:])
 		if err != nil {
 			break
@@ -85,7 +69,5 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 
 		// handling NGAP message.
 		go Dispatch(amf, gnb, forwardData)
-
 	}
-
 }

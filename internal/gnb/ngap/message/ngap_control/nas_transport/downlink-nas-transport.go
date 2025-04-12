@@ -10,38 +10,35 @@ import (
 
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-
 	"github.com/ishidawataru/sctp"
 	log "github.com/sirupsen/logrus"
 )
 
 func DownlinkNasTransport(connN2 *sctp.SCTPConn, supi string) (*ngapType.NGAPPDU, error) {
-
-	var recvMsg = make([]byte, 2048)
+	recvMsg := make([]byte, 2048)
 	var n int
 
 	n, err := connN2.Read(recvMsg)
 	if err != nil {
-		return nil, fmt.Errorf("Error receiving %s ue NGAP message in downlinkNasTransport", supi)
+		return nil, fmt.Errorf("error receiving %s ue NGAP message in downlinkNasTransport", supi)
 	}
 
 	ngapMsg, err := ngap.Decoder(recvMsg[:n])
 	if err != nil {
-		return nil, fmt.Errorf("Error decoding %s ue NGAP message in downlinkNasTransport", supi)
+		return nil, fmt.Errorf("error decoding %s ue NGAP message in downlinkNasTransport", supi)
 	}
 
 	return ngapMsg, nil
 }
 
 func DownlinkNasTransportForConfigurationUpdateCommand(connN2 *sctp.SCTPConn, supi string) *ngapType.NGAPPDU {
-
 	// make channels
 	c1 := make(chan bool)
 	c2 := make(chan *ngapType.NGAPPDU)
 
 	// receive NGAP message from AMF.
 	go func() {
-		var recvMsg = make([]byte, 2048)
+		recvMsg := make([]byte, 2048)
 		var n int
 
 		n, err := connN2.Read(recvMsg)
@@ -66,7 +63,6 @@ func DownlinkNasTransportForConfigurationUpdateCommand(connN2 *sctp.SCTPConn, su
 
 	// monitoring thread
 	select {
-
 	case <-c1:
 		fmt.Println("Error in receive configuration update command")
 		break

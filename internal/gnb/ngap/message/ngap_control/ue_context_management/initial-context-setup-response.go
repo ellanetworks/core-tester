@@ -8,7 +8,6 @@ package ue_context_management
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/message/ngap_control/pdu_session_management"
-
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
