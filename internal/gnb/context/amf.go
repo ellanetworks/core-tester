@@ -12,28 +12,26 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-// AMF main states in the GNB Context.
 const (
 	Inactive = 0x00
 	Active   = 0x01
 	Overload = 0x02
 )
 
-type GNBAmf struct {
-	amfIpPort           netip.AddrPort // AMF ip and port
-	amfId               int64          // AMF id
-	tnla                TNLAssociation // AMF sctp associations
-	relativeAmfCapacity int64          // AMF capacity
-	state               int
-	name                string // amf name.
-	regionId            aper.BitString
-	setId               aper.BitString
-	pointer             aper.BitString
-	plmns               *PlmnSupported
-	slices              *SliceSupported
-	lenSlice            int
-	lenPlmn             int
-	backupAMF           string
+type GNBElla struct {
+	ellaIpPort           netip.AddrPort
+	ellaId               int64
+	tnla                 TNLAssociation
+	relativeEllaCapacity int64
+	state                int
+	name                 string
+	regionId             aper.BitString
+	setId                aper.BitString
+	pointer              aper.BitString
+	plmns                *PlmnSupported
+	slices               *SliceSupported
+	lenSlice             int
+	lenPlmn              int
 }
 
 type TNLAssociation struct {
@@ -55,8 +53,8 @@ type PlmnSupported struct {
 	next *PlmnSupported
 }
 
-func (amf *GNBAmf) GetSliceSupport(index int) (string, string) {
-	mov := amf.slices
+func (ella *GNBElla) GetSliceSupport(index int) (string, string) {
+	mov := ella.slices
 	for i := 0; i < index; i++ {
 		mov = mov.next
 	}
@@ -64,8 +62,8 @@ func (amf *GNBAmf) GetSliceSupport(index int) (string, string) {
 	return mov.sst, mov.sd
 }
 
-func (amf *GNBAmf) GetPlmnSupport(index int) (string, string) {
-	mov := amf.plmns
+func (ella *GNBElla) GetPlmnSupport(index int) (string, string) {
+	mov := ella.plmns
 	for i := 0; i < index; i++ {
 		mov = mov.next
 	}
@@ -85,21 +83,21 @@ func convertMccMnc(plmn string) (mcc string, mnc string) {
 	return mcc, mnc
 }
 
-func (amf *GNBAmf) AddedPlmn(plmn string) {
-	if amf.lenPlmn == 0 {
+func (ella *GNBElla) AddedPlmn(plmn string) {
+	if ella.lenPlmn == 0 {
 		newElem := &PlmnSupported{}
 
 		// newElem.info = plmn
 		newElem.next = nil
 		newElem.mcc, newElem.mnc = convertMccMnc(plmn)
 		// update list
-		amf.plmns = newElem
-		amf.lenPlmn++
+		ella.plmns = newElem
+		ella.lenPlmn++
 		return
 	}
 
-	mov := amf.plmns
-	for i := 0; i < amf.lenPlmn; i++ {
+	mov := ella.plmns
+	for i := 0; i < ella.lenPlmn; i++ {
 		// end of the list
 		if mov.next == nil {
 			newElem := &PlmnSupported{}
@@ -112,24 +110,24 @@ func (amf *GNBAmf) AddedPlmn(plmn string) {
 		}
 	}
 
-	amf.lenPlmn++
+	ella.lenPlmn++
 }
 
-func (amf *GNBAmf) AddedSlice(sst string, sd string) {
-	if amf.lenSlice == 0 {
+func (ella *GNBElla) AddedSlice(sst string, sd string) {
+	if ella.lenSlice == 0 {
 		newElem := &SliceSupported{}
 		newElem.sst = sst
 		newElem.sd = sd
 		newElem.next = nil
 
 		// update list
-		amf.slices = newElem
-		amf.lenSlice++
+		ella.slices = newElem
+		ella.lenSlice++
 		return
 	}
 
-	mov := amf.slices
-	for i := 0; i < amf.lenSlice; i++ {
+	mov := ella.slices
+	for i := 0; i < ella.lenSlice; i++ {
 		// end of the list
 		if mov.next == nil {
 			newElem := &SliceSupported{}
@@ -142,11 +140,11 @@ func (amf *GNBAmf) AddedSlice(sst string, sd string) {
 			mov = mov.next
 		}
 	}
-	amf.lenSlice++
+	ella.lenSlice++
 }
 
-func (amf *GNBAmf) GetTNLA() TNLAssociation {
-	return amf.tnla
+func (ella *GNBElla) GetTNLA() TNLAssociation {
+	return ella.tnla
 }
 
 func (tnla *TNLAssociation) GetSCTP() *sctp.SCTPConn {
@@ -165,122 +163,114 @@ func (tnla *TNLAssociation) Release() error {
 	return tnla.sctpConn.Close()
 }
 
-func (amf *GNBAmf) SetStateInactive() {
-	amf.state = Inactive
+func (ella *GNBElla) SetStateInactive() {
+	ella.state = Inactive
 }
 
-func (amf *GNBAmf) SetStateActive() {
-	amf.state = Active
+func (ella *GNBElla) SetStateActive() {
+	ella.state = Active
 }
 
-func (amf *GNBAmf) SetStateOverload() {
-	amf.state = Overload
+func (ella *GNBElla) SetStateOverload() {
+	ella.state = Overload
 }
 
-func (amf *GNBAmf) GetState() int {
-	return amf.state
+func (ella *GNBElla) GetState() int {
+	return ella.state
 }
 
-func (amf *GNBAmf) GetSCTPConn() *sctp.SCTPConn {
-	return amf.tnla.sctpConn
+func (ella *GNBElla) GetSCTPConn() *sctp.SCTPConn {
+	return ella.tnla.sctpConn
 }
 
-func (amf *GNBAmf) SetSCTPConn(conn *sctp.SCTPConn) {
-	amf.tnla.sctpConn = conn
+func (ella *GNBElla) SetSCTPConn(conn *sctp.SCTPConn) {
+	ella.tnla.sctpConn = conn
 }
 
-func (amf *GNBAmf) SetTNLAWeight(weight int64) {
-	amf.tnla.tnlaWeightFactor = weight
+func (ella *GNBElla) SetTNLAWeight(weight int64) {
+	ella.tnla.tnlaWeightFactor = weight
 }
 
-func (amf *GNBAmf) SetTNLAUsage(usage aper.Enumerated) {
-	amf.tnla.usage = usage
+func (ella *GNBElla) SetTNLAUsage(usage aper.Enumerated) {
+	ella.tnla.usage = usage
 }
 
-func (amf *GNBAmf) SetTNLAStreams(streams uint16) {
-	amf.tnla.streams = streams
+func (ella *GNBElla) SetTNLAStreams(streams uint16) {
+	ella.tnla.streams = streams
 }
 
-func (amf *GNBAmf) GetTNLAStreams() uint16 {
-	return amf.tnla.streams
+func (ella *GNBElla) GetTNLAStreams() uint16 {
+	return ella.tnla.streams
 }
 
-func (amf *GNBAmf) GetAmfIpPort() netip.AddrPort {
-	return amf.amfIpPort
+func (ella *GNBElla) GetEllaIpPort() netip.AddrPort {
+	return ella.ellaIpPort
 }
 
-func (amf *GNBAmf) SetAmfIpPort(ap netip.AddrPort) {
-	amf.amfIpPort = ap
+func (ella *GNBElla) SetEllaIpPort(ap netip.AddrPort) {
+	ella.ellaIpPort = ap
 }
 
-func (amf *GNBAmf) GetAmfId() int64 {
-	return amf.amfId
+func (ella *GNBElla) GetEllaId() int64 {
+	return ella.ellaId
 }
 
-func (amf *GNBAmf) setAmfId(id int64) {
-	amf.amfId = id
+func (ella *GNBElla) setEllaId(id int64) {
+	ella.ellaId = id
 }
 
-func (amf *GNBAmf) GetAmfName() string {
-	return amf.name
+func (ella *GNBElla) GetEllaName() string {
+	return ella.name
 }
 
-func (amf *GNBAmf) GetRegionId() aper.BitString {
-	return amf.regionId
+func (ella *GNBElla) GetRegionId() aper.BitString {
+	return ella.regionId
 }
 
-func (amf *GNBAmf) SetRegionId(regionId aper.BitString) {
-	amf.regionId = regionId
+func (ella *GNBElla) SetRegionId(regionId aper.BitString) {
+	ella.regionId = regionId
 }
 
-func (amf *GNBAmf) GetSetId() aper.BitString {
-	return amf.setId
+func (ella *GNBElla) GetSetId() aper.BitString {
+	return ella.setId
 }
 
-func (amf *GNBAmf) SetSetId(setId aper.BitString) {
-	amf.setId = setId
+func (ella *GNBElla) SetSetId(setId aper.BitString) {
+	ella.setId = setId
 }
 
-func (amf *GNBAmf) GetPointer() aper.BitString {
-	return amf.pointer
+func (ella *GNBElla) GetPointer() aper.BitString {
+	return ella.pointer
 }
 
-func (amf *GNBAmf) SetPointer(pointer aper.BitString) {
-	amf.pointer = pointer
+func (ella *GNBElla) SetPointer(pointer aper.BitString) {
+	ella.pointer = pointer
 }
 
-func (amf *GNBAmf) SetAmfName(name string) {
-	amf.name = name
+func (ella *GNBElla) SetEllaName(name string) {
+	ella.name = name
 }
 
-func (amf *GNBAmf) GetAmfCapacity() int64 {
-	return amf.relativeAmfCapacity
+func (ella *GNBElla) GetEllaCapacity() int64 {
+	return ella.relativeEllaCapacity
 }
 
-func (amf *GNBAmf) SetAmfCapacity(capacity int64) {
-	amf.relativeAmfCapacity = capacity
+func (ella *GNBElla) SetEllaCapacity(capacity int64) {
+	ella.relativeEllaCapacity = capacity
 }
 
-func (amf *GNBAmf) GetLenPlmns() int {
-	return amf.lenPlmn
+func (ella *GNBElla) GetLenPlmns() int {
+	return ella.lenPlmn
 }
 
-func (amf *GNBAmf) GetLenSlice() int {
-	return amf.lenSlice
+func (ella *GNBElla) GetLenSlice() int {
+	return ella.lenSlice
 }
 
-func (amf *GNBAmf) SetLenPlmns(value int) {
-	amf.lenPlmn = value
+func (ella *GNBElla) SetLenPlmns(value int) {
+	ella.lenPlmn = value
 }
 
-func (amf *GNBAmf) SetLenSlice(value int) {
-	amf.lenSlice = value
-}
-
-func (amf *GNBAmf) GetBackupAMF() string {
-	return amf.backupAMF
-}
-
-func (amf *GNBAmf) SetBackupAMF(backupAMF string) {
-	amf.backupAMF = backupAMF
+func (ella *GNBElla) SetLenSlice(value int) {
+	ella.lenSlice = value
 }

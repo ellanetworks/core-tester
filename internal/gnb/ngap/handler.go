@@ -28,7 +28,7 @@ const (
 
 func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	var ranUeId int64
-	var amfUeId int64
+	var ellaUeId int64
 	var messageNas []byte
 
 	valueMessage := message.InitiatingMessage.Value.DownlinkNASTransport
@@ -39,7 +39,7 @@ func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAP
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE NGAP ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 			if ies.Value.RANUENGAPID == nil {
@@ -55,7 +55,7 @@ func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAP
 		}
 	}
 
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot send DownlinkNASTransport message to UE with RANUEID %d as it does not know this UE", ranUeId)
 		return
@@ -67,7 +67,7 @@ func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAP
 
 func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	var ranUeId int64
-	var amfUeId int64
+	var ellaUeId int64
 	var messageNas []byte
 	var sst []string
 	var sd []string
@@ -84,7 +84,7 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE NGAP ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 			if ies.Value.RANUENGAPID == nil {
@@ -164,7 +164,7 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 		}
 	}
 
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot setup context for unknown UE	with RANUEID %d", ranUeId)
 		return
@@ -175,7 +175,7 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 	// show UE context.
 	log.Info("[GNB][UE] UE Context was created with successful")
 	log.Info("[GNB][UE] UE RAN ID ", ue.GetRanUeId())
-	log.Info("[GNB][UE] UE AMF ID ", ue.GetAmfUeId())
+	log.Info("[GNB][UE] UE AMF ID ", ue.GetEllaUeId())
 	mcc, mnc := ue.GetUeMobility()
 	log.Info("[GNB][UE] UE Mobility Restrict --Plmn-- Mcc: ", mcc, " Mnc: ", mnc)
 	log.Info("[GNB][UE] UE Masked Imeisv: ", ue.GetUeMaskedImeiSv())
@@ -232,13 +232,13 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 	}
 
 	// send Initial Context Setup Response.
-	log.Info("[GNB][NGAP][AMF] Send Initial Context Setup Response.")
+	log.Info("[GNB][NGAP][Ella] Send Initial Context Setup Response.")
 	trigger.SendInitialContextSetupResponse(ue, gnb)
 }
 
 func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	var ranUeId int64
-	var amfUeId int64
+	var ellaUeId int64
 	var pDUSessionResourceSetupList *ngapType.PDUSessionResourceSetupListSUReq
 
 	valueMessage := message.InitiatingMessage.Value.PDUSessionResourceSetupRequest
@@ -250,7 +250,7 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 
@@ -268,7 +268,7 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 		}
 	}
 
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot setup PDU Session for unknown UE With RANUEID %d", ranUeId)
 		return
@@ -383,7 +383,7 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 func HandlerPduSessionReleaseCommand(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	valueMessage := message.InitiatingMessage.Value.PDUSessionResourceReleaseCommand
 
-	var amfUeId int64
+	var ellaUeId int64
 	var ranUeId int64
 	var messageNas aper.OctetString
 	var pduSessionIds []ngapType.PDUSessionID
@@ -395,7 +395,7 @@ func HandlerPduSessionReleaseCommand(gnb *context.GNBContext, message *ngapType.
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 
@@ -423,7 +423,7 @@ func HandlerPduSessionReleaseCommand(gnb *context.GNBContext, message *ngapType.
 		}
 	}
 
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot release PDU Session for unknown UE With RANUEID %d", ranUeId)
 		return
@@ -447,7 +447,7 @@ func HandlerPduSessionReleaseCommand(gnb *context.GNBContext, message *ngapType.
 	sender.SendToUe(ue, messageNas)
 }
 
-func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerNgSetupResponse(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	err := false
 	var plmn string
 
@@ -462,8 +462,8 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 				log.Info("[GNB][NGAP] AMF is inactive")
 				err = true
 			} else {
-				amfName := ies.Value.AMFName.Value
-				amf.SetAmfName(amfName)
+				ellaName := ies.Value.AMFName.Value
+				ella.SetEllaName(ellaName)
 			}
 
 		case ngapType.ProtocolIEIDServedGUAMIList:
@@ -495,8 +495,8 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 
 		case ngapType.ProtocolIEIDRelativeAMFCapacity:
 			if ies.Value.RelativeAMFCapacity != nil {
-				amfCapacity := ies.Value.RelativeAMFCapacity.Value
-				amf.SetAmfCapacity(amfCapacity)
+				ellaCapacity := ies.Value.RelativeAMFCapacity.Value
+				ella.SetEllaCapacity(ellaCapacity)
 			}
 
 		case ngapType.ProtocolIEIDPLMNSupportList:
@@ -508,7 +508,7 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 
 			for _, items := range ies.Value.PLMNSupportList.List {
 				plmn = fmt.Sprintf("%x", items.PLMNIdentity.Value)
-				amf.AddedPlmn(plmn)
+				ella.AddedPlmn(plmn)
 
 				if items.SliceSupportList.List == nil {
 					log.Info("[GNB][NGAP] Error in NG SETUP RESPONSE, PLMN Support list is inappropriate")
@@ -532,33 +532,33 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 						sd = "was not informed"
 					}
 
-					// update amf slice supported
-					amf.AddedSlice(sst, sd)
+					// update ella slice supported
+					ella.AddedSlice(sst, sd)
 				}
 			}
 		}
 	}
 
 	if err {
-		log.Fatal("[GNB][AMF] AMF is inactive")
-		amf.SetStateInactive()
+		log.Fatal("[GNB][Ella] AMF is inactive")
+		ella.SetStateInactive()
 	} else {
-		amf.SetStateActive()
-		log.Info("[GNB][AMF] AMF Name: ", amf.GetAmfName())
-		log.Info("[GNB][AMF] State of AMF: Active")
-		log.Info("[GNB][AMF] Capacity of AMF: ", amf.GetAmfCapacity())
-		for i := 0; i < amf.GetLenPlmns(); i++ {
-			mcc, mnc := amf.GetPlmnSupport(i)
-			log.Info("[GNB][AMF] PLMNs Identities Supported by AMF -- mcc: ", mcc, " mnc:", mnc)
+		ella.SetStateActive()
+		log.Info("[GNB][Ella] AMF Name: ", ella.GetEllaName())
+		log.Info("[GNB][Ella] State of AMF: Active")
+		log.Info("[GNB][Ella] Capacity of AMF: ", ella.GetEllaCapacity())
+		for i := 0; i < ella.GetLenPlmns(); i++ {
+			mcc, mnc := ella.GetPlmnSupport(i)
+			log.Info("[GNB][Ella] PLMNs Identities Supported by AMF -- mcc: ", mcc, " mnc:", mnc)
 		}
-		for i := 0; i < amf.GetLenSlice(); i++ {
-			sst, sd := amf.GetSliceSupport(i)
-			log.Info("[GNB][AMF] List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
+		for i := 0; i < ella.GetLenSlice(); i++ {
+			sst, sd := ella.GetSliceSupport(i)
+			log.Info("[GNB][Ella] List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
 		}
 	}
 }
 
-func HandlerNgSetupFailure(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerNgSetupFailure(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	// check information about AMF and add in AMF context.
 	valueMessage := message.UnsuccessfulOutcome.Value.NGSetupFailure
 
@@ -590,7 +590,7 @@ func HandlerNgSetupFailure(amf *context.GNBAmf, gnb *context.GNBContext, message
 	}
 
 	// redundant but useful for information about code.
-	amf.SetStateInactive()
+	ella.SetStateInactive()
 
 	log.Info("[GNB][NGAP] AMF is inactive")
 }
@@ -612,7 +612,7 @@ func HandlerUeContextReleaseCommand(gnb *context.GNBContext, message *ngapType.N
 
 	ue, err := gnb.GetGnbUe(ue_id.Value)
 	if err != nil {
-		log.Error("[GNB][AMF] AMF is trying to free the context of an unknown UE")
+		log.Error("[GNB][Ella] AMF is trying to free the context of an unknown UE")
 		return
 	}
 	gnb.DeleteGnBUe(ue)
@@ -623,32 +623,32 @@ func HandlerUeContextReleaseCommand(gnb *context.GNBContext, message *ngapType.N
 	log.Info("[GNB][NGAP] Releasing UE Context, cause: ", causeToString(cause))
 }
 
-func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerEllaConfigurationUpdate(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	log.Debugf("Before Update:")
-	for oldAmf := range gnb.IterGnbAmf() {
-		tnla := oldAmf.GetTNLA()
-		log.Debugf("[AMF Name: %5s], IP: %10s, AMFCapacity: %3d, TNLA Weight Factor: %2d, TNLA Usage: %2d\n",
-			oldAmf.GetAmfName(), oldAmf.GetAmfIpPort().Addr(), oldAmf.GetAmfCapacity(), tnla.GetWeightFactor(), tnla.GetUsage())
+	for oldElla := range gnb.IterGnbElla() {
+		tnla := oldElla.GetTNLA()
+		log.Debugf("[Ella Name: %5s], IP: %10s, AMFCapacity: %3d, TNLA Weight Factor: %2d, TNLA Usage: %2d\n",
+			oldElla.GetEllaName(), oldElla.GetEllaIpPort().Addr(), oldElla.GetEllaCapacity(), tnla.GetWeightFactor(), tnla.GetUsage())
 	}
 
-	var amfName string
-	var amfCapacity int64
-	var amfRegionId, amfSetId, amfPointer aper.BitString
+	var ellaName string
+	var ellaCapacity int64
+	var ellaRegionId, ellaSetId, ellaPointer aper.BitString
 
 	valueMessage := message.InitiatingMessage.Value.AMFConfigurationUpdate
 	for _, ie := range valueMessage.ProtocolIEs.List {
 		switch ie.Id.Value {
 		case ngapType.ProtocolIEIDAMFName:
-			amfName = ie.Value.AMFName.Value
+			ellaName = ie.Value.AMFName.Value
 
 		case ngapType.ProtocolIEIDServedGUAMIList:
 			for _, servedGuamiItem := range ie.Value.ServedGUAMIList.List {
-				amfRegionId = servedGuamiItem.GUAMI.AMFRegionID.Value
-				amfSetId = servedGuamiItem.GUAMI.AMFSetID.Value
-				amfPointer = servedGuamiItem.GUAMI.AMFPointer.Value
+				ellaRegionId = servedGuamiItem.GUAMI.AMFRegionID.Value
+				ellaSetId = servedGuamiItem.GUAMI.AMFSetID.Value
+				ellaPointer = servedGuamiItem.GUAMI.AMFPointer.Value
 			}
 		case ngapType.ProtocolIEIDRelativeAMFCapacity:
-			amfCapacity = ie.Value.RelativeAMFCapacity.Value
+			ellaCapacity = ie.Value.RelativeAMFCapacity.Value
 
 		case ngapType.ProtocolIEIDAMFTNLAssociationToAddList:
 			toAddList := ie.Value.AMFTNLAssociationToAddList
@@ -660,29 +660,29 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 				}
 				ipv4Port := netip.AddrPortFrom(netip.MustParseAddr(ipv4String), 38412) // with default sctp port
 
-				if oldAmf := gnb.FindGnbAmfByIpPort(ipv4Port); oldAmf != nil {
+				if oldElla := gnb.FindGnbEllaByIpPort(ipv4Port); oldElla != nil {
 					log.Info("[GNB] SCTP/NGAP service exists")
 					continue
 				}
 
-				newAmf := gnb.NewGnBAmf(ipv4Port)
-				newAmf.SetAmfName(amfName)
-				newAmf.SetAmfCapacity(amfCapacity)
-				newAmf.SetRegionId(amfRegionId)
-				newAmf.SetSetId(amfSetId)
-				newAmf.SetPointer(amfPointer)
-				newAmf.SetTNLAUsage(toAddItem.TNLAssociationUsage.Value)
-				newAmf.SetTNLAWeight(toAddItem.TNLAddressWeightFactor.Value)
+				newElla := gnb.NewGnbElla(ipv4Port)
+				newElla.SetEllaName(ellaName)
+				newElla.SetEllaCapacity(ellaCapacity)
+				newElla.SetRegionId(ellaRegionId)
+				newElla.SetSetId(ellaSetId)
+				newElla.SetPointer(ellaPointer)
+				newElla.SetTNLAUsage(toAddItem.TNLAssociationUsage.Value)
+				newElla.SetTNLAWeight(toAddItem.TNLAddressWeightFactor.Value)
 
 				// start communication with AMF(SCTP).
-				if err := InitConn(newAmf, gnb); err != nil {
+				if err := InitConn(newElla, gnb); err != nil {
 					log.Fatal("Error in", err)
 				} else {
 					log.Info("[GNB] SCTP/NGAP service is running")
 					// wg.Add(1)
 				}
 
-				trigger.SendNgSetupRequest(gnb, newAmf)
+				trigger.SendNgSetupRequest(gnb, newElla)
 			}
 
 		case ngapType.ProtocolIEIDAMFTNLAssociationToRemoveList:
@@ -695,18 +695,18 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 				}
 				ipv4Port := netip.AddrPortFrom(netip.MustParseAddr(ipv4String), 38412) // with default sctp port
 
-				oldAmf := gnb.FindGnbAmfByIpPort(ipv4Port)
-				if oldAmf == nil {
+				oldElla := gnb.FindGnbEllaByIpPort(ipv4Port)
+				if oldElla == nil {
 					continue
 				}
 
-				log.Info("[GNB][AMF] Remove AMF:", amf.GetAmfName(), " IP:", amf.GetAmfIpPort().Addr())
-				tnla := amf.GetTNLA()
+				log.Info("[GNB][Ella] Remove AMF:", ella.GetEllaName(), " IP:", ella.GetEllaIpPort().Addr())
+				tnla := ella.GetTNLA()
 				err := tnla.Release() // Close SCTP Conntection
 				if err != nil {
-					log.Error("[GNB][AMF] Error in releasing AMF: ", err)
+					log.Error("[GNB][Ella] Error in releasing AMF: ", err)
 				}
-				gnb.DeleteGnBAmf(oldAmf.GetAmfId())
+				gnb.DeleteGnBElla(oldElla.GetEllaId())
 			}
 
 		case ngapType.ProtocolIEIDAMFTNLAssociationToUpdateList:
@@ -719,19 +719,19 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 				}
 				ipv4Port := netip.AddrPortFrom(netip.MustParseAddr(ipv4String), 38412) // with default sctp port
 
-				oldAmf := gnb.FindGnbAmfByIpPort(ipv4Port)
-				if oldAmf == nil {
+				oldElla := gnb.FindGnbEllaByIpPort(ipv4Port)
+				if oldElla == nil {
 					continue
 				}
 
-				oldAmf.SetAmfName(amfName)
-				oldAmf.SetAmfCapacity(amfCapacity)
-				oldAmf.SetRegionId(amfRegionId)
-				oldAmf.SetSetId(amfSetId)
-				oldAmf.SetPointer(amfPointer)
+				oldElla.SetEllaName(ellaName)
+				oldElla.SetEllaCapacity(ellaCapacity)
+				oldElla.SetRegionId(ellaRegionId)
+				oldElla.SetSetId(ellaSetId)
+				oldElla.SetPointer(ellaPointer)
 
-				oldAmf.SetTNLAUsage(toUpdateItem.TNLAssociationUsage.Value)
-				oldAmf.SetTNLAWeight(toUpdateItem.TNLAddressWeightFactor.Value)
+				oldElla.SetTNLAUsage(toUpdateItem.TNLAssociationUsage.Value)
+				oldElla.SetTNLAWeight(toUpdateItem.TNLAddressWeightFactor.Value)
 			}
 
 			// default:
@@ -739,16 +739,16 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 	}
 
 	log.Debugf("After Update:")
-	for oldAmf := range gnb.IterGnbAmf() {
-		tnla := oldAmf.GetTNLA()
-		log.Debugf("[AMF Name: %5s], IP: %10s, AMFCapacity: %3d, TNLA Weight Factor: %2d, TNLA Usage: %2d\n",
-			oldAmf.GetAmfName(), oldAmf.GetAmfIpPort().Addr(), oldAmf.GetAmfCapacity(), tnla.GetWeightFactor(), tnla.GetUsage())
+	for oldElla := range gnb.IterGnbElla() {
+		tnla := oldElla.GetTNLA()
+		log.Debugf("[Ella Name: %5s], IP: %10s, AMFCapacity: %3d, TNLA Weight Factor: %2d, TNLA Usage: %2d\n",
+			oldElla.GetEllaName(), oldElla.GetEllaIpPort().Addr(), oldElla.GetEllaCapacity(), tnla.GetWeightFactor(), tnla.GetUsage())
 	}
 
-	trigger.SendAmfConfigurationUpdateAcknowledge(amf)
+	trigger.SendEllaConfigurationUpdateAcknowledge(ella)
 }
 
-func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerEllaStatusIndication(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	valueMessage := message.InitiatingMessage.Value.AMFStatusIndication
 	for _, ie := range valueMessage.ProtocolIEs.List {
 		switch ie.Id.Value {
@@ -764,34 +764,34 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 				}
 
 				// select backup AMF
-				var backupAmf *context.GNBAmf
-				for oldAmf := range gnb.IterGnbAmf() {
+				var backupElla *context.GNBElla
+				for oldElla := range gnb.IterGnbElla() {
 					if unavailableGuamiItem.BackupAMFName != nil &&
-						oldAmf.GetAmfName() == unavailableGuamiItem.BackupAMFName.Value {
-						backupAmf = oldAmf
+						oldElla.GetEllaName() == unavailableGuamiItem.BackupAMFName.Value {
+						backupElla = oldElla
 						break
 					}
 				}
-				if backupAmf == nil {
+				if backupElla == nil {
 					return
 				}
 
-				for oldAmf := range gnb.IterGnbAmf() {
-					for j := 0; j < oldAmf.GetLenPlmns(); j++ {
-						oldAmfSupportMcc, oldAmfSupportMnc := oldAmf.GetPlmnSupport(j)
+				for oldElla := range gnb.IterGnbElla() {
+					for j := 0; j < oldElla.GetLenPlmns(); j++ {
+						oldEllaSupportMcc, oldEllaSupportMnc := oldElla.GetPlmnSupport(j)
 
-						if oldAmfSupportMcc == unavailableMcc && oldAmfSupportMnc == unavailableMnc &&
-							reflect.DeepEqual(oldAmf.GetRegionId(), unavailableGuamiItem.GUAMI.AMFRegionID.Value) &&
-							reflect.DeepEqual(oldAmf.GetSetId(), unavailableGuamiItem.GUAMI.AMFSetID.Value) &&
-							reflect.DeepEqual(oldAmf.GetPointer(), unavailableGuamiItem.GUAMI.AMFPointer.Value) {
-							log.Info("[GNB][AMF] Remove AMF: [",
-								"Id: ", oldAmf.GetAmfId(),
-								"Name: ", oldAmf.GetAmfName(),
-								"Ipv4: ", oldAmf.GetAmfIpPort().Addr(),
+						if oldEllaSupportMcc == unavailableMcc && oldEllaSupportMnc == unavailableMnc &&
+							reflect.DeepEqual(oldElla.GetRegionId(), unavailableGuamiItem.GUAMI.AMFRegionID.Value) &&
+							reflect.DeepEqual(oldElla.GetSetId(), unavailableGuamiItem.GUAMI.AMFSetID.Value) &&
+							reflect.DeepEqual(oldElla.GetPointer(), unavailableGuamiItem.GUAMI.AMFPointer.Value) {
+							log.Info("[GNB][Ella] Remove AMF: [",
+								"Id: ", oldElla.GetEllaId(),
+								"Name: ", oldElla.GetEllaName(),
+								"Ipv4: ", oldElla.GetEllaIpPort().Addr(),
 								"]",
 							)
 
-							tnla := oldAmf.GetTNLA()
+							tnla := oldElla.GetTNLA()
 
 							// NGAP UE-TNLA Rebinding
 							uePool := gnb.GetUePool()
@@ -801,10 +801,10 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 									return true
 								}
 
-								if ue.GetAmfId() == oldAmf.GetAmfId() {
-									// set amfId and SCTP association for UE.
-									ue.SetAmfId(backupAmf.GetAmfId())
-									ue.SetSCTP(backupAmf.GetSCTPConn())
+								if ue.GetEllaId() == oldElla.GetEllaId() {
+									// set ellaId and SCTP association for UE.
+									ue.SetEllaId(backupElla.GetEllaId())
+									ue.SetSCTP(backupElla.GetSCTPConn())
 								}
 
 								return true
@@ -817,10 +817,10 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 									return true
 								}
 
-								if ue.GetAmfId() == oldAmf.GetAmfId() {
-									// set amfId and SCTP association for UE.
-									ue.SetAmfId(backupAmf.GetAmfId())
-									ue.SetSCTP(backupAmf.GetSCTPConn())
+								if ue.GetEllaId() == oldElla.GetEllaId() {
+									// set ellaId and SCTP association for UE.
+									ue.SetEllaId(backupElla.GetEllaId())
+									ue.SetSCTP(backupElla.GetSCTPConn())
 								}
 
 								return true
@@ -828,9 +828,9 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 
 							err := tnla.Release()
 							if err != nil {
-								log.Error("[GNB][AMF] Error in TNLA Release: ", err)
+								log.Error("[GNB][Ella] Error in TNLA Release: ", err)
 							}
-							gnb.DeleteGnBAmf(oldAmf.GetAmfId())
+							gnb.DeleteGnBElla(oldElla.GetEllaId())
 
 							break
 						}
@@ -845,7 +845,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 	var pduSessionResourceSwitchedList *ngapType.PDUSessionResourceSwitchedList
 	valueMessage := message.SuccessfulOutcome.Value.PathSwitchRequestAcknowledge
 
-	var amfUeId, ranUeId int64
+	var ellaUeId, ranUeId int64
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
 		switch ies.Id.Value {
@@ -854,7 +854,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 
@@ -870,7 +870,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 			}
 		}
 	}
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot Xn Handover unknown UE With RANUEID %d", ranUeId)
 		return
@@ -917,14 +917,14 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 	log.Info("[GNB] Handover completed successfully for UE ", ue.GetRanUeId())
 }
 
-func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerHandoverRequest(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	var ueSecurityCapabilities *ngapType.UESecurityCapabilities
 	var sst []string
 	var sd []string
 	var maskedImeisv string
 	var sourceToTargetContainer *ngapType.SourceToTargetTransparentContainer
 	var pDUSessionResourceSetupListHOReq *ngapType.PDUSessionResourceSetupListHOReq
-	var amfUeId int64
+	var ellaUeId int64
 
 	valueMessage := message.InitiatingMessage.Value.HandoverRequest
 
@@ -934,7 +934,7 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDAllowedNSSAI:
 			if ies.Value.AllowedNSSAI == nil {
@@ -1011,7 +1011,7 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	if ue == nil || err != nil {
 		log.Fatalf("[GNB] HandoverFailure: %s", err)
 	}
-	ue.SetAmfUeId(amfUeId)
+	ue.SetEllaUeId(ellaUeId)
 
 	ue.CreateUeContext(notInformed, maskedImeisv, sst, sd, ueSecurityCapabilities)
 
@@ -1054,10 +1054,10 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	trigger.SendHandoverRequestAcknowledge(gnb, ue)
 }
 
-func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
+func HandlerHandoverCommand(ella *context.GNBElla, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	valueMessage := message.SuccessfulOutcome.Value.HandoverCommand
 
-	var amfUeId, ranUeId int64
+	var ellaUeId, ranUeId int64
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
 		switch ies.Id.Value {
@@ -1066,7 +1066,7 @@ func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, messag
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 
@@ -1076,7 +1076,7 @@ func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, messag
 			ranUeId = ies.Value.RANUENGAPID.Value
 		}
 	}
-	ue := getUeFromContext(gnb, ranUeId, amfUeId)
+	ue := getUeFromContext(gnb, ranUeId, ellaUeId)
 	if ue == nil {
 		log.Errorf("[GNB][NGAP] Cannot NGAP  Handover unknown UE With RANUEID %d", ranUeId)
 		return
@@ -1123,13 +1123,13 @@ func HandlerPaging(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 
 	gnb.AddPagedUE(uEPagingIdentity.FiveGSTMSI)
 
-	log.Info("[GNB][AMF] Paging UE")
+	log.Info("[GNB][Ella] Paging UE")
 }
 
 func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 	valueMessage := message.InitiatingMessage.Value.ErrorIndication
 
-	var amfUeId, ranUeId int64
+	var ellaUeId, ranUeId int64
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
 		switch ies.Id.Value {
@@ -1138,7 +1138,7 @@ func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) 
 			if ies.Value.AMFUENGAPID == nil {
 				log.Fatal("[GNB][NGAP] AMF UE ID is missing")
 			}
-			amfUeId = ies.Value.AMFUENGAPID.Value
+			ellaUeId = ies.Value.AMFUENGAPID.Value
 
 		case ngapType.ProtocolIEIDRANUENGAPID:
 
@@ -1149,10 +1149,10 @@ func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) 
 		}
 	}
 
-	log.Warn("[GNB][AMF] Received an Error Indication for UE with AMF UE ID: ", amfUeId, " RAN UE ID: ", ranUeId)
+	log.Warn("[GNB][Ella] Received an Error Indication for UE with AMF UE ID: ", ellaUeId, " RAN UE ID: ", ranUeId)
 }
 
-func getUeFromContext(gnb *context.GNBContext, ranUeId int64, amfUeId int64) *context.GNBUe {
+func getUeFromContext(gnb *context.GNBContext, ranUeId int64, ellaUeId int64) *context.GNBUe {
 	// check RanUeId and get UE.
 	ue, err := gnb.GetGnbUe(ranUeId)
 	if err != nil || ue == nil {
@@ -1160,7 +1160,7 @@ func getUeFromContext(gnb *context.GNBContext, ranUeId int64, amfUeId int64) *co
 		return nil
 	}
 
-	ue.SetAmfUeId(amfUeId)
+	ue.SetEllaUeId(ellaUeId)
 
 	return ue
 }

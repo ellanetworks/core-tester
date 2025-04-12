@@ -11,7 +11,7 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-func SendToAmF(message []byte, conn *sctp.SCTPConn) error {
+func SendToElla(message []byte, conn *sctp.SCTPConn) error {
 	info := &sctp.SndRcvInfo{
 		Stream: uint16(0),
 		PPID:   ngapSctp.NGAP_PPID,

@@ -12,12 +12,12 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func getUplinkNASTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) ([]byte, error) {
-	message := buildUplinkNasTransport(amfUeNgapID, ranUeNgapID, nasPdu, gnb)
+func getUplinkNASTransport(ellaUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) ([]byte, error) {
+	message := buildUplinkNasTransport(ellaUeNgapID, ranUeNgapID, nasPdu, gnb)
 	return ngap.Encoder(message)
 }
 
-func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) ngapType.NGAPPDU {
+func buildUplinkNasTransport(ellaUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
@@ -40,7 +40,7 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	uplinkNasTransportIEs.List = append(uplinkNasTransportIEs.List, ie)
 
@@ -92,7 +92,7 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 }
 
 func SendUplinkNasTransport(message []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {
-	sendMsg, err := getUplinkNASTransport(ue.GetAmfUeId(), ue.GetRanUeId(), message, gnb)
+	sendMsg, err := getUplinkNASTransport(ue.GetEllaUeId(), ue.GetRanUeId(), message, gnb)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting UE Id %d NAS Authentication Response", ue.GetRanUeId())
 	}
@@ -101,9 +101,9 @@ func SendUplinkNasTransport(message []byte, ue *context.GNBUe, gnb *context.GNBC
 }
 
 /*
-func UplinkNasTransport(connN2 *sctp.SCTPConn, amfUeNgapID int64, ranUeNgapID int64, nasPdu []byte, gnb *context.RanGnbContext) error {
+func UplinkNasTransport(connN2 *sctp.SCTPConn, ellaUeNgapID int64, ranUeNgapID int64, nasPdu []byte, gnb *context.RanGnbContext) error {
 
-	sendMsg, err := getUplinkNASTransport(amfUeNgapID, ranUeNgapID, nasPdu, gnb.GetMccAndMncInOctets(), gnb.GetTacInBytes())
+	sendMsg, err := getUplinkNASTransport(ellaUeNgapID, ranUeNgapID, nasPdu, gnb.GetMccAndMncInOctets(), gnb.GetTacInBytes())
 	if err != nil {
 		return fmt.Errorf("Error getting ueId %d NAS Authentication Response", ranUeNgapID)
 	}

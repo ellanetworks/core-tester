@@ -17,7 +17,7 @@ type HandoverNotifyBuilder struct {
 
 func HandoverNotify(gnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
 	return NewHandoverNotifyBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetUserLocation(gnb).
 		Build()
 }
@@ -41,7 +41,7 @@ func NewHandoverNotifyBuilder() *HandoverNotifyBuilder {
 	return &HandoverNotifyBuilder{pdu, ies}
 }
 
-func (builder *HandoverNotifyBuilder) SetAmfUeNgapId(amfUeNgapID int64) *HandoverNotifyBuilder {
+func (builder *HandoverNotifyBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *HandoverNotifyBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.HandoverNotifyIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -50,7 +50,7 @@ func (builder *HandoverNotifyBuilder) SetAmfUeNgapId(amfUeNgapID int64) *Handove
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 

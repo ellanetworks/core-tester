@@ -19,7 +19,7 @@ type HandoverRequiredBuilder struct {
 
 func HandoverRequired(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
 	return NewHandoverRequiredBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetHandoverType(ngapType.HandoverTypePresentIntra5gs).
 		SetCause(ngapType.CauseRadioNetworkPresentHandoverDesirableForRadioReason).
 		SetPduSessionResourceList(ue.GetPduSessions()).
@@ -47,7 +47,7 @@ func NewHandoverRequiredBuilder() *HandoverRequiredBuilder {
 	return &HandoverRequiredBuilder{pdu, ies}
 }
 
-func (builder *HandoverRequiredBuilder) SetAmfUeNgapId(amfUeNgapID int64) *HandoverRequiredBuilder {
+func (builder *HandoverRequiredBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *HandoverRequiredBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.HandoverRequiredIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -56,7 +56,7 @@ func (builder *HandoverRequiredBuilder) SetAmfUeNgapId(amfUeNgapID int64) *Hando
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 

@@ -14,8 +14,8 @@ import (
 
 var ConnCount int
 
-func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
-	remote := amf.GetAmfIpPort().String()
+func InitConn(ella *context.GNBElla, gnb *context.GNBContext) error {
+	remote := ella.GetEllaIpPort().String()
 	gnbAddrPort := gnb.GetGnbIpPort()
 	local := netip.AddrPortFrom(gnbAddrPort.Addr(), gnbAddrPort.Port()+uint16(ConnCount)).String()
 	ConnCount++
@@ -35,26 +35,26 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 		rem,
 		sctp.InitMsg{NumOstreams: 2, MaxInstreams: 2})
 	if err != nil {
-		amf.SetSCTPConn(nil)
+		ella.SetSCTPConn(nil)
 		return err
 	}
 
-	amf.SetSCTPConn(conn)
+	ella.SetSCTPConn(conn)
 	gnb.SetN2(conn)
 
 	err = conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
 	if err != nil {
-		log.Errorf("[GNB][SCTP] Error in subscribing SCTP events for %v AMF\n", amf.GetAmfId())
+		log.Errorf("[GNB][SCTP] Error in subscribing SCTP events for %v AMF\n", ella.GetEllaId())
 	}
 
-	go GnbListen(amf, gnb)
+	go GnbListen(ella, gnb)
 
 	return nil
 }
 
-func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
+func GnbListen(ella *context.GNBElla, gnb *context.GNBContext) {
 	buf := make([]byte, 65535)
-	conn := amf.GetSCTPConn()
+	conn := ella.GetSCTPConn()
 
 	for {
 		n, info, err := conn.SCTPRead(buf[:])
@@ -68,6 +68,6 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 		copy(forwardData, buf[:n])
 
 		// handling NGAP message.
-		go Dispatch(amf, gnb, forwardData)
+		go Dispatch(ella, gnb, forwardData)
 	}
 }

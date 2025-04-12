@@ -9,13 +9,13 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func AmfConfigurationUpdateAcknowledge() ([]byte, error) {
-	message := BuildAmfConfigurationUpdateAcknowledge()
+func EllaConfigurationUpdateAcknowledge() ([]byte, error) {
+	message := BuildEllaConfigurationUpdateAcknowledge()
 
 	return ngap.Encoder(message)
 }
 
-func BuildAmfConfigurationUpdateAcknowledge() (pdu ngapType.NGAPPDU) {
+func BuildEllaConfigurationUpdateAcknowledge() (pdu ngapType.NGAPPDU) {
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
 

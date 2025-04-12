@@ -24,19 +24,19 @@ import (
 )
 
 type GNBContext struct {
-	dataInfo       DataInfo    // gnb data plane information
-	controlInfo    ControlInfo // gnb control plane information
-	uePool         sync.Map    // map[int64]*GNBUe, UeRanNgapId as key
-	prUePool       sync.Map    // map[int64]*GNBUe, PrUeId as key
-	amfPool        sync.Map    // map[int64]*GNBAmf, AmfId as key
-	teidPool       sync.Map    // map[uint32]*GNBUe, downlinkTeid as key
-	sliceInfo      Slice
-	idUeGenerator  int64  // ran UE id.
-	idAmfGenerator int64  // ran amf id
-	teidGenerator  uint32 // ran UE downlink Teid
-	ueIpGenerator  uint8  // ran ue ip.
-	pagedUEs       []PagedUE
-	pagedUELock    sync.Mutex
+	dataInfo        DataInfo    // gnb data plane information
+	controlInfo     ControlInfo // gnb control plane information
+	uePool          sync.Map    // map[int64]*GNBUe, UeRanNgapId as key
+	prUePool        sync.Map    // map[int64]*GNBUe, PrUeId as key
+	ellaPool        sync.Map    // map[int64]*GNBElla, EllaId as key
+	teidPool        sync.Map    // map[uint32]*GNBUe, downlinkTeid as key
+	sliceInfo       Slice
+	idUeGenerator   int64  // ran UE id.
+	idEllaGenerator int64  // ran ella id
+	teidGenerator   uint32 // ran UE downlink Teid
+	ueIpGenerator   uint8  // ran ue ip.
+	pagedUEs        []PagedUE
+	pagedUELock     sync.Mutex
 }
 
 type DataInfo struct {
@@ -72,7 +72,7 @@ func (gnb *GNBContext) NewRanGnbContext(gnbId, mcc, mnc, tac, sst, sd string, n2
 	gnb.sliceInfo.sd = sd
 	gnb.sliceInfo.sst = sst
 	gnb.idUeGenerator = 1
-	gnb.idAmfGenerator = 1
+	gnb.idEllaGenerator = 1
 	gnb.controlInfo.gnbIpPort = n2
 	gnb.teidGenerator = 1
 	gnb.ueIpGenerator = 3
@@ -87,7 +87,7 @@ func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUe
 	ranId := gnb.getRanUeId()
 	ue.SetRanUeId(ranId)
 
-	ue.SetAmfUeId(0)
+	ue.SetEllaUeId(0)
 
 	// Connect gNB and UE's channels
 	ue.SetGnbRx(gnbRx)
@@ -104,15 +104,15 @@ func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUe
 		gnb.prUePool.Store(prUeId, ue)
 	}
 
-	// select AMF with Capacity is more than 0.
-	amf := gnb.selectAmFByActive()
-	if amf == nil {
-		return nil, errors.New("no AMF available for this UE")
+	// select Ella with Capacity is more than 0.
+	ella := gnb.selectEllaByActive()
+	if ella == nil {
+		return nil, errors.New("no Ella available for this UE")
 	}
 
-	// set amfId and SCTP association for UE.
-	ue.SetAmfId(amf.GetAmfId())
-	ue.SetSCTP(amf.GetSCTPConn())
+	// set ellaId and SCTP association for UE.
+	ue.SetEllaId(ella.GetEllaId())
+	ue.SetSCTP(ella.GetSCTPConn())
 
 	// return UE Context.
 	return ue, nil
@@ -174,61 +174,61 @@ func (gnb *GNBContext) GetGnbUeByTeid(teid uint32) (*GNBUe, error) {
 	return ue.(*GNBUe), nil
 }
 
-func (gnb *GNBContext) NewGnBAmf(ipPort netip.AddrPort) *GNBAmf {
-	amf := &GNBAmf{}
+func (gnb *GNBContext) NewGnbElla(ipPort netip.AddrPort) *GNBElla {
+	ella := &GNBElla{}
 
-	// set id for AMF.
-	amfId := gnb.getRanAmfId()
-	amf.setAmfId(amfId)
+	// set id for Ella.
+	ellaId := gnb.getRanEllaId()
+	ella.setEllaId(ellaId)
 
-	// set AMF ip and AMF port.
-	amf.SetAmfIpPort(ipPort)
+	// set Ella ip and Ella port.
+	ella.SetEllaIpPort(ipPort)
 
-	// set state to AMF.
-	amf.SetStateInactive()
+	// set state to Ella.
+	ella.SetStateInactive()
 
-	// store AMF in the AMF Pool of GNB.
-	gnb.amfPool.Store(amfId, amf)
+	// store Ella in the Ella Pool of GNB.
+	gnb.ellaPool.Store(ellaId, ella)
 
-	// Plmns and slices supported by AMF initialized.
-	amf.SetLenPlmns(0)
-	amf.SetLenSlice(0)
+	// Plmns and slices supported by Ella initialized.
+	ella.SetLenPlmns(0)
+	ella.SetLenSlice(0)
 
-	// return AMF Context
-	return amf
+	// return Ella Context
+	return ella
 }
 
-func (gnb *GNBContext) IterGnbAmf() iter.Seq[*GNBAmf] {
-	return func(yield func(*GNBAmf) bool) {
-		gnb.amfPool.Range(func(key, value any) bool {
-			return yield(value.(*GNBAmf))
+func (gnb *GNBContext) IterGnbElla() iter.Seq[*GNBElla] {
+	return func(yield func(*GNBElla) bool) {
+		gnb.ellaPool.Range(func(key, value any) bool {
+			return yield(value.(*GNBElla))
 		})
 	}
 }
 
-func (gnb *GNBContext) FindGnbAmfByIpPort(ipPort netip.AddrPort) *GNBAmf {
-	for amf := range gnb.IterGnbAmf() {
-		if amf.GetAmfIpPort() == ipPort {
-			return amf
+func (gnb *GNBContext) FindGnbEllaByIpPort(ipPort netip.AddrPort) *GNBElla {
+	for ella := range gnb.IterGnbElla() {
+		if ella.GetEllaIpPort() == ipPort {
+			return ella
 		}
 	}
 	return nil
 }
 
-func (gnb *GNBContext) DeleteGnBAmf(amfId int64) {
-	gnb.amfPool.Delete(amfId)
+func (gnb *GNBContext) DeleteGnBElla(ellaId int64) {
+	gnb.ellaPool.Delete(ellaId)
 }
 
-func (gnb *GNBContext) selectAmFByActive() *GNBAmf {
-	var amfSelect *GNBAmf
+func (gnb *GNBContext) selectEllaByActive() *GNBElla {
+	var ellaSelect *GNBElla
 	var maxWeightFactor int64 = -1
-	for amf := range gnb.IterGnbAmf() {
-		if amf.GetState() == Active && maxWeightFactor < amf.tnla.tnlaWeightFactor {
-			maxWeightFactor = amf.tnla.tnlaWeightFactor
-			amfSelect = amf
+	for ella := range gnb.IterGnbElla() {
+		if ella.GetState() == Active && maxWeightFactor < ella.tnla.tnlaWeightFactor {
+			maxWeightFactor = ella.tnla.tnlaWeightFactor
+			ellaSelect = ella
 		}
 	}
-	return amfSelect
+	return ellaSelect
 }
 
 func (gnb *GNBContext) getRanUeId() int64 {
@@ -252,12 +252,12 @@ func (gnb *GNBContext) GetUeTeid(ue *GNBUe) uint32 {
 	return id
 }
 
-// for AMFs Pools.
-func (gnb *GNBContext) getRanAmfId() int64 {
-	id := gnb.idAmfGenerator
+// for Ellas Pools.
+func (gnb *GNBContext) getRanEllaId() int64 {
+	id := gnb.idEllaGenerator
 
-	// increment Amf Id
-	gnb.idAmfGenerator++
+	// increment Ella Id
+	gnb.idEllaGenerator++
 
 	return id
 }
@@ -385,7 +385,7 @@ func (gnb *GNBContext) Terminate() {
 
 	n2 := gnb.GetN2()
 	if n2 != nil {
-		log.Info("[GNB][AMF] N2/TNLA Terminated")
+		log.Info("[GNB][Ella] N2/TNLA Terminated")
 		n2.Close()
 	}
 

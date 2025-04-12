@@ -24,7 +24,7 @@ type PDUSessionResourceSetupResponseBuilder struct {
 
 func PDUSessionResourceSetupResponse(pduSessions []*context.GnbPDUSession, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {
 	return NewPDUSessionResourceSetupResponseBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetPDUSessionResourceSetupListSURes(gnb, pduSessions).
 		Build()
 }
@@ -48,7 +48,7 @@ func NewPDUSessionResourceSetupResponseBuilder() *PDUSessionResourceSetupRespons
 	return &PDUSessionResourceSetupResponseBuilder{pdu, ies}
 }
 
-func (builder *PDUSessionResourceSetupResponseBuilder) SetAmfUeNgapId(amfUeNgapID int64) *PDUSessionResourceSetupResponseBuilder {
+func (builder *PDUSessionResourceSetupResponseBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *PDUSessionResourceSetupResponseBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.PDUSessionResourceSetupResponseIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -57,7 +57,7 @@ func (builder *PDUSessionResourceSetupResponseBuilder) SetAmfUeNgapId(amfUeNgapI
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 

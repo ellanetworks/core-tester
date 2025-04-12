@@ -23,9 +23,9 @@ func HandlerUeInitialized(ue *context.GNBUe, message []byte, gnb *context.GNBCon
 
 	// Send Initial UE Message
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngap, conn)
+	err = sender.SendToElla(ngap, conn)
 	if err != nil {
-		log.Errorln("[GNB][AMF] Error sending initial UE message: ", err)
+		log.Errorln("[GNB][Ella] Error sending initial UE message: ", err)
 	}
 }
 
@@ -37,9 +37,9 @@ func HandlerUeOngoing(ue *context.GNBUe, message []byte, gnb *context.GNBContext
 
 	// Send Uplink Nas Transport
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngap, conn)
+	err = sender.SendToElla(ngap, conn)
 	if err != nil {
-		log.Errorln("[GNB][AMF] Error sending Uplink Nas Transport: ", err)
+		log.Errorln("[GNB][Ella] Error sending Uplink Nas Transport: ", err)
 	}
 }
 
@@ -51,8 +51,8 @@ func HandlerUeReady(ue *context.GNBUe, message []byte, gnb *context.GNBContext) 
 
 	// Send Uplink Nas Transport
 	conn := ue.GetSCTP()
-	err = sender.SendToAmF(ngap, conn)
+	err = sender.SendToElla(ngap, conn)
 	if err != nil {
-		log.Errorln("[GNB][AMF] Error sending Uplink Nas Transport: ", err)
+		log.Errorln("[GNB][Ella] Error sending Uplink Nas Transport: ", err)
 	}
 }

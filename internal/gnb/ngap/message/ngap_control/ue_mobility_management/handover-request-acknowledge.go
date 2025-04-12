@@ -22,7 +22,7 @@ type HandoverRequestAcknowledgeBuilder struct {
 
 func HandoverRequestAcknowledge(gnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
 	return NewHandoverRequestAcknowledgeBuilder().
-		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
+		SetEllaUeNgapId(ue.GetEllaUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetPduSessionResourceAdmittedList(gnb, ue.GetPduSessions()).
 		SetTargetToSourceContainer().
 		Build()
@@ -47,7 +47,7 @@ func NewHandoverRequestAcknowledgeBuilder() *HandoverRequestAcknowledgeBuilder {
 	return &HandoverRequestAcknowledgeBuilder{pdu, ies}
 }
 
-func (builder *HandoverRequestAcknowledgeBuilder) SetAmfUeNgapId(amfUeNgapID int64) *HandoverRequestAcknowledgeBuilder {
+func (builder *HandoverRequestAcknowledgeBuilder) SetEllaUeNgapId(ellaUeNgapID int64) *HandoverRequestAcknowledgeBuilder {
 	// AMF UE NGAP ID
 	ie := ngapType.HandoverRequestAcknowledgeIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
@@ -56,7 +56,7 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetAmfUeNgapId(amfUeNgapID int
 	ie.Value.AMFUENGAPID = new(ngapType.AMFUENGAPID)
 
 	aMFUENGAPID := ie.Value.AMFUENGAPID
-	aMFUENGAPID.Value = amfUeNgapID
+	aMFUENGAPID.Value = ellaUeNgapID
 
 	builder.ies.List = append(builder.ies.List, ie)
 
