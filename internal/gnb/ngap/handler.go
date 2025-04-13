@@ -540,20 +540,20 @@ func HandlerNgSetupResponse(ella *context.GNBElla, gnb *context.GNBContext, mess
 	}
 
 	if err {
-		log.Fatal("[GNB][Ella] AMF is inactive")
+		log.Fatal("[GNB][Ella] Ella is inactive")
 		ella.SetStateInactive()
 	} else {
 		ella.SetStateActive()
-		log.Info("[GNB][Ella] AMF Name: ", ella.GetEllaName())
-		log.Info("[GNB][Ella] State of AMF: Active")
-		log.Info("[GNB][Ella] Capacity of AMF: ", ella.GetEllaCapacity())
+		log.Info("[GNB][Ella] Ella Name: ", ella.GetEllaName())
+		log.Info("[GNB][Ella] State of Ella: Active")
+		log.Info("[GNB][Ella] Capacity of Ella: ", ella.GetEllaCapacity())
 		for i := 0; i < ella.GetLenPlmns(); i++ {
 			mcc, mnc := ella.GetPlmnSupport(i)
-			log.Info("[GNB][Ella] PLMNs Identities Supported by AMF -- mcc: ", mcc, " mnc:", mnc)
+			log.Info("[GNB][Ella] PLMNs Identities Supported by Ella -- mcc: ", mcc, " mnc:", mnc)
 		}
 		for i := 0; i < ella.GetLenSlice(); i++ {
 			sst, sd := ella.GetSliceSupport(i)
-			log.Info("[GNB][Ella] List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
+			log.Info("[GNB][Ella] List of slices Supported by Ella -- sst:", sst, " sd:", sd)
 		}
 	}
 }
