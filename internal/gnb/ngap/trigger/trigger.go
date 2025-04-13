@@ -6,6 +6,7 @@ package trigger
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	ueSender "github.com/ellanetworks/core-tester/internal/gnb/nas/message/sender"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/message/ngap_control/interface_management"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/message/ngap_control/pdu_session_management"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/message/ngap_control/ue_context_management"
@@ -182,5 +183,45 @@ func SendHandoverNotify(gnb *context.GNBContext, ue *context.GNBUe) {
 	err = sender.SendToElla(ngapMsg, conn)
 	if err != nil {
 		log.Fatal("[GNB][NGAP] Error sending Handover Notify: ", err)
+	}
+}
+
+func TriggerXnHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext, prUeId int64) {
+	log.Info("[GNB] Initiating Xn UE Handover")
+
+	gnbUeContext, err := oldGnb.GetGnbUeByPrUeId(prUeId)
+	if err != nil {
+		log.Fatal("[GNB][NGAP] Error getting UE from PR UE ID: ", err)
+	}
+
+	newGnbRx := make(chan context.UEMessage, 1)
+	newGnbTx := make(chan context.UEMessage, 1)
+	newGnb.GetInboundChannel() <- context.UEMessage{GNBRx: newGnbRx, GNBTx: newGnbTx, PrUeId: gnbUeContext.GetPrUeId(), UEContext: gnbUeContext, IsHandover: true}
+
+	msg := context.UEMessage{GNBRx: newGnbRx, GNBTx: newGnbTx, GNBInboundChannel: newGnb.GetInboundChannel()}
+
+	ueSender.SendMessageToUe(gnbUeContext, msg)
+}
+
+func TriggerNgapHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext, prUeId int64) {
+	log.Info("[GNB] Initiating NGAP UE Handover")
+
+	gnbUeContext, err := oldGnb.GetGnbUeByPrUeId(prUeId)
+	if err != nil {
+		log.Fatal("[GNB][NGAP] Error getting UE from PR UE ID: ", err)
+	}
+
+	gnbUeContext.SetHandoverGnodeB(newGnb)
+
+	// send NG setup response.
+	ngapMsg, err := ue_mobility_management.HandoverRequired(oldGnb, newGnb, gnbUeContext)
+	if err != nil {
+		log.Info("[GNB][NGAP] Error sending Handover Required ", err)
+	}
+
+	conn := gnbUeContext.GetSCTP()
+	err = sender.SendToElla(ngapMsg, conn)
+	if err != nil {
+		log.Fatal("[GNB][NGAP] Error sending Handover Required: ", err)
 	}
 }
