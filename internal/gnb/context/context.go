@@ -64,6 +64,7 @@ type PagedUE struct {
 }
 
 func (gnb *GNBContext) NewRanGnbContext(gnbId, mcc, mnc, tac, sst, sd string, n2, n3 netip.AddrPort) {
+	log.Println("Creating GNB Context")
 	gnb.controlInfo.mcc = mcc
 	gnb.controlInfo.mnc = mnc
 	gnb.controlInfo.tac = tac
@@ -119,6 +120,7 @@ func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUe
 }
 
 func (gnb *GNBContext) GetInboundChannel() chan UEMessage {
+	log.Println("gnb.controlInfo: ", gnb.controlInfo)
 	return gnb.controlInfo.inboundChannel
 }
 

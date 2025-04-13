@@ -5,6 +5,8 @@ import (
 	"os/signal"
 	"sync"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
 	serviceNas "github.com/ellanetworks/core-tester/internal/gnb/nas/service"
@@ -25,6 +27,7 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 		conf.GNodeB.N2.AddrPort,
 		conf.GNodeB.N3.AddrPort,
 	)
+	log.Println("Created GNB Context")
 
 	ellaConfig := conf.Ella
 	ella := gnb.NewGnbElla(ellaConfig.N2.AddrPort)
