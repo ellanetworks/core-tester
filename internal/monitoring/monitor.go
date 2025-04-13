@@ -56,12 +56,3 @@ func (m *Monitor) GetRqsGlobal() int64 {
 func (m *Monitor) GetAvailability() bool {
 	return m.availability
 }
-
-// calcula a latência dos UEs para um dado intervalo
-func (m *Monitor) SetLtGlobal(ltLocal int64) {
-	m.LtRegisterGlobal += ltLocal
-}
-
-func (m *Monitor) GetLtGlobal() int64 {
-	return m.LtRegisterGlobal
-}

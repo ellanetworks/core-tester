@@ -10,7 +10,7 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-	customNgapType "github.com/ellanetworks/core-tester/lib/ngap/ngapType"
+	customNgapType "github.com/ellanetworks/core-tester/internal/gnb/ngap/ngapType"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
