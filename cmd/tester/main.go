@@ -9,7 +9,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/common/tools"
 	"github.com/ellanetworks/core-tester/internal/config"
-	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/procedures"
 	log "github.com/sirupsen/logrus"
 )
@@ -24,18 +23,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config file: %v", err)
 	}
-	_, err = gnb.InitGnb(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize gNB: %v", err)
-	}
+	// _, err = gnb.InitGnb(cfg)
+	// if err != nil {
+	// 	log.Fatalf("Failed to initialize gNB: %v", err)
+	// }
+	TestMultiUesInQueue(cfg)
 	log.Println("gNB initialized successfully")
 	select {}
 }
 
-func TestMultiUesInQueue() {
+func TestMultiUesInQueue(cfg config.Config) {
 	wg := sync.WaitGroup{}
-
-	cfg := config.GetConfig()
 
 	numGnb := 1
 
