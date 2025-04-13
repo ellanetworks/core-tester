@@ -27,10 +27,7 @@ func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gn
 
 	baseGnbId := cfg.GNodeB.PlmnList.GnbId
 	for i := 1; i <= count; i++ {
-		gnbContext, err := gnb.InitGnb(cfg)
-		if err != nil {
-			log.Fatal("[TESTER] Failed to initialize gNB: ", err)
-		}
+		gnbContext := gnb.InitGnb(cfg, wg)
 		gnbs[cfg.GNodeB.PlmnList.GnbId] = gnbContext
 		wg.Add(1)
 

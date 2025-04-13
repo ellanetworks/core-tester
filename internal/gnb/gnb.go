@@ -1,7 +1,9 @@
 package gnb
 
 import (
-	"fmt"
+	"os"
+	"os/signal"
+	"sync"
 
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
@@ -10,7 +12,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
 )
 
-func InitGnb(conf config.Config) (*context.GNBContext, error) {
+func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 	gnb := &context.GNBContext{}
 
 	gnb.NewRanGnbContext(
@@ -29,11 +31,22 @@ func InitGnb(conf config.Config) (*context.GNBContext, error) {
 
 	err := ngap.InitConn(ella, gnb)
 	if err != nil {
-		return nil, fmt.Errorf("could not connect to SCTP: %w", err)
+		return nil
 	}
 
 	trigger.SendNgSetupRequest(gnb, ella)
 	serviceNas.InitServer(gnb)
 
-	return gnb, nil
+	go func() {
+		// control the signals
+		sigGnb := make(chan os.Signal, 1)
+		signal.Notify(sigGnb, os.Interrupt)
+
+		// Block until a signal is received.
+		<-sigGnb
+		// gnb.Terminate()
+		wg.Done()
+	}()
+
+	return gnb
 }

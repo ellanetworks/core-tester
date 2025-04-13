@@ -23,10 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config file: %v", err)
 	}
-	// _, err = gnb.InitGnb(cfg)
-	// if err != nil {
-	// 	log.Fatalf("Failed to initialize gNB: %v", err)
-	// }
 	TestMultiUesInQueue(cfg)
 	log.Println("gNB initialized successfully")
 	select {}
@@ -38,6 +34,8 @@ func TestMultiUesInQueue(cfg config.Config) {
 	numGnb := 1
 
 	gnbs := tools.CreateGnbs(numGnb, cfg, &wg)
+
+	log.Println("Created gNBs")
 
 	time.Sleep(1 * time.Second)
 
