@@ -157,7 +157,6 @@ func readConfig(configPath string) (Config, error) {
 }
 
 func setLogLevel(cfg Config) {
-	// Output to stdout instead of the default stderr
 	log.SetOutput(os.Stdout)
 
 	if cfg.Logs.Level == 0 {
