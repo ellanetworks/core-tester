@@ -121,6 +121,7 @@ func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUe
 
 func (gnb *GNBContext) GetInboundChannel() chan UEMessage {
 	log.Info("gnb.controlInfo: ", gnb.controlInfo)
+	log.Info("gnb.controlInfo.inboundChannel: ", gnb.controlInfo.inboundChannel)
 	return gnb.controlInfo.inboundChannel
 }
 
