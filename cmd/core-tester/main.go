@@ -6,7 +6,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ellanetworks/core-tester/config"
 	"github.com/ellanetworks/core-tester/internal/templates"
-	pcap "github.com/ellanetworks/core-tester/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -67,10 +66,6 @@ func main() {
 						log.Info("[TESTER][AMF] AMF IP/Port: ", amf.AddrPort)
 					}
 					log.Info("---------------------------------------")
-
-					if c.IsSet("pcap") {
-						pcap.CaptureTraffic(c.Path("pcap"))
-					}
 
 					tunnelMode := config.TunnelDisabled
 					if c.Bool("tunnel") {

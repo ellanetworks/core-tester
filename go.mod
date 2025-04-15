@@ -13,7 +13,6 @@ require (
 	github.com/free5gc/openapi v1.0.8
 	github.com/free5gc/util v1.0.7-0.20250305152753-9b83de3c2612
 	github.com/goccy/go-yaml v1.16.0
-	github.com/gopacket/gopacket v1.3.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.6
@@ -34,6 +33,5 @@ require (
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 )
