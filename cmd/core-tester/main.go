@@ -19,7 +19,7 @@ func init() {
 func main() {
 	app := &cli.App{
 		Flags: []cli.Flag{
-			&cli.PathFlag{Name: "config", Usage: "Configuration file path. (Default: ./config/config.yml)"},
+			&cli.PathFlag{Name: "config", Usage: "Configuration file path. (Default: ./internal/config/config.yml)"},
 		},
 		Commands: []*cli.Command{
 			{
