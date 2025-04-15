@@ -18,8 +18,6 @@ import (
 )
 
 // suci-0(SUPI type: IMSI)-mcc-mnc-routingIndicator-protectionScheme-homeNetworkPublicKeyID-schemeOutput.
-// TODO: suci-1(SUPI type: NAI)-homeNetworkID-routingIndicator-protectionScheme-homeNetworkPublicKeyID-schemeOutput.
-
 const (
 	PrefixIMSI     = "imsi-"
 	PrefixSUCI     = "suci"

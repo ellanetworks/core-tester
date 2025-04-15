@@ -16,14 +16,13 @@ import (
 )
 
 // TS 24.501 8.2.26
-func getSecurityModeComplete(nasMessageContainer []uint8) (nasPdu []byte) {
+func getSecurityModeComplete(nasMessageContainer []uint8) []byte {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeSecurityModeComplete)
 
 	securityModeComplete := nasMessage.NewSecurityModeComplete(0)
 	securityModeComplete.ExtendedProtocolDiscriminator.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
-	// TODO: modify security header type if need security protected
 	securityModeComplete.SpareHalfOctetAndSecurityHeaderType.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
 	securityModeComplete.SpareHalfOctetAndSecurityHeaderType.SetSpareHalfOctet(0)
 	securityModeComplete.SecurityModeCompleteMessageIdentity.SetMessageType(nas.MsgTypeSecurityModeComplete)
@@ -50,27 +49,15 @@ func getSecurityModeComplete(nasMessageContainer []uint8) (nasPdu []byte) {
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }
 
 func SecurityModeComplete(ue *context.UEContext, rinmr uint8) ([]byte, error) {
 	var registrationRequest []byte
-
-	// ueSecurityCapability := context.SetUESecurityCapability(ue)
-
-	/*
-		requestedNssai := new(nasType.RequestedNSSAI)
-		nssai := nasConvert.SnssaiToNas(models.Snssai{Sst: ue.Snssai.Sst, Sd: ue.Snssai.Sd})
-		requestedNssai.Buffer = nssai
-		requestedNssai.Len = uint8(len(nssai))
-		requestedNssai.Iei = nasMessage.RegistrationRequestRequestedNSSAIType
-	*/
 	if rinmr == 1 {
 		registrationRequest = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
 	} else {
-		// TODO: free5gc does not send rinmr and wait for restransmission of registration request
-		// registrationRequest = nil
 		registrationRequest = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
 	}
 

@@ -14,7 +14,7 @@ import (
 	"github.com/free5gc/nas/nasType"
 )
 
-func GetPduSessionEstablishmentRequest(pduSessionId uint8) (nasPdu []byte) {
+func GetPduSessionEstablishmentRequest(pduSessionId uint8) []byte {
 	m := nas.NewMessage()
 	m.GsmMessage = nas.NewGsmMessage()
 	m.GsmHeader.SetMessageType(nas.MsgTypePDUSessionEstablishmentRequest)
@@ -48,8 +48,8 @@ func GetPduSessionEstablishmentRequest(pduSessionId uint8) (nasPdu []byte) {
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }
 
 func GetPduSessionReleaseRequest(pduSessionId uint8) (nasPdu []byte) {

@@ -17,7 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ServiceRequest(ue *context.UEContext) (nasPdu []byte) {
+func ServiceRequest(ue *context.UEContext) []byte {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeServiceRequest)
@@ -59,11 +59,11 @@ func ServiceRequest(ue *context.UEContext) (nasPdu []byte) {
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
+	nasPdu := data.Bytes()
 	if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 		security.DirectionUplink, nasPdu); err != nil {
 		log.Errorf("[UE][NAS] Error while encrypting NAS Message: %s", err)
-		return
+		return nil
 	}
 	serviceRequest.NASMessageContainer = nasType.NewNASMessageContainer(nasMessage.ServiceRequestNASMessageContainerType)
 	serviceRequest.NASMessageContainer.SetLen(uint16(len(nasPdu)))
@@ -80,7 +80,7 @@ func ServiceRequest(ue *context.UEContext) (nasPdu []byte) {
 
 	nasPdu = data.Bytes()
 
-	return
+	return nasPdu
 }
 
 func boolToUint16(b bool) uint16 {

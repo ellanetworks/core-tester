@@ -17,7 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.RequestedNSSAI, uplinkDataStatus *nasType.UplinkDataStatus, capability bool, ue *context.UEContext) (nasPdu []byte) {
+func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.RequestedNSSAI, uplinkDataStatus *nasType.UplinkDataStatus, capability bool, ue *context.UEContext) []byte {
 	ueSecurityCapability := ue.GetUeSecurityCapability()
 
 	m := nas.NewMessage()
@@ -84,13 +84,13 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
+	nasPdu := data.Bytes()
 
 	if pduFlag != 0 {
 		if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, nasPdu); err != nil {
 			log.Errorf("[UE][NAS] Error while encrypting NAS Message: %s", err)
-			return
+			return nasPdu
 		}
 
 		registrationRequest.NASMessageContainer = nasType.NewNASMessageContainer(nasMessage.RegistrationRequestNASMessageContainerType)
@@ -108,5 +108,5 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 
 		nasPdu = data.Bytes()
 	}
-	return
+	return nasPdu
 }

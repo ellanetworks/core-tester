@@ -61,7 +61,6 @@ type UEContext struct {
 	PduSession        [16]*UEPDUSession
 	amfInfo           Amf
 
-	// TODO: Modify config so you can configure these parameters per PDUSession
 	Dnn        string
 	Snssai     models.Snssai
 	TunnelMode config.TunnelMode

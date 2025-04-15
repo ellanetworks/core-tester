@@ -79,7 +79,6 @@ func HandlerAuthenticationRequest(ue *context.UEContext, message *nas.Message) {
 	paramAutn, check := ue.DeriveRESstarAndSetKey(ue.UeSecurity.AuthenticationSubs, rand[:], ue.UeSecurity.Snn, autn[:])
 
 	switch check {
-
 	case "MAC failure":
 		log.Info("[UE][NAS][MAC] Authenticity of the authentication request message: FAILED")
 		log.Info("[UE][NAS] Send authentication failure with MAC failure")
@@ -240,7 +239,6 @@ func HandlerRegistrationAccept(ue *context.UEContext, message *nas.Message) {
 	// use the slice allowed by the network
 	// in PDU session request
 	if ue.Snssai.Sst == 0 {
-
 		// check the allowed NSSAI received from the 5GC
 		snssai := message.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
 
@@ -384,7 +382,7 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 		sd := pduSessionEstablishmentAccept.SNSSAI.GetSD()
 
 		log.Info("[UE][NAS] PDU session QoS RULES: ", QosRule)
-		log.Info("[UE][NAS] PDU session DNN: ", string(dnn))
+		log.Info("[UE][NAS] PDU session DNN: ", dnn)
 		log.Info("[UE][NAS] PDU session NSSAI -- sst: ", sst, " sd: ",
 			fmt.Sprintf("%x%x%x", sd[0], sd[1], sd[2]))
 		log.Info("[UE][NAS] PDU address received: ", pduSession.GetIp())
@@ -398,7 +396,10 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 			log.Error("[UE][NAS] Unable to delete PDU Session ", pduSessionId, " from UE ", ue.GetMsin(), " as the PDU Session was not found. Ignoring.")
 			break
 		}
-		ue.DeletePduSession(pduSessionId)
+		err = ue.DeletePduSession(pduSessionId)
+		if err != nil {
+			log.Error("[UE][NAS] Unable to delete PDU Session ", pduSessionId, " from UE ", ue.GetMsin(), " as ", err)
+		}
 		log.Info("[UE][NAS] Successfully released PDU Session ", pduSessionId, " from UE Context")
 		trigger.InitPduSessionReleaseComplete(ue, pduSession)
 

@@ -24,7 +24,7 @@ func DeregistrationRequest(ue *context.UEContext) ([]byte, error) {
 	return pdu, nil
 }
 
-func getDeregistrationRequest(ue *context.UEContext) (nasPdu []byte) {
+func getDeregistrationRequest(ue *context.UEContext) []byte {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration)
@@ -62,6 +62,6 @@ func getDeregistrationRequest(ue *context.UEContext) (nasPdu []byte) {
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }

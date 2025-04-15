@@ -13,7 +13,7 @@ import (
 	"github.com/free5gc/nas/nasType"
 )
 
-func AuthenticationFailure(cause, eapMsg string, paramAutn []byte) (nasPdu []byte) {
+func AuthenticationFailure(cause, eapMsg string, paramAutn []byte) []byte {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeAuthenticationFailure)
@@ -25,7 +25,6 @@ func AuthenticationFailure(cause, eapMsg string, paramAutn []byte) (nasPdu []byt
 	authenticationFailure.AuthenticationFailureMessageIdentity.SetMessageType(nas.MsgTypeAuthenticationFailure)
 
 	switch cause {
-
 	case "MAC failure":
 		authenticationFailure.Cause5GMM.SetCauseValue(nasMessage.Cause5GMMMACFailure)
 	case "SQN failure":
@@ -43,6 +42,6 @@ func AuthenticationFailure(cause, eapMsg string, paramAutn []byte) (nasPdu []byt
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }

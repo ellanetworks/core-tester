@@ -27,15 +27,17 @@ func EncodeNasPduWithSecurity(ue *context.UEContext, pdu []byte, securityHeaderT
 	return NASEncode(ue, m, securityContextAvailable, newSecurityContext)
 }
 
-func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable bool, newSecurityContext bool) (payload []byte, err error) {
+func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable bool, newSecurityContext bool) ([]byte, error) {
 	var sequenceNumber uint8
+	var payload []byte
+	var err error
 	if ue == nil {
 		err = fmt.Errorf("amfUe is nil")
-		return
+		return nil, err
 	}
 	if msg == nil {
 		err = fmt.Errorf("Nas message is empty")
-		return
+		return nil, err
 	}
 
 	if !securityContextAvailable {
@@ -49,27 +51,24 @@ func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable
 		sequenceNumber = ue.UeSecurity.ULCount.SQN()
 		payload, err = msg.PlainNasEncode()
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		if msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtected && msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext {
-			// TODO: Support for ue has nas connection in both accessType
-			// make ciphering of NAS message.
 			if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 				security.DirectionUplink, payload); err != nil {
 				log.Errorf("[UE][NAS] Error while encrypting NAS Message: %s", err)
-				return
+				return nil, err
 			}
 		}
 
 		// add sequence number
 		payload = append([]byte{sequenceNumber}, payload[:]...)
-		mac32 := make([]byte, 4)
 
-		mac32, err = security.NASMacCalculate(ue.UeSecurity.IntegrityAlg, ue.UeSecurity.KnasInt, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP, security.DirectionUplink, payload)
+		mac32, err := security.NASMacCalculate(ue.UeSecurity.IntegrityAlg, ue.UeSecurity.KnasInt, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP, security.DirectionUplink, payload)
 		if err != nil {
 			log.Errorf("[UE][NAS] Error while calculating MAC of NAS Message: %s", err)
-			return
+			return nil, err
 		}
 
 		// Add mac value
@@ -81,5 +80,5 @@ func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable
 		// Increase UL Count
 		ue.UeSecurity.ULCount.AddOne()
 	}
-	return
+	return payload, nil
 }

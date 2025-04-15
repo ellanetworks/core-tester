@@ -15,7 +15,8 @@ func PDUSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *contex
 	return ngap.Encoder(message)
 }
 
-func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) (pdu ngapType.NGAPPDU) {
+func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionIds []ngapType.PDUSessionID) ngapType.NGAPPDU {
+	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
 
@@ -73,5 +74,5 @@ func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionId
 
 	pDUSessionResourceReleaseResponseIEs.List = append(pDUSessionResourceReleaseResponseIEs.List, ie)
 
-	return
+	return pdu
 }

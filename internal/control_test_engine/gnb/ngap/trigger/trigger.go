@@ -39,7 +39,7 @@ func SendPduSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *co
 	log.Info("[GNB] Initiating PDU Session Release Response")
 
 	if len(pduSessionIds) == 0 {
-		log.Fatal("[GNB][NGAP] Trying to send a PDU Session Release Reponse for no PDU Session")
+		log.Fatal("[GNB][NGAP] Trying to send a PDU Session Release Response for no PDU Session")
 	}
 
 	ngapMsg, err := pdu_session_management.PDUSessionReleaseResponse(pduSessionIds, ue)

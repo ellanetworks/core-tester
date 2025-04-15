@@ -17,7 +17,6 @@ import (
 var TestPlmn ngapType.PLMNIdentity
 
 func init() {
-	// TODO PLMN is hardcode here.
 	TestPlmn.Value = aper.OctetString("\x02\xf8\x39")
 }
 
@@ -26,7 +25,8 @@ func GetInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5
 	return ngap.Encoder(message)
 }
 
-func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5G, gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
+func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5G, gnb *context.GNBContext) ngapType.NGAPPDU {
+	pdu := ngapType.NGAPPDU{}
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -59,7 +59,6 @@ func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUT
 	ie.Value.Present = ngapType.InitialUEMessageIEsPresentNASPDU
 	ie.Value.NASPDU = new(ngapType.NASPDU)
 
-	// TODO: complete NAS-PDU
 	nASPDU := ie.Value.NASPDU
 	nASPDU.Value = nasPdu
 
@@ -131,7 +130,7 @@ func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUT
 	initialUEMessageIEs.List = append(initialUEMessageIEs.List, ie)
 
 	// Allowed NSSAI (optional)
-	return
+	return pdu
 }
 
 func SendInitialUeMessage(registrationRequest []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {

@@ -57,7 +57,7 @@ func ReleasComplete_UlNasTransport(pduSession *context.UEPDUSession, ue *context
 	return pdu, nil
 }
 
-func getUlNasTransport_PduSessionEstablishmentRequest(pduSessionId uint8, dnn string, sNssai *models.Snssai) (nasPdu []byte) {
+func getUlNasTransport_PduSessionEstablishmentRequest(pduSessionId uint8, dnn string, sNssai *models.Snssai) []byte {
 	pduSessionEstablishmentRequest := sm_5gs.GetPduSessionEstablishmentRequest(pduSessionId)
 
 	m := nas.NewMessage()
@@ -108,8 +108,8 @@ func getUlNasTransport_PduSessionEstablishmentRequest(pduSessionId uint8, dnn st
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }
 
 func getUlNasTransport_PduSessionEstablishmentRelease(pduSessionId uint8) (nasPdu []byte) {
@@ -143,7 +143,7 @@ func getUlNasTransport_PduSessionEstablishmentRelease(pduSessionId uint8) (nasPd
 	return
 }
 
-func getUlNasTransport_PduSessionReleaseComplete(pduSessionId uint8, dnn string, sNssai *models.Snssai) (nasPdu []byte) {
+func getUlNasTransport_PduSessionReleaseComplete(pduSessionId uint8, dnn string, sNssai *models.Snssai) []byte {
 	pduSessionReleaseRequest := sm_5gs.GetPduSessionReleaseComplete(pduSessionId)
 
 	m := nas.NewMessage()
@@ -194,6 +194,6 @@ func getUlNasTransport_PduSessionReleaseComplete(pduSessionId uint8, dnn string,
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }

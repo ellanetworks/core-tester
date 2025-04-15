@@ -21,7 +21,6 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 
 	// check if message is null.
 	if message == nil {
-		// TODO return error
 		log.Fatal("[UE][NAS] NAS message is nil")
 	}
 
@@ -36,7 +35,6 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 
 	// check if NAS is security protected
 	if m.SecurityHeaderType != nas.SecurityHeaderTypePlainNas {
-
 		log.Info("[UE][NAS] Message with security header")
 
 		// information to check integrity and ciphered.
@@ -53,7 +51,6 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 		// check security header type.
 		cph = false
 		switch m.SecurityHeaderType {
-
 		case nas.SecurityHeaderTypeIntegrityProtected:
 			log.Info("[UE][NAS] Message with integrity")
 
@@ -122,21 +119,17 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 		} else {
 			log.Info("[UE][NAS] successful NAS MAC verification")
 		}
-
 	} else {
-
 		log.Info("[UE][NAS] Message without security header")
 
 		// decode NAS message.
 		err := m.PlainNasDecode(&payload)
 		if err != nil {
-			// TODO return error
 			log.Info("[UE][NAS] Decode NAS error", err)
 		}
 	}
 
 	switch m.GmmHeader.GetMessageType() {
-
 	case nas.MsgTypeAuthenticationRequest:
 		// handler authentication request.
 		log.Info("[UE][NAS] Receive Authentication Request")

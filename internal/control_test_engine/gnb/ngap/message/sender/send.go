@@ -12,7 +12,6 @@ import (
 )
 
 func SendToAmF(message []byte, conn *sctp.SCTPConn) error {
-	// TODO included information for SCTP association.
 	info := &sctp.SndRcvInfo{
 		Stream: uint16(0),
 		PPID:   ngapSctp.NGAP_PPID,

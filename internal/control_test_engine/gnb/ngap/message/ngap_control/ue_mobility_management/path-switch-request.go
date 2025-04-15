@@ -134,7 +134,10 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 		}
 		item := ngapType.PDUSessionResourceToBeSwitchedDLItem{PDUSessionID: ngapType.PDUSessionID{Value: pduSession.GetPduSessionId()}}
 		buf := new(bytes.Buffer)
-		binary.Write(buf, binary.BigEndian, pduSession.GetTeidDownlink())
+		err := binary.Write(buf, binary.BigEndian, pduSession.GetTeidDownlink())
+		if err != nil {
+			log.Errorf("[GNB][NGAP] Failed to write teid downlink: %v", err)
+		}
 		transfer := ngapType.PathSwitchRequestTransfer{
 			DLNGUUPTNLInformation: ngapType.UPTransportLayerInformation{
 				Present: ngapType.UPTransportLayerInformationPresentGTPTunnel,

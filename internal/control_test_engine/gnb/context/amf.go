@@ -34,7 +34,6 @@ type GNBAmf struct {
 	lenSlice            int
 	lenPlmn             int
 	backupAMF           string
-	// TODO implement the other fields of the AMF Context
 }
 
 type TNLAssociation struct {
@@ -45,10 +44,9 @@ type TNLAssociation struct {
 }
 
 type SliceSupported struct {
-	sst    string
-	sd     string
-	status string
-	next   *SliceSupported
+	sst  string
+	sd   string
+	next *SliceSupported
 }
 
 type PlmnSupported struct {
@@ -104,13 +102,10 @@ func (amf *GNBAmf) AddedPlmn(plmn string) {
 	for i := 0; i < amf.lenPlmn; i++ {
 		// end of the list
 		if mov.next == nil {
-
 			newElem := &PlmnSupported{}
 			newElem.mcc, newElem.mnc = convertMccMnc(plmn)
 			newElem.next = nil
-
 			mov.next = newElem
-
 		} else {
 			mov = mov.next
 		}
@@ -136,14 +131,12 @@ func (amf *GNBAmf) AddedSlice(sst string, sd string) {
 	for i := 0; i < amf.lenSlice; i++ {
 		// end of the list
 		if mov.next == nil {
-
 			newElem := &SliceSupported{}
 			newElem.sst = sst
 			newElem.sd = sd
 			newElem.next = nil
 
 			mov.next = newElem
-
 		} else {
 			mov = mov.next
 		}

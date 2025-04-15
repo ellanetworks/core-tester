@@ -14,7 +14,7 @@ import (
 	"github.com/free5gc/nas/nasType"
 )
 
-func AuthenticationResponse(authenticationResponseParam []uint8, eapMsg string) (nasPdu []byte) {
+func AuthenticationResponse(authenticationResponseParam []uint8, eapMsg string) []byte {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeAuthenticationResponse)
@@ -44,6 +44,6 @@ func AuthenticationResponse(authenticationResponseParam []uint8, eapMsg string) 
 		fmt.Println(err.Error())
 	}
 
-	nasPdu = data.Bytes()
-	return
+	nasPdu := data.Bytes()
+	return nasPdu
 }

@@ -47,7 +47,6 @@ func TestMultiUesInQueue(numUes int, tunnelMode config.TunnelMode, dedicatedGnb 
 	gnbs := tools.CreateGnbs(numGnb, cfg, &wg)
 
 	// Wait for gNB to be connected before registering UEs
-	// TODO: We should wait for NGSetupResponse instead
 	time.Sleep(1 * time.Second)
 
 	cfg.Ue.TunnelMode = tunnelMode
