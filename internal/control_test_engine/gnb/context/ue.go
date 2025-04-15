@@ -306,7 +306,6 @@ func (pduSession *GnbPDUSession) GetPduType() (valor string) {
 		valor = "Ipv4Ipv6"
 	case 3:
 		valor = "ethernet"
-
 	}
 	return
 }

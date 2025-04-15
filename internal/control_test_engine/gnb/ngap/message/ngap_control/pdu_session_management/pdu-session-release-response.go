@@ -74,5 +74,5 @@ func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionId
 
 	pDUSessionResourceReleaseResponseIEs.List = append(pDUSessionResourceReleaseResponseIEs.List, ie)
 
-	return
+	return pdu
 }

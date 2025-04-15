@@ -36,13 +36,15 @@ func (v *IPv4Port) UnmarshalYAML(ctx context.Context, unmarshal func(interface{}
 }
 
 // WithNextAddr returns a copy of IPv4Port with the next IPv4 address.
-func (v IPv4Port) WithNextAddr() (copy IPv4Port) {
-	copy.AddrPort = netip.AddrPortFrom(v.Addr().Next(), v.Port())
-	return
+func (v IPv4Port) WithNextAddr() IPv4Port {
+	c := IPv4Port{}
+	c.AddrPort = netip.AddrPortFrom(v.Addr().Next(), v.Port())
+	return c
 }
 
 // WithPort returns a copy of IPv4Port with the specified port number.
-func (v IPv4Port) WithPort(port uint16) (copy IPv4Port) {
-	copy.AddrPort = netip.AddrPortFrom(v.Addr(), port)
-	return
+func (v IPv4Port) WithPort(port uint16) IPv4Port {
+	c := IPv4Port{}
+	c.AddrPort = netip.AddrPortFrom(v.Addr(), port)
+	return c
 }

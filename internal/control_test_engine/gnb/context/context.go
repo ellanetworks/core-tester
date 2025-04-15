@@ -80,9 +80,6 @@ func (gnb *GNBContext) NewRanGnbContext(gnbId, mcc, mnc, tac, sst, sd string, n2
 }
 
 func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUeId int64, tmsi *nasType.GUTI5G) (*GNBUe, error) {
-	// TODO if necessary add more information for UE.
-	// TODO implement mutex
-
 	// new instance of ue.
 	ue := &GNBUe{}
 
@@ -235,8 +232,6 @@ func (gnb *GNBContext) selectAmFByActive() *GNBAmf {
 }
 
 func (gnb *GNBContext) getRanUeId() int64 {
-	// TODO implement mutex
-
 	id := gnb.idUeGenerator
 
 	// increment RanUeId
@@ -246,8 +241,6 @@ func (gnb *GNBContext) getRanUeId() int64 {
 }
 
 func (gnb *GNBContext) GetUeTeid(ue *GNBUe) uint32 {
-	// TODO implement mutex
-
 	id := gnb.teidGenerator
 
 	// store UE in the TEID Pool of GNB.

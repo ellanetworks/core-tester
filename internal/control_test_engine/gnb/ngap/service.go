@@ -63,7 +63,6 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 	conn := amf.GetSCTPConn()
 
 	for {
-
 		n, info, err := conn.SCTPRead(buf[:])
 		if err != nil {
 			break
