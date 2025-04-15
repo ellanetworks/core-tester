@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/config"
 	context2 "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"

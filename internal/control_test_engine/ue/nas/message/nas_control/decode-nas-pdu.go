@@ -5,16 +5,17 @@
 package nas_control
 
 import (
+	"fmt"
+
 	"github.com/free5gc/nas"
 )
 
-func GetNasPduFromPduAccept(dlNas *nas.Message) (m *nas.Message) {
-	// get payload container from DL NAS.
+func GetNasPduFromPduAccept(dlNas *nas.Message) (*nas.Message, error) {
 	payload := dlNas.DLNASTransport.GetPayloadContainerContents()
-	m = new(nas.Message)
+	m := new(nas.Message)
 	err := m.PlainNasDecode(&payload)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("nas decode error: %v", err)
 	}
-	return
+	return m, nil
 }

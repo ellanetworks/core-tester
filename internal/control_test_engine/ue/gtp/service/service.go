@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/config"
 	gnbContext "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
 	gtpLink "github.com/free5gc/go-gtp5gnl/linkcmd"

@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/templates"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
