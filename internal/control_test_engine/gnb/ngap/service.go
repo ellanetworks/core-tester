@@ -5,6 +5,7 @@
 package ngap
 
 import (
+	"my5G-RANTester/internal/control_test_engine/gnb/context"
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
@@ -63,6 +64,7 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 	conn := amf.GetSCTPConn()
 
 	for {
+
 		n, info, err := conn.SCTPRead(buf[:])
 		if err != nil {
 			break
@@ -76,4 +78,5 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 		// handling NGAP message.
 		go Dispatch(amf, gnb, forwardData)
 	}
+
 }

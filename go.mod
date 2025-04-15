@@ -1,8 +1,8 @@
-module github.com/ellanetworks/core-tester
+module my5G-RANTester
 
-go 1.24.0
+go 1.23.0
 
-toolchain go1.24.2
+toolchain go1.24.1
 
 require (
 	github.com/davecgh/go-spew v1.1.1
@@ -14,9 +14,13 @@ require (
 	github.com/free5gc/util v1.0.7-0.20250305152753-9b83de3c2612
 	github.com/goccy/go-yaml v1.17.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
+	github.com/mitchellh/mapstructure v1.5.0
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/vishvananda/netlink v1.3.0
+	github.com/wmnsk/go-gtp v0.8.11
+	golang.org/x/net v0.38.0
 )
 
 require (

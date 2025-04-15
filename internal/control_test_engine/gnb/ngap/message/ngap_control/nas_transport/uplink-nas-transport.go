@@ -6,9 +6,11 @@ package nas_transport
 
 import (
 	"fmt"
+	"my5G-RANTester/internal/control_test_engine/gnb/context"
 
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
+
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -63,6 +65,7 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 	ie.Value.Present = ngapType.UplinkNASTransportIEsPresentNASPDU
 	ie.Value.NASPDU = new(ngapType.NASPDU)
 
+	// TODO: complete NAS-PDU
 	nASPDU := ie.Value.NASPDU
 	nASPDU.Value = nasPdu
 
@@ -88,7 +91,7 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 
 	uplinkNasTransportIEs.List = append(uplinkNasTransportIEs.List, ie)
 
-	return pdu
+	return
 }
 
 func SendUplinkNasTransport(message []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {

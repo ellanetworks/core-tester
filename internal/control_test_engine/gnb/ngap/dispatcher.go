@@ -7,12 +7,14 @@ package ngap
 import (
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
+
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
 )
 
 func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 	if message == nil {
+		// TODO return error
 		log.Info("[GNB][NGAP] NGAP message is nil")
 	}
 
@@ -26,9 +28,11 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 
 	// handle NGAP message.
 	switch ngapMsg.Present {
+
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 
 		switch ngapMsg.InitiatingMessage.ProcedureCode.Value {
+
 		case ngapType.ProcedureCodeDownlinkNASTransport:
 			// handler NGAP Downlink NAS Transport.
 			log.Info("[GNB][NGAP] Receive Downlink NAS Transport")
@@ -83,6 +87,7 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
 
 		switch ngapMsg.SuccessfulOutcome.ProcedureCode.Value {
+
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Response.
 			log.Info("[GNB][NGAP] Receive NG Setup Response")
@@ -104,6 +109,7 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		switch ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value {
+
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Failure.
 			log.Info("[GNB][NGAP] Receive Ng Setup Failure")

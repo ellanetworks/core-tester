@@ -10,7 +10,9 @@ import (
 )
 
 func Dispatch(ue *context.GNBUe, message []byte, gnb *context.GNBContext) {
+
 	switch ue.GetState() {
+
 	case context.Initialized:
 		// handler UE message.
 		handler.HandlerUeInitialized(ue, message, gnb)

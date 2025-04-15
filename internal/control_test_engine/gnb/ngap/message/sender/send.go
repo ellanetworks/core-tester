@@ -6,8 +6,8 @@ package sender
 
 import (
 	"fmt"
+	"my5G-RANTester/lib/ngap/ngapSctp"
 
-	"github.com/ellanetworks/core-tester/lib/ngap/ngapSctp"
 	"github.com/ishidawataru/sctp"
 )
 

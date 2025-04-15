@@ -7,6 +7,7 @@ package pdu_session_management
 import (
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
+
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -67,12 +68,12 @@ func buildPDUSessionReleaseResponse(amfUeNgapID, ranUeNgapID int64, pduSessionId
 		pDUSessionResourceReleasedItemRelRes := ngapType.PDUSessionResourceReleasedItemRelRes{}
 
 		pDUSessionResourceReleasedItemRelRes.PDUSessionID = pduSessionId
-		pDUSessionResourceReleasedItemRelRes.PDUSessionResourceReleaseResponseTransfer = []byte{0o0}
+		pDUSessionResourceReleasedItemRelRes.PDUSessionResourceReleaseResponseTransfer = []byte{00}
 
 		pDUSessionResourceReleasedListRelRes.List = append(pDUSessionResourceReleasedListRelRes.List, pDUSessionResourceReleasedItemRelRes)
 	}
 
 	pDUSessionResourceReleaseResponseIEs.List = append(pDUSessionResourceReleaseResponseIEs.List, ie)
 
-	return pdu
+	return
 }

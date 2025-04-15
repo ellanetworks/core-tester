@@ -8,8 +8,11 @@ import (
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
-	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/free5gc/aper"
+
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type HandoverRequiredBuilder struct {
@@ -212,6 +215,7 @@ func GetSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetG
 }
 
 func buildSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) (data ngapType.SourceNGRANNodeToTargetNGRANNodeTransparentContainer) {
+
 	// RRC Container
 	data.RRCContainer.Value = aper.OctetString("\x00\x00\x11")
 

@@ -6,17 +6,22 @@ package nas_transport
 
 import (
 	"fmt"
+	"my5G-RANTester/internal/control_test_engine/gnb/context"
 
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap"
+
+	"github.com/free5gc/aper"
+
 	"github.com/free5gc/ngap/ngapType"
 )
 
 var TestPlmn ngapType.PLMNIdentity
 
 func init() {
+	// TODO PLMN is hardcode here.
 	TestPlmn.Value = aper.OctetString("\x02\xf8\x39")
 }
 
@@ -25,8 +30,8 @@ func GetInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5
 	return ngap.Encoder(message)
 }
 
-func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5G, gnb *context.GNBContext) ngapType.NGAPPDU {
-	pdu := ngapType.NGAPPDU{}
+func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5G, gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
+
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -59,6 +64,7 @@ func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUT
 	ie.Value.Present = ngapType.InitialUEMessageIEsPresentNASPDU
 	ie.Value.NASPDU = new(ngapType.NASPDU)
 
+	// TODO: complete NAS-PDU
 	nASPDU := ie.Value.NASPDU
 	nASPDU.Value = nasPdu
 
@@ -130,7 +136,7 @@ func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUT
 	initialUEMessageIEs.List = append(initialUEMessageIEs.List, ie)
 
 	// Allowed NSSAI (optional)
-	return pdu
+	return
 }
 
 func SendInitialUeMessage(registrationRequest []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {

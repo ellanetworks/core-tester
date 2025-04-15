@@ -7,6 +7,7 @@ package ue_context_management
 import (
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
+
 	"github.com/free5gc/ngap/ngapType"
 )
 

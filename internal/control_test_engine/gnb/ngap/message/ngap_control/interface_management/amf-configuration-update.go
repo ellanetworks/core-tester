@@ -6,6 +6,7 @@ package interface_management
 
 import (
 	"github.com/free5gc/ngap"
+
 	"github.com/free5gc/ngap/ngapType"
 )
 
