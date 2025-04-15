@@ -155,7 +155,7 @@ func getDefautlConfigPath() string {
 		log.Fatal("Failed to get executable path. ", err.Error())
 	}
 	dir := path.Dir(b)
-	configPath, err := filepath.Abs(dir + "/config/config.yml")
+	configPath, err := filepath.Abs(dir + "/internal/config/config.yml")
 	if err != nil {
 		log.Fatal("Could not find defautl config at \"", configPath, "\". ", err.Error())
 	}
