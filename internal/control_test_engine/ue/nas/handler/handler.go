@@ -354,10 +354,6 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 			log.Fatal("[UE][NAS] Error in PDU Session Establishment Accept, PDU Session Type not the expected value")
 		}
 
-		if reflect.ValueOf(pduSessionEstablishmentAccept.AuthorizedQosRules).IsZero() {
-			log.Fatal("[UE][NAS] Error in PDU Session Establishment Accept, Authorized QoS Rules is missing")
-		}
-
 		if reflect.ValueOf(pduSessionEstablishmentAccept.SessionAMBR).IsZero() {
 			log.Fatal("[UE][NAS] Error in PDU Session Establishment Accept, Session AMBR is missing")
 		}
@@ -376,15 +372,12 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 		UeIp := pduSessionEstablishmentAccept.GetPDUAddressInformation()
 		pduSession.SetIp(UeIp)
 
-		// get QoS Rules
-		QosRule := pduSessionEstablishmentAccept.AuthorizedQosRules.GetQosRule()
 		// get DNN
 		dnn := pduSessionEstablishmentAccept.DNN.GetDNN()
 		// get SNSSAI
 		sst := pduSessionEstablishmentAccept.SNSSAI.GetSST()
 		sd := pduSessionEstablishmentAccept.SNSSAI.GetSD()
 
-		log.Info("[UE][NAS] PDU session QoS RULES: ", QosRule)
 		log.Info("[UE][NAS] PDU session DNN: ", dnn)
 		log.Info("[UE][NAS] PDU session NSSAI -- sst: ", sst, " sd: ",
 			fmt.Sprintf("%x%x%x", sd[0], sd[1], sd[2]))
