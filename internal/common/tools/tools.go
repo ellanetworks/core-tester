@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb"
 	gnbCxt "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/trigger"

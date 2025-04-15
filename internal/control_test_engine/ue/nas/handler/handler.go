@@ -309,7 +309,10 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 	}
 
 	// getting PDU Session establishment accept.
-	payloadContainer := nas_control.GetNasPduFromPduAccept(message)
+	payloadContainer, err := nas_control.GetNasPduFromPduAccept(message)
+	if err != nil {
+		log.Fatal("[UE][NAS] Error in DL NAS Transport, ", err)
+	}
 
 	switch payloadContainer.GsmHeader.GetMessageType() {
 	case nas.MsgTypePDUSessionEstablishmentAccept:

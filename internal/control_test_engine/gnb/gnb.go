@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	serviceNas "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas/service"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap"
