@@ -80,7 +80,6 @@ func (gnb *GNBContext) NewRanGnbContext(gnbId, mcc, mnc, tac, sst, sd string, n2
 }
 
 func (gnb *GNBContext) NewGnBUe(gnbTx chan UEMessage, gnbRx chan UEMessage, prUeId int64, tmsi *nasType.GUTI5G) (*GNBUe, error) {
-
 	// TODO if necessary add more information for UE.
 	// TODO implement mutex
 
@@ -236,7 +235,6 @@ func (gnb *GNBContext) selectAmFByActive() *GNBAmf {
 }
 
 func (gnb *GNBContext) getRanUeId() int64 {
-
 	// TODO implement mutex
 
 	id := gnb.idUeGenerator
@@ -248,7 +246,6 @@ func (gnb *GNBContext) getRanUeId() int64 {
 }
 
 func (gnb *GNBContext) GetUeTeid(ue *GNBUe) uint32 {
-
 	// TODO implement mutex
 
 	id := gnb.teidGenerator
@@ -278,22 +275,6 @@ func (gnb *GNBContext) SetN2(n2 *sctp.SCTPConn) {
 
 func (gnb *GNBContext) GetN2() *sctp.SCTPConn {
 	return gnb.controlInfo.n2
-}
-
-func (gnb *GNBContext) setGnbId(id string) {
-	gnb.controlInfo.gnbId = id
-}
-
-func (gnb *GNBContext) setTac(tac string) {
-	gnb.controlInfo.tac = tac
-}
-
-func (gnb *GNBContext) setMnc(mnc string) {
-	gnb.controlInfo.mnc = mnc
-}
-
-func (gnb *GNBContext) setMcc(mcc string) {
-	gnb.controlInfo.mcc = mcc
 }
 
 func (gnb *GNBContext) GetGnbId() string {
@@ -342,10 +323,6 @@ func (gnb *GNBContext) GetGnbIdInBytes() []byte {
 	return resu
 }
 
-func (gnb *GNBContext) getTac() string {
-	return gnb.controlInfo.tac
-}
-
 func (gnb *GNBContext) GetTacInBytes() []byte {
 	// changed for bytes.
 	resu, err := hex.DecodeString(gnb.controlInfo.tac)
@@ -353,10 +330,6 @@ func (gnb *GNBContext) GetTacInBytes() []byte {
 		fmt.Println(err)
 	}
 	return resu
-}
-
-func (gnb *GNBContext) getSlice() (string, string) {
-	return gnb.sliceInfo.sst, gnb.sliceInfo.sd
 }
 
 func (gnb *GNBContext) GetSliceInBytes() ([]byte, []byte) {
@@ -381,7 +354,7 @@ func (gnb *GNBContext) GetPLMNIdentity() ngapType.PLMNIdentity {
 
 func (gnb *GNBContext) GetNRCellIdentity() ngapType.NRCellIdentity {
 	nci := gnb.GetGnbIdInBytes()
-	var slice = make([]byte, 2)
+	slice := make([]byte, 2)
 
 	return ngapType.NRCellIdentity{
 		Value: aper.BitString{
@@ -413,7 +386,6 @@ func (gnb *GNBContext) GetMccAndMncInOctets() []byte {
 }
 
 func (gnb *GNBContext) Terminate() {
-
 	// close all connections
 	close(gnb.GetInboundChannel())
 	log.Info("[GNB][UE] NAS channel Terminated")

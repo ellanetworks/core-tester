@@ -5,7 +5,6 @@ import (
 	"unsafe"
 )
 
-var clientNum int
 var NGAP_PPID uint32 = 60
 
 func init() {

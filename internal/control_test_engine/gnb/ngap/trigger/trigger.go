@@ -136,7 +136,6 @@ func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
 	if err != nil {
 		log.Info("[GNB][AMF] Error sending NG Setup Request: ", err)
 	}
-
 }
 
 func SendPathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) {

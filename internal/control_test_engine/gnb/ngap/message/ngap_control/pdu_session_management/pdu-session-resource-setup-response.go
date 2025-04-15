@@ -7,16 +7,12 @@ package pdu_session_management
 
 import (
 	"encoding/binary"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	customNgapType "github.com/ellanetworks/core-tester/lib/ngap/ngapType"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
-
-	customNgapType "my5G-RANTester/lib/ngap/ngapType"
-
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -125,7 +121,6 @@ func GetPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qo
 }
 
 func buildPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) (data customNgapType.PDUSessionResourceSetupResponseTransfer) {
-
 	// QoS Flow per TNL Information
 	qosFlowPerTNLInformation := &data.QosFlowPerTNLInformation
 	qosFlowPerTNLInformation.UPTransportLayerInformation.Present = ngapType.UPTransportLayerInformationPresentGTPTunnel

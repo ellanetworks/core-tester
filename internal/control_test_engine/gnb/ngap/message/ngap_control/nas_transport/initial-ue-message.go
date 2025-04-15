@@ -6,15 +6,11 @@ package nas_transport
 
 import (
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
 
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap"
-
-	"github.com/free5gc/aper"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -31,7 +27,6 @@ func GetInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5
 }
 
 func BuildInitialUEMessage(ranUeNgapID int64, nasPdu []byte, guti5g *nasType.GUTI5G, gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 

@@ -10,12 +10,11 @@ import (
 	"github.com/free5gc/ngap"
 
 	"github.com/free5gc/aper"
-
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
 func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -122,7 +121,6 @@ func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
 }
 
 func NGSetupRequest(gnb *context.GNBContext, name string) ([]byte, error) {
-
 	message := BuildNGSetupRequest(gnb)
 	// GlobalRANNodeID
 	ie := message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[0]

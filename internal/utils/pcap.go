@@ -5,16 +5,15 @@
 package pcap
 
 import (
-	"my5G-RANTester/config"
 	"os"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
-	"github.com/vishvananda/netlink"
-
+	"github.com/ellanetworks/core-tester/config"
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
 	"github.com/gopacket/gopacket/pcapgo"
+	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+	"github.com/vishvananda/netlink"
 )
 
 func CaptureTraffic(path cli.Path) {

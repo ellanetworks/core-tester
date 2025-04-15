@@ -8,9 +8,7 @@ package ngap
 import (
 	"encoding/binary"
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/nas/message/sender"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/trigger"
+	_ "net"
 	"net/netip"
 	"reflect"
 
@@ -18,7 +16,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas/message/sender"
 	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/trigger"
 	"github.com/free5gc/aper"
-
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
@@ -28,7 +25,6 @@ import (
 const notInformed = "not informed"
 
 func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	var ranUeId int64
 	var amfUeId int64
 	var messageNas []byte
@@ -36,7 +32,6 @@ func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAP
 	valueMessage := message.InitiatingMessage.Value.DownlinkNASTransport
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		switch ies.Id.Value {
 
 		case ngapType.ProtocolIEIDAMFUENGAPID:
@@ -73,13 +68,12 @@ func HandlerDownlinkNasTransport(gnb *context.GNBContext, message *ngapType.NGAP
 }
 
 func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	var ranUeId int64
 	var amfUeId int64
 	var messageNas []byte
 	var sst []string
 	var sd []string
-	var mobilityRestrict = "not informed"
+	mobilityRestrict := "not informed"
 	var maskedImeisv string
 	var ueSecurityCapabilities *ngapType.UESecurityCapabilities
 	var pDUSessionResourceSetupListCxtReq *ngapType.PDUSessionResourceSetupListCxtReq
@@ -88,7 +82,6 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 	valueMessage := message.InitiatingMessage.Value.InitialContextSetupRequest
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		// TODO MORE FIELDS TO CHECK HERE
 		switch ies.Id.Value {
 
@@ -181,7 +174,6 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 			}
 			pDUSessionResourceSetupListCxtReq = ies.Value.PDUSessionResourceSetupListCxtReq
 		}
-
 	}
 
 	ue := getUeFromContext(gnb, ranUeId, amfUeId)
@@ -228,7 +220,6 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 			var teidUplink aper.OctetString
 			for _, ie := range pDUSessionResourceSetupRequestTransfer.ProtocolIEs.List {
 				switch ie.Id.Value {
-
 				case ngapType.ProtocolIEIDULNGUUPTNLInformation:
 					uLNGUUPTNLInformation := ie.Value.ULNGUUPTNLInformation
 
@@ -258,7 +249,6 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 }
 
 func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	var ranUeId int64
 	var amfUeId int64
 	var pDUSessionResourceSetupList *ngapType.PDUSessionResourceSetupListSUReq
@@ -266,7 +256,6 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 	valueMessage := message.InitiatingMessage.Value.PDUSessionResourceSetupRequest
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		// TODO MORE FIELDS TO CHECK HERE
 		switch ies.Id.Value {
 
@@ -344,7 +333,6 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 			err := aper.UnmarshalWithParams(item.PDUSessionResourceSetupRequestTransfer, pdu, "valueExt")
 			if err == nil {
 				for _, ies := range pdu.ProtocolIEs.List {
-
 					switch ies.Id.Value {
 
 					case ngapType.ProtocolIEIDULNGUUPTNLInformation:
@@ -420,7 +408,6 @@ func HandlerPduSessionReleaseCommand(gnb *context.GNBContext, message *ngapType.
 	var pduSessionIds []ngapType.PDUSessionID
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		// TODO MORE FIELDS TO CHECK HERE
 		switch ies.Id.Value {
 
@@ -488,7 +475,6 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	valueMessage := message.SuccessfulOutcome.Value.NGSetupResponse
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		switch ies.Id.Value {
 
 		case ngapType.ProtocolIEIDAMFName:
@@ -576,7 +562,6 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 				}
 			}
 		}
-
 	}
 
 	if err {
@@ -596,7 +581,6 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 			log.Info("[GNB][AMF] List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
 		}
 	}
-
 }
 
 func HandlerNgSetupFailure(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
@@ -604,7 +588,6 @@ func HandlerNgSetupFailure(amf *context.GNBAmf, gnb *context.GNBContext, message
 	valueMessage := message.UnsuccessfulOutcome.Value.NGSetupFailure
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		switch ies.Id.Value {
 
 		case ngapType.ProtocolIEIDCause:
@@ -634,14 +617,12 @@ func HandlerNgSetupFailure(amf *context.GNBAmf, gnb *context.GNBContext, message
 }
 
 func HandlerUeContextReleaseCommand(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	valueMessage := message.InitiatingMessage.Value.UEContextReleaseCommand
 
 	var cause *ngapType.Cause
 	var ue_id *ngapType.RANUENGAPID
 
 	for _, ies := range valueMessage.ProtocolIEs.List {
-
 		switch ies.Id.Value {
 
 		case ngapType.ProtocolIEIDUENGAPIDs:
@@ -914,7 +895,6 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 				// TODO SEND ERROR INDICATION
 			}
 		}
-
 	}
 	ue := getUeFromContext(gnb, ranUeId, amfUeId)
 	if ue == nil {
@@ -1085,7 +1065,6 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 		var teidUplink aper.OctetString
 		for _, ie := range handOverRequestTransfer.ProtocolIEs.List {
 			switch ie.Id.Value {
-
 			case ngapType.ProtocolIEIDULNGUUPTNLInformation:
 				uLNGUUPTNLInformation := ie.Value.ULNGUUPTNLInformation
 
@@ -1127,7 +1106,6 @@ func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, messag
 			}
 			ranUeId = ies.Value.RANUENGAPID.Value
 		}
-
 	}
 	ue := getUeFromContext(gnb, ranUeId, amfUeId)
 	if ue == nil {
@@ -1151,7 +1129,6 @@ func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, messag
 }
 
 func HandlerPaging(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	valueMessage := message.InitiatingMessage.Value.Paging
 
 	var uEPagingIdentity *ngapType.UEPagingIdentity
@@ -1183,7 +1160,6 @@ func HandlerPaging(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 }
 
 func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
-
 	valueMessage := message.InitiatingMessage.Value.ErrorIndication
 
 	var amfUeId, ranUeId int64
