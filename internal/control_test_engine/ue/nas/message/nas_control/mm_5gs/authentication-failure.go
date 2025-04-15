@@ -14,7 +14,6 @@ import (
 )
 
 func AuthenticationFailure(cause, eapMsg string, paramAutn []byte) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeAuthenticationFailure)

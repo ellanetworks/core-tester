@@ -5,10 +5,8 @@
 package ue_context_management
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -35,7 +33,6 @@ func UeContextReleaseComplete(ue *context.GNBUe) ([]byte, error) {
 }
 
 func BuildUeContextReleaseComplete(amfUeNgapID, ranUeNgapID int64) (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
 

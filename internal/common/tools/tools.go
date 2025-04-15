@@ -6,20 +6,17 @@ package tools
 
 import (
 	"fmt"
-	"my5G-RANTester/config"
-	"my5G-RANTester/internal/control_test_engine/gnb"
-	gnbCxt "my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/trigger"
-	"my5G-RANTester/internal/control_test_engine/procedures"
-	"my5G-RANTester/internal/control_test_engine/ue"
-	ueCtx "my5G-RANTester/internal/control_test_engine/ue/context"
-	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"errors"
-
+	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb"
+	gnbCxt "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/trigger"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue"
+	ueCtx "github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -44,26 +41,7 @@ func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gn
 	return gnbs
 }
 
-func IncrementIP(origIP, cidr string) (string, error) {
-	ip := net.ParseIP(origIP)
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return origIP, err
-	}
-	for i := len(ip) - 1; i >= 0; i-- {
-		ip[i]++
-		if ip[i] != 0 {
-			break
-		}
-	}
-	if !ipNet.Contains(ip) {
-		return origIP, errors.New("Ip is not in provided subnet")
-	}
-	return ip.String(), nil
-}
-
 func gnbIdGenerator(i int, gnbId string) string {
-
 	gnbId_int, err := strconv.ParseInt(gnbId, 16, 0)
 	if err != nil {
 		log.Fatal("[UE][CONFIG] Given gnbId is invalid")
@@ -200,7 +178,6 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 }
 
 func IncrementMsin(i int, msin string) string {
-
 	msin_int, err := strconv.Atoi(msin)
 	if err != nil {
 		log.Fatal("[UE][CONFIG] Given MSIN is invalid")

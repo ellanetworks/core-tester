@@ -5,12 +5,11 @@
 package nas
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/nas/handler"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas/handler"
 )
 
 func Dispatch(ue *context.GNBUe, message []byte, gnb *context.GNBContext) {
-
 	switch ue.GetState() {
 
 	case context.Initialized:

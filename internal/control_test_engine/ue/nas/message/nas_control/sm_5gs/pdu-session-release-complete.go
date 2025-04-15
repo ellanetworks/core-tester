@@ -7,6 +7,7 @@ package sm_5gs
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 )

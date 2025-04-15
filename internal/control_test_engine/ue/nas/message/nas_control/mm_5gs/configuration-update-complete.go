@@ -7,9 +7,9 @@ package mm_5gs
 import (
 	"bytes"
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 )

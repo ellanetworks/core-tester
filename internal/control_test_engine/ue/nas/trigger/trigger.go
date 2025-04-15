@@ -10,12 +10,11 @@
 package trigger
 
 import (
-	context2 "my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control/mm_5gs"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/sender"
-
+	context2 "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control/mm_5gs"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/sender"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	log "github.com/sirupsen/logrus"
@@ -59,7 +58,6 @@ func InitPduSessionRequest(ue *context.UEContext) {
 }
 
 func InitPduSessionRequestInner(ue *context.UEContext, pduSession *context.UEPDUSession) {
-
 	ulNasTransport, err := mm_5gs.Request_UlNasTransport(pduSession, ue)
 	if err != nil {
 		log.Fatal("[UE][NAS] Error sending ul nas transport and pdu session establishment request: ", err)
@@ -153,7 +151,6 @@ func InitServiceRequest(ue *context.UEContext) {
 	// trigger ServiceRequest.
 	serviceRequest := mm_5gs.ServiceRequest(ue)
 	pdu, err := nas_control.EncodeNasPduWithSecurity(ue, serviceRequest, nas.SecurityHeaderTypeIntegrityProtected, true, false)
-
 	if err != nil {
 		log.Fatalf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
 	}

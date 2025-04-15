@@ -5,17 +5,13 @@
 package interface_management
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-
-	"github.com/free5gc/ngap"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/aper"
-
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
 func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -122,7 +118,6 @@ func BuildNGSetupRequest(gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
 }
 
 func NGSetupRequest(gnb *context.GNBContext, name string) ([]byte, error) {
-
 	message := BuildNGSetupRequest(gnb)
 	// GlobalRANNodeID
 	ie := message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[0]

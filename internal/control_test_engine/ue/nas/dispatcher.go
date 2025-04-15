@@ -5,10 +5,10 @@
 package nas
 
 import (
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/handler"
 	"reflect"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/handler"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
@@ -17,7 +17,6 @@ import (
 )
 
 func DispatchNas(ue *context.UEContext, message []byte) {
-
 	var cph bool
 
 	// check if message is null.
@@ -202,7 +201,6 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 	default:
 		log.Warnf("[UE][NAS] Received unknown NAS message 0x%x", m.GmmHeader.GetMessageType())
 	}
-
 }
 
 func handleCause5GSM(cause5SMM *nasType.Cause5GSM) {

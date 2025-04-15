@@ -5,16 +5,13 @@
 package ngap
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
 )
 
 func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
-
 	if message == nil {
 		// TODO return error
 		log.Info("[GNB][NGAP] NGAP message is nil")

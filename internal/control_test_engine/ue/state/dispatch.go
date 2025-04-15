@@ -5,8 +5,8 @@
 package state
 
 import (
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas"
 )
 
 func DispatchState(ue *context.UEContext, message []byte) {

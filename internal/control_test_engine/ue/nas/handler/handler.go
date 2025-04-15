@@ -7,14 +7,14 @@ package handler
 import (
 	"fmt"
 	"math"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control/mm_5gs"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/sender"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/trigger"
 	"reflect"
 	"time"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control/mm_5gs"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/sender"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/trigger"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/openapi/models"
@@ -22,7 +22,6 @@ import (
 )
 
 func HandlerAuthenticationReject(ue *context.UEContext, message *nas.Message) {
-
 	log.Info("[UE][NAS] Authentication of UE ", ue.GetUeId(), " failed")
 
 	ue.SetStateMM_DEREGISTERED()
@@ -270,7 +269,6 @@ func HandlerServiceAccept(ue *context.UEContext, message *nas.Message) {
 }
 
 func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message) {
-
 	// check the mandatory fields
 	if reflect.ValueOf(message.DLNASTransport.ExtendedProtocolDiscriminator).IsZero() {
 		log.Fatal("[UE][NAS] Error in DL NAS Transport, Extended Protocol is missing")
@@ -312,7 +310,7 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 		log.Fatal("[UE][NAS] Error in DL NAS Transport, PDU Session ID not expected value")
 	}
 
-	//getting PDU Session establishment accept.
+	// getting PDU Session establishment accept.
 	payloadContainer := nas_control.GetNasPduFromPduAccept(message)
 
 	switch payloadContainer.GsmHeader.GetMessageType() {
@@ -436,7 +434,6 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 }
 
 func HandlerIdentityRequest(ue *context.UEContext, message *nas.Message) {
-
 	// check the mandatory fields
 	if reflect.ValueOf(message.IdentityRequest.ExtendedProtocolDiscriminator).IsZero() {
 		log.Fatal("[UE][NAS] Error in Identity Request, Extended Protocol is missing")
@@ -477,7 +474,6 @@ func HandlerIdentityRequest(ue *context.UEContext, message *nas.Message) {
 }
 
 func HandlerConfigurationUpdateCommand(ue *context.UEContext, message *nas.Message) {
-
 	// check the mandatory fields
 	if reflect.ValueOf(message.ConfigurationUpdateCommand.ExtendedProtocolDiscriminator).IsZero() {
 		log.Fatal("[UE][NAS] Error in Configuration Update Command, Extended Protocol Discriminator is missing")

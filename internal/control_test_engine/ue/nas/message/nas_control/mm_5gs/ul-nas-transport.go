@@ -8,19 +8,17 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control/sm_5gs"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control/sm_5gs"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
-
 	"github.com/free5gc/openapi/models"
 )
 
 func Request_UlNasTransport(pduSession *context.UEPDUSession, ue *context.UEContext) ([]byte, error) {
-
 	pdu := getUlNasTransport_PduSessionEstablishmentRequest(pduSession.Id, ue.Dnn, &ue.Snssai)
 	if pdu == nil {
 		return nil, fmt.Errorf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
@@ -34,7 +32,6 @@ func Request_UlNasTransport(pduSession *context.UEPDUSession, ue *context.UECont
 }
 
 func Release_UlNasTransport(pduSession *context.UEPDUSession, ue *context.UEContext) ([]byte, error) {
-
 	pdu := getUlNasTransport_PduSessionEstablishmentRelease(pduSession.Id)
 	if pdu == nil {
 		return nil, fmt.Errorf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
@@ -48,7 +45,6 @@ func Release_UlNasTransport(pduSession *context.UEPDUSession, ue *context.UECont
 }
 
 func ReleasComplete_UlNasTransport(pduSession *context.UEPDUSession, ue *context.UEContext) ([]byte, error) {
-
 	pdu := getUlNasTransport_PduSessionReleaseComplete(pduSession.Id, ue.Dnn, &ue.Snssai)
 	if pdu == nil {
 		return nil, fmt.Errorf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
@@ -62,7 +58,6 @@ func ReleasComplete_UlNasTransport(pduSession *context.UEPDUSession, ue *context
 }
 
 func getUlNasTransport_PduSessionEstablishmentRequest(pduSessionId uint8, dnn string, sNssai *models.Snssai) (nasPdu []byte) {
-
 	pduSessionEstablishmentRequest := sm_5gs.GetPduSessionEstablishmentRequest(pduSessionId)
 
 	m := nas.NewMessage()
@@ -118,7 +113,6 @@ func getUlNasTransport_PduSessionEstablishmentRequest(pduSessionId uint8, dnn st
 }
 
 func getUlNasTransport_PduSessionEstablishmentRelease(pduSessionId uint8) (nasPdu []byte) {
-
 	pduSessionReleaseRequest := sm_5gs.GetPduSessionReleaseRequest(pduSessionId)
 
 	m := nas.NewMessage()

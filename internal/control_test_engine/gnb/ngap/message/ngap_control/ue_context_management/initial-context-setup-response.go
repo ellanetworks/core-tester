@@ -6,9 +6,8 @@
 package ue_context_management
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/pdu_session_management"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/pdu_session_management"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"

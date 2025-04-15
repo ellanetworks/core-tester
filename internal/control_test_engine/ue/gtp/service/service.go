@@ -6,20 +6,18 @@ package service
 
 import (
 	"fmt"
-	"my5G-RANTester/config"
-	gnbContext "my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-
-	gtpLink "github.com/free5gc/go-gtp5gnl/linkcmd"
-	gtpTunnel "github.com/free5gc/go-gtp5gnl/tuncmd"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
-
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ellanetworks/core-tester/config"
+	gnbContext "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	gtpLink "github.com/free5gc/go-gtp5gnl/linkcmd"
+	gtpTunnel "github.com/free5gc/go-gtp5gnl/tuncmd"
+	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
@@ -73,7 +71,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	time.Sleep(time.Second)
 
 	// Create FAR for uplink.
-	cmdAddFar := []string{nameInf,
+	cmdAddFar := []string{
+		nameInf,
 		"1",             // FAR ID = 1
 		"--action", "2", // Apply Action = FORW
 	}
@@ -84,7 +83,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	}
 
 	// Create FAR for downlink.
-	cmdAddFar = []string{nameInf,
+	cmdAddFar = []string{
+		nameInf,
 		"2",             // FAR ID = 2
 		"--action", "2", // Apply Action = FORW
 		"--hdr-creation", "0", strconv.FormatUint(uint64(gnbPduSession.GetTeidUplink()), 10), upfIp, "2152", // Outer Header Creation
@@ -96,7 +96,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	}
 
 	// Create PDR for uplink.
-	cmdAddPdr := []string{nameInf,
+	cmdAddPdr := []string{
+		nameInf,
 		"1",          // PDR ID = 1
 		"--pcd", "1", // Precedence = 1
 		"--hdr-rm", "0", // Outer Header Removal = GTP-U/UDP/IPv4
@@ -111,7 +112,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 		return
 	}
 
-	cmdAddPdr = []string{nameInf,
+	cmdAddPdr = []string{
+		nameInf,
 		"2",          // PDR ID = 2
 		"--pcd", "2", // Precedence = 2
 		"--ue-ipv4", ueIp, // UE IP Address
@@ -121,7 +123,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	}
 	if qfi > 0 {
 		// Create QER for downlink.
-		cmdAddQer := []string{nameInf,
+		cmdAddQer := []string{
+			nameInf,
 			"1",                                 // QER ID = 1
 			"--qfi", strconv.FormatInt(qfi, 10), // QFI
 		}

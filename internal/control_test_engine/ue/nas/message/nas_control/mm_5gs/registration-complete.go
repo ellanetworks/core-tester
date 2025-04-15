@@ -7,16 +7,15 @@ package mm_5gs
 import (
 	"bytes"
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/message/nas_control"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/message/nas_control"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 )
 
 func RegistrationComplete(ue *context.UEContext) ([]byte, error) {
-
 	pdu := getRegistrationComplete(nil)
 	pdu, err := nas_control.EncodeNasPduWithSecurity(ue, pdu, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
 	if err != nil {
@@ -27,7 +26,6 @@ func RegistrationComplete(ue *context.UEContext) ([]byte, error) {
 }
 
 func getRegistrationComplete(sorTransparentContainer []uint8) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeRegistrationComplete)

@@ -5,9 +5,9 @@
 package ngap
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
 	"net/netip"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/ishidawataru/sctp"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,7 +15,6 @@ import (
 var ConnCount int
 
 func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
-
 	// check AMF IP and AMF port.
 	remote := amf.GetAmfIpPort().String()
 	gnbAddrPort := gnb.GetGnbIpPort()
@@ -57,7 +56,6 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 }
 
 func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
-
 	buf := make([]byte, 65535)
 	conn := amf.GetSCTPConn()
 
@@ -86,5 +84,4 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 		go Dispatch(amf, gnb, forwardData)
 
 	}
-
 }

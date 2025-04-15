@@ -6,13 +6,12 @@ package sender
 
 import (
 	"fmt"
-	"my5G-RANTester/lib/ngap/ngapSctp"
 
+	"github.com/ellanetworks/core-tester/lib/ngap/ngapSctp"
 	"github.com/ishidawataru/sctp"
 )
 
 func SendToAmF(message []byte, conn *sctp.SCTPConn) error {
-
 	// TODO included information for SCTP association.
 	info := &sctp.SndRcvInfo{
 		Stream: uint16(0),

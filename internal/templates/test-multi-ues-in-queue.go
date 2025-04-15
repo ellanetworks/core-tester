@@ -5,14 +5,14 @@
 package templates
 
 import (
-	"my5G-RANTester/config"
-	"my5G-RANTester/internal/common/tools"
-	"my5G-RANTester/internal/control_test_engine/procedures"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
 
+	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/common/tools"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -65,9 +65,9 @@ func TestMultiUesInQueue(numUes int, tunnelMode config.TunnelMode, dedicatedGnb 
 		TimeBeforeXnHandover:     timeBeforeXnHandover,
 		TimeBeforeIdle:           timeBeforeIdle,
 		TimeBeforeReconnecting:   timeBeforeReconnecting,
-		NumPduSessions:           numPduSessions,		
-		RegistrationLoop:		  loop,		
-		LoopCount:				  loopCount,
+		NumPduSessions:           numPduSessions,
+		RegistrationLoop:         loop,
+		LoopCount:                loopCount,
 		TimeBeforeReregistration: timeBeforeReregistration,
 	}
 

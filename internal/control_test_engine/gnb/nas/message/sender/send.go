@@ -5,8 +5,7 @@
 package sender
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	log "github.com/sirupsen/logrus"
 )
 

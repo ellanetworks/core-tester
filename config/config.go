@@ -8,12 +8,12 @@ import (
 	"crypto/ecdh"
 	"encoding/hex"
 	"fmt"
-	"my5G-RANTester/internal/common/sidf"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 
+	"github.com/ellanetworks/core-tester/internal/common/sidf"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/goccy/go-yaml"
@@ -127,7 +127,7 @@ func Load(configPath string) Config {
 }
 
 func readConfig(configPath string) Config {
-	var cfg = Config{}
+	cfg := Config{}
 	f, err := os.Open(configPath)
 	if err != nil {
 		log.Fatal("Could not open config at \"", configPath, "\". ", err.Error())
@@ -171,7 +171,6 @@ func setLogLevel(cfg Config) {
 	} else {
 		log.SetLevel(log.Level(cfg.Logs.Level))
 	}
-
 }
 
 func (config *Config) GetUESecurityCapability() *nasType.UESecurityCapability {

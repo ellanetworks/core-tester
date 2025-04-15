@@ -11,42 +11,43 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"my5G-RANTester/config"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/ue/scenario"
 	"net/netip"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ellanetworks/core-tester/config"
+	"github.com/ellanetworks/core-tester/internal/common/auth"
+	"github.com/ellanetworks/core-tester/internal/common/sidf"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/scenario"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
-
+	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/milenage"
 	"github.com/free5gc/util/ueauth"
-
-	"my5G-RANTester/internal/common/auth"
-	"my5G-RANTester/internal/common/sidf"
-
-	"github.com/free5gc/openapi/models"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 // 5GMM main states in the UE.
-const MM5G_NULL = 0x00
-const MM5G_DEREGISTERED = 0x01
-const MM5G_REGISTERED_INITIATED = 0x02
-const MM5G_REGISTERED = 0x03
-const MM5G_SERVICE_REQ_INIT = 0x04
-const MM5G_DEREGISTERED_INIT = 0x05
-const MM5G_IDLE = 0x06
+const (
+	MM5G_NULL                 = 0x00
+	MM5G_DEREGISTERED         = 0x01
+	MM5G_REGISTERED_INITIATED = 0x02
+	MM5G_REGISTERED           = 0x03
+	MM5G_SERVICE_REQ_INIT     = 0x04
+	MM5G_DEREGISTERED_INIT    = 0x05
+	MM5G_IDLE                 = 0x06
+)
 
 // 5GSM main states in the UE.
-const SM5G_PDU_SESSION_INACTIVE = 0x00
-const SM5G_PDU_SESSION_ACTIVE_PENDING = 0x01
-const SM5G_PDU_SESSION_ACTIVE = 0x02
+const (
+	SM5G_PDU_SESSION_INACTIVE       = 0x00
+	SM5G_PDU_SESSION_ACTIVE_PENDING = 0x01
+	SM5G_PDU_SESSION_ACTIVE         = 0x02
+)
 
 type UEContext struct {
 	id                uint8
@@ -119,8 +120,8 @@ func (ue *UEContext) NewRanUeContext(msin string,
 	ueSecurityCapability *nasType.UESecurityCapability,
 	k, opc, op, amf, sqn, mcc, mnc string, homeNetworkPublicKey sidf.HomeNetworkPublicKey, routingIndicator, dnn string,
 	sst int32, sd string, tunnelMode config.TunnelMode, scenarioChan chan scenario.ScenarioMessage,
-	gnbInboundChannel chan context.UEMessage, id int) {
-
+	gnbInboundChannel chan context.UEMessage, id int,
+) {
 	// added SUPI.
 	ue.UeSecurity.Msin = msin
 
@@ -211,20 +212,6 @@ func (ue *UEContext) GetMsin() string {
 	return ue.UeSecurity.Msin
 }
 
-func (ue *UEContext) GetSupi() string {
-	return ue.UeSecurity.Supi
-}
-
-func (ue *UEContext) SetStateMM_DEREGISTERED_INITIATED() {
-	ue.StateMM = MM5G_DEREGISTERED_INIT
-	ue.scenarioChan <- scenario.ScenarioMessage{StateChange: ue.StateMM}
-}
-
-func (ue *UEContext) SetStateMM_MM5G_SERVICE_REQ_INIT() {
-	ue.StateMM = MM5G_SERVICE_REQ_INIT
-	ue.scenarioChan <- scenario.ScenarioMessage{StateChange: ue.StateMM}
-}
-
 func (ue *UEContext) SetStateMM_REGISTERED_INITIATED() {
 	ue.StateMM = MM5G_REGISTERED_INITIATED
 	ue.scenarioChan <- scenario.ScenarioMessage{StateChange: ue.StateMM}
@@ -309,18 +296,6 @@ func (ue *UEContext) GetPduSession(pduSessionid uint8) (*UEPDUSession, error) {
 	return ue.PduSession[pduSessionid-1], nil
 }
 
-func (ue *UEContext) GetPduSessions() [16]*context.GnbPDUSession {
-	var pduSessions [16]*context.GnbPDUSession
-
-	for i, pduSession := range ue.PduSession {
-		if pduSession != nil {
-			pduSessions[i] = pduSession.GnbPduSession
-		}
-	}
-
-	return pduSessions
-}
-
 func (ue *UEContext) DeletePduSession(pduSessionid uint8) error {
 	if pduSessionid > 15 || ue.PduSession[pduSessionid-1] == nil {
 		return errors.New("Unable to find GnbPDUSession ID " + string(pduSessionid))
@@ -357,10 +332,6 @@ func (pduSession *UEPDUSession) SetStopSignal(stopSignal chan bool) {
 
 func (pduSession *UEPDUSession) GetStopSignal() chan bool {
 	return pduSession.stopSignal
-}
-
-func (pduSession *UEPDUSession) GetPduSesssionId() uint8 {
-	return pduSession.Id
 }
 
 func (pduSession *UEPDUSession) SetTunInterface(tun netlink.Link) {
@@ -516,10 +487,6 @@ func (ue *UEContext) EncodeSuci() nasType.MobileIdentity5GS {
 	return suci
 }
 
-func (ue *UEContext) GetAmfRegionId() uint8 {
-	return ue.UeSecurity.Guti.GetAMFRegionID()
-}
-
 func (ue *UEContext) GetAmfPointer() uint8 {
 	return ue.UeSecurity.Guti.GetAMFPointer()
 }
@@ -552,8 +519,8 @@ func (ue *UEContext) Get5gGuti() *nasType.GUTI5G {
 func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription,
 	RAND []byte,
 	snNmae string,
-	AUTN []byte) ([]byte, string) {
-
+	AUTN []byte,
+) ([]byte, string) {
 	// Get OPC, K, SQN from USIM.
 	OPC, err := hex.DecodeString(authSubs.Opc.OpcValue)
 	if err != nil {
@@ -602,7 +569,6 @@ func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscr
 }
 
 func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) {
-
 	FC := ueauth.FC_FOR_KAUSF_DERIVATION
 	P0 := []byte(snName)
 	SQNxorAK := make([]byte, 6)
@@ -634,13 +600,11 @@ func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) {
 }
 
 func (ue *UEContext) DerivateAlgKey() {
-
 	err := auth.AlgorithmKeyDerivation(ue.UeSecurity.CipheringAlg,
 		ue.UeSecurity.Kamf,
 		&ue.UeSecurity.KnasEnc,
 		ue.UeSecurity.IntegrityAlg,
 		&ue.UeSecurity.KnasInt)
-
 	if err != nil {
 		log.Errorf("[UE] Algorithm key derivation failed  %v", err)
 	}
@@ -716,17 +680,4 @@ func reverse(s string) string {
 		aux = string(valor) + aux
 	}
 	return aux
-}
-
-func hexCharToByte(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-
-	return 0
 }

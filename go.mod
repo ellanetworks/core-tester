@@ -1,8 +1,8 @@
-module my5G-RANTester
+module github.com/ellanetworks/core-tester
 
-go 1.23.0
+go 1.24.0
 
-toolchain go1.24.1
+toolchain go1.24.2
 
 require (
 	github.com/davecgh/go-spew v1.1.1
@@ -15,15 +15,9 @@ require (
 	github.com/goccy/go-yaml v1.16.0
 	github.com/gopacket/gopacket v1.3.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
-	github.com/mitchellh/mapstructure v1.5.0
-	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
-	github.com/tetratelabs/wazero v1.9.0
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/vishvananda/netlink v1.3.0
-	github.com/wmnsk/go-gtp v0.8.11
-	golang.org/x/net v0.38.0
 )
 
 require (
@@ -35,11 +29,11 @@ require (
 	github.com/khirono/go-nl v1.0.5 // indirect
 	github.com/khirono/go-rtnllink v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

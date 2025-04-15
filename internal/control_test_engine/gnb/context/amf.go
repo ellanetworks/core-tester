@@ -13,9 +13,11 @@ import (
 )
 
 // AMF main states in the GNB Context.
-const Inactive = 0x00
-const Active = 0x01
-const Overload = 0x02
+const (
+	Inactive = 0x00
+	Active   = 0x01
+	Overload = 0x02
+)
 
 type GNBAmf struct {
 	amfIpPort           netip.AddrPort // AMF ip and port
@@ -56,7 +58,6 @@ type PlmnSupported struct {
 }
 
 func (amf *GNBAmf) GetSliceSupport(index int) (string, string) {
-
 	mov := amf.slices
 	for i := 0; i < index; i++ {
 		mov = mov.next
@@ -66,7 +67,6 @@ func (amf *GNBAmf) GetSliceSupport(index int) (string, string) {
 }
 
 func (amf *GNBAmf) GetPlmnSupport(index int) (string, string) {
-
 	mov := amf.plmns
 	for i := 0; i < index; i++ {
 		mov = mov.next
@@ -88,7 +88,6 @@ func convertMccMnc(plmn string) (mcc string, mnc string) {
 }
 
 func (amf *GNBAmf) AddedPlmn(plmn string) {
-
 	if amf.lenPlmn == 0 {
 		newElem := &PlmnSupported{}
 
@@ -103,7 +102,6 @@ func (amf *GNBAmf) AddedPlmn(plmn string) {
 
 	mov := amf.plmns
 	for i := 0; i < amf.lenPlmn; i++ {
-
 		// end of the list
 		if mov.next == nil {
 
@@ -122,7 +120,6 @@ func (amf *GNBAmf) AddedPlmn(plmn string) {
 }
 
 func (amf *GNBAmf) AddedSlice(sst string, sd string) {
-
 	if amf.lenSlice == 0 {
 		newElem := &SliceSupported{}
 		newElem.sst = sst
@@ -137,7 +134,6 @@ func (amf *GNBAmf) AddedSlice(sst string, sd string) {
 
 	mov := amf.slices
 	for i := 0; i < amf.lenSlice; i++ {
-
 		// end of the list
 		if mov.next == nil {
 
@@ -158,6 +154,7 @@ func (amf *GNBAmf) AddedSlice(sst string, sd string) {
 func (amf *GNBAmf) GetTNLA() TNLAssociation {
 	return amf.tnla
 }
+
 func (tnla *TNLAssociation) GetSCTP() *sctp.SCTPConn {
 	return tnla.sctpConn
 }

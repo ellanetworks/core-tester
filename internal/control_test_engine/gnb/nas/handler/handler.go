@@ -5,15 +5,13 @@
 package handler
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/nas_transport"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/sender"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/nas_transport"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/sender"
 	log "github.com/sirupsen/logrus"
 )
 
 func HandlerUeInitialized(ue *context.GNBUe, message []byte, gnb *context.GNBContext) {
-
 	// encode NAS message in NGAP.
 	ngap, err := nas_transport.SendInitialUeMessage(message, ue, gnb)
 	if err != nil {
@@ -32,7 +30,6 @@ func HandlerUeInitialized(ue *context.GNBUe, message []byte, gnb *context.GNBCon
 }
 
 func HandlerUeOngoing(ue *context.GNBUe, message []byte, gnb *context.GNBContext) {
-
 	ngap, err := nas_transport.SendUplinkNasTransport(message, ue, gnb)
 	if err != nil {
 		log.Errorln("[GNB][NGAP] Error making Uplink Nas Transport: ", err)
@@ -47,7 +44,6 @@ func HandlerUeOngoing(ue *context.GNBUe, message []byte, gnb *context.GNBContext
 }
 
 func HandlerUeReady(ue *context.GNBUe, message []byte, gnb *context.GNBContext) {
-
 	ngap, err := nas_transport.SendUplinkNasTransport(message, ue, gnb)
 	if err != nil {
 		log.Errorln("[GNB][NGAP] Error making Uplink Nas Transport: ", err)

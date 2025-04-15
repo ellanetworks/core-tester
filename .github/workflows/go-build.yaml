@@ -1,16 +1,14 @@
-name: Run Gosec
+name: Go Build
 
 permissions:
   contents: read
 
 on:
-    workflow_call:
+  workflow_call:
 
 jobs:
-  tests:
+  build:
     runs-on: ubuntu-latest
-    env:
-      GO111MODULE: on
     steps:
       - uses: actions/checkout@v4
 
@@ -18,5 +16,6 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@955a68d0d19f4afb7503068f95059f7d0c529017 # v2.22.3
+      - name: go build
+        run: |
+          go build ./...

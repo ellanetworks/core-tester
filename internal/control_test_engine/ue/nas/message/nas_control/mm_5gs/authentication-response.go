@@ -15,7 +15,6 @@ import (
 )
 
 func AuthenticationResponse(authenticationResponseParam []uint8, eapMsg string) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeAuthenticationResponse)

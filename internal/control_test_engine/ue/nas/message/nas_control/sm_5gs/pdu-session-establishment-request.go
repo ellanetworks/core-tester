@@ -15,7 +15,6 @@ import (
 )
 
 func GetPduSessionEstablishmentRequest(pduSessionId uint8) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GsmMessage = nas.NewGsmMessage()
 	m.GsmHeader.SetMessageType(nas.MsgTypePDUSessionEstablishmentRequest)
@@ -29,7 +28,7 @@ func GetPduSessionEstablishmentRequest(pduSessionId uint8) (nasPdu []byte) {
 	pduSessionEstablishmentRequest.IntegrityProtectionMaximumDataRate.SetMaximumDataRatePerUEForUserPlaneIntegrityProtectionForUpLink(0xff)
 
 	pduSessionEstablishmentRequest.PDUSessionType = nasType.NewPDUSessionType(nasMessage.PDUSessionEstablishmentRequestPDUSessionTypeType)
-	pduSessionEstablishmentRequest.PDUSessionType.SetPDUSessionTypeValue(uint8(0x01)) //IPv4 type
+	pduSessionEstablishmentRequest.PDUSessionType.SetPDUSessionTypeValue(uint8(0x01)) // IPv4 type
 
 	pduSessionEstablishmentRequest.ExtendedProtocolConfigurationOptions = nasType.NewExtendedProtocolConfigurationOptions(nasMessage.PDUSessionEstablishmentRequestExtendedProtocolConfigurationOptionsType)
 	protocolConfigurationOptions := nasConvert.NewProtocolConfigurationOptions()
@@ -54,7 +53,6 @@ func GetPduSessionEstablishmentRequest(pduSessionId uint8) (nasPdu []byte) {
 }
 
 func GetPduSessionReleaseRequest(pduSessionId uint8) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GsmMessage = nas.NewGsmMessage()
 	m.GsmHeader.SetMessageType(nas.MsgTypePDUSessionReleaseRequest)

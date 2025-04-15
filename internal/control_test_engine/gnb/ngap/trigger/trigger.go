@@ -5,14 +5,13 @@
 package trigger
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	ueSender "my5G-RANTester/internal/control_test_engine/gnb/nas/message/sender"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/interface_management"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/pdu_session_management"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/ue_context_management"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/ngap_control/ue_mobility_management"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/message/sender"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	ueSender "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas/message/sender"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/interface_management"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/pdu_session_management"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/ue_context_management"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/ngap_control/ue_mobility_management"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/message/sender"
 	"github.com/free5gc/ngap/ngapType"
 	log "github.com/sirupsen/logrus"
 )
@@ -137,7 +136,6 @@ func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
 	if err != nil {
 		log.Info("[GNB][AMF] Error sending NG Setup Request: ", err)
 	}
-
 }
 
 func SendPathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) {

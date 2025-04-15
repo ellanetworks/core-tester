@@ -4,7 +4,7 @@
  */
 package procedures
 
-import "my5G-RANTester/internal/control_test_engine/gnb/context"
+import "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 
 type UeTesterMessageType int32
 

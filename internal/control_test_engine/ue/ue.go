@@ -5,20 +5,20 @@
 package ue
 
 import (
-	"my5G-RANTester/config"
-	context2 "my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/procedures"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
-	serviceGtp "my5G-RANTester/internal/control_test_engine/ue/gtp/service"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/service"
-	"my5G-RANTester/internal/control_test_engine/ue/nas/trigger"
-	"my5G-RANTester/internal/control_test_engine/ue/scenario"
-	"my5G-RANTester/internal/control_test_engine/ue/state"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
 
+	"github.com/ellanetworks/core-tester/config"
+	context2 "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	serviceGtp "github.com/ellanetworks/core-tester/internal/control_test_engine/ue/gtp/service"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/service"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/nas/trigger"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/scenario"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/state"
 	log "github.com/sirupsen/logrus"
 )
 

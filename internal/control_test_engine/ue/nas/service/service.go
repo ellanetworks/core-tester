@@ -7,8 +7,8 @@
 package service
 
 import (
-	gnbContext "my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
+	gnbContext "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
 )
 
 func InitConn(ue *context.UEContext, gnbInboundChannel chan gnbContext.UEMessage) {

@@ -6,11 +6,10 @@
 package service
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-	"my5G-RANTester/internal/control_test_engine/gnb/nas"
-	"my5G-RANTester/internal/control_test_engine/gnb/nas/message/sender"
-	"my5G-RANTester/internal/control_test_engine/gnb/ngap/trigger"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/nas/message/sender"
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/trigger"
 	log "github.com/sirupsen/logrus"
 )
 

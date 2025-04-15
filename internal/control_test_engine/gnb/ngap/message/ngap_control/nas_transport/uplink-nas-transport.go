@@ -6,10 +6,9 @@ package nas_transport
 
 import (
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -19,7 +18,6 @@ func getUplinkNASTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *c
 }
 
 func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb *context.GNBContext) (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 
@@ -94,7 +92,6 @@ func buildUplinkNasTransport(amfUeNgapID, ranUeNgapID int64, nasPdu []byte, gnb 
 }
 
 func SendUplinkNasTransport(message []byte, ue *context.GNBUe, gnb *context.GNBContext) ([]byte, error) {
-
 	sendMsg, err := getUplinkNASTransport(ue.GetAmfUeId(), ue.GetRanUeId(), message, gnb)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting UE Id %d NAS Authentication Response", ue.GetRanUeId())

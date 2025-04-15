@@ -6,8 +6,8 @@ package nas_control
 
 import (
 	"fmt"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
 
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/security"

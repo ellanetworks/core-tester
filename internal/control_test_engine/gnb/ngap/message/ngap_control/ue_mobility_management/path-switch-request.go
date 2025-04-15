@@ -7,16 +7,14 @@ package ue_mobility_management
 import (
 	"bytes"
 	"encoding/binary"
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
 	"net/netip"
 
-	"github.com/free5gc/ngap"
-	log "github.com/sirupsen/logrus"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/aper"
-
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	log "github.com/sirupsen/logrus"
 )
 
 type PathSwitchRequestBuilder struct {
@@ -52,6 +50,7 @@ func NewPathSwitchRequestBuilder() *PathSwitchRequestBuilder {
 
 	return &PathSwitchRequestBuilder{pdu, ies}
 }
+
 func (builder *PathSwitchRequestBuilder) SetSourceAmfUeNgapId(amfUeNgapID int64) *PathSwitchRequestBuilder {
 	// SOURCE AMF UE NGAP ID
 	ie := ngapType.PathSwitchRequestIEs{}
@@ -143,7 +142,8 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 					TransportLayerAddress: ngapConvert.IPAddressToNgap(gnbN3Ip.String(), ""),
 					GTPTEID:               ngapType.GTPTEID{Value: aper.OctetString(buf.Bytes())},
 					IEExtensions:          nil,
-				}},
+				},
+			},
 			DLNGUTNLInformationReused:    nil,
 			UserPlaneSecurityInformation: nil,
 			QosFlowAcceptedList:          ngapType.QosFlowAcceptedList{List: []ngapType.QosFlowAcceptedItem{{QosFlowIdentifier: ngapType.QosFlowIdentifier{Value: pduSession.GetQosId()}}}},

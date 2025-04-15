@@ -5,10 +5,8 @@
 package ue_mobility_management
 
 import (
-	"my5G-RANTester/internal/control_test_engine/gnb/context"
-
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
 	"github.com/free5gc/ngap"
-
 	"github.com/free5gc/ngap/ngapType"
 )
 

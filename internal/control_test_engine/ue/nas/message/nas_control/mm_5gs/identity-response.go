@@ -7,14 +7,14 @@ package mm_5gs
 import (
 	"bytes"
 	"fmt"
-	"github.com/free5gc/nas/nasType"
-	"my5G-RANTester/internal/control_test_engine/ue/context"
+
+	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/nasType"
 )
 
 func IdentityResponse(ue *context.UEContext) (nasPdu []byte) {
-
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeIdentityResponse)
