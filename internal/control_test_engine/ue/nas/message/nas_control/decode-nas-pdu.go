@@ -15,7 +15,7 @@ func GetNasPduFromPduAccept(dlNas *nas.Message) (*nas.Message, error) {
 	m := new(nas.Message)
 	err := m.PlainNasDecode(&payload)
 	if err != nil {
-		return nil, fmt.Errorf("nas decode error: %v", err)
+		return nil, fmt.Errorf("could not decode NAS payload: %w", err)
 	}
 	return m, nil
 }
