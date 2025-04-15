@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/config"
 	"github.com/ellanetworks/core-tester/internal/common/tools"
-	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
+	"github.com/ellanetworks/core-tester/internal/config"
+	"github.com/ellanetworks/core-tester/internal/procedures"
 	log "github.com/sirupsen/logrus"
 )
 

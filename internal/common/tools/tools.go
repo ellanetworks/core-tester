@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/config"
-	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb"
-	gnbCxt "github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/context"
-	"github.com/ellanetworks/core-tester/internal/control_test_engine/gnb/ngap/trigger"
-	"github.com/ellanetworks/core-tester/internal/control_test_engine/procedures"
-	"github.com/ellanetworks/core-tester/internal/control_test_engine/ue"
-	ueCtx "github.com/ellanetworks/core-tester/internal/control_test_engine/ue/context"
+	"github.com/ellanetworks/core-tester/internal/config"
+	"github.com/ellanetworks/core-tester/internal/gnb"
+	gnbCxt "github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
+	"github.com/ellanetworks/core-tester/internal/procedures"
+	"github.com/ellanetworks/core-tester/internal/ue"
+	ueCtx "github.com/ellanetworks/core-tester/internal/ue/context"
 	log "github.com/sirupsen/logrus"
 )
 
