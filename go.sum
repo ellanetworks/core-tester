@@ -15,8 +15,8 @@ github.com/free5gc/openapi v1.0.9-0.20250102040443-6ef25ba56c88 h1:cJHWPNhbUMZii
 github.com/free5gc/openapi v1.0.9-0.20250102040443-6ef25ba56c88/go.mod h1:Ti0AyK1iKoocsLBWghLrNG28JRzdX4CQ68H3SObCFT8=
 github.com/free5gc/util v1.0.7-0.20250305152753-9b83de3c2612 h1:yc4WXEu+ejQcK25NEB8vTlgGMjCw/GUoWNqol67zz3M=
 github.com/free5gc/util v1.0.7-0.20250305152753-9b83de3c2612/go.mod h1:K1NBJs9hVeWFVKNb6DZ2/L5E/RlaKUbKU+Fd6k1NVig=
-github.com/goccy/go-yaml v1.16.0 h1:d7m1G7A0t+logajVtklHfDYJs2Et9g3gHwdBNNFou0w=
-github.com/goccy/go-yaml v1.16.0/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
+github.com/goccy/go-yaml v1.17.1 h1:LI34wktB2xEE3ONG/2Ar54+/HJVBriAGJ55PHls4YuY=
+github.com/goccy/go-yaml v1.17.1/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
 github.com/golang-jwt/jwt/v5 v5.2.1 h1:OuVbFODueb089Lh128TAcimifWaLhJwVflnrgM17wHk=
 github.com/golang-jwt/jwt/v5 v5.2.1/go.mod h1:pqrtFR0X4osieyHYxtmOUWsAWrfe1Q5UVIyoH402zdk=
 github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25dO0g=
