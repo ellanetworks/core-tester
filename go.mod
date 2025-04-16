@@ -5,7 +5,6 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/free5gc/aper v1.0.5
 	github.com/free5gc/go-gtp5gnl v1.6.0
 	github.com/free5gc/nas v1.1.3
@@ -15,23 +14,19 @@ require (
 	github.com/goccy/go-yaml v1.16.0
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/sirupsen/logrus v1.9.3
-	github.com/urfave/cli/v2 v2.27.6
 	github.com/vishvananda/netlink v1.3.0
 )
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/antonfisher/nested-logrus-formatter v1.3.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/khirono/go-genl v1.0.1 // indirect
 	github.com/khirono/go-nl v1.0.5 // indirect
 	github.com/khirono/go-rtnllink v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
-	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 )

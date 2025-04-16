@@ -1,99 +1,154 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
+	"os/signal"
+	"sync"
+	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/ellanetworks/core-tester/internal/common/tools"
 	"github.com/ellanetworks/core-tester/internal/config"
-	"github.com/ellanetworks/core-tester/internal/templates"
+	"github.com/ellanetworks/core-tester/internal/procedures"
 	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 )
 
-const version = "1.0.1"
-
-func init() {
-	spew.Config.Indent = "\t"
-}
-
 func main() {
-	app := &cli.App{
-		Flags: []cli.Flag{
-			&cli.PathFlag{Name: "config", Usage: "Configuration file path. (Default: ./internal/config/config.yml)"},
-		},
-		Commands: []*cli.Command{
-			{
-				Name:    "multi-ue-pdu",
-				Aliases: []string{"multi-ue"},
-				Usage: "\nLoad endurance stress tests.\n" +
-					"Example for testing multiple UEs: multi-ue -n 5 \n" +
-					"This test case will launch N UEs. See packetrusher multi-ue --help\n",
-				Flags: []cli.Flag{
-					&cli.IntFlag{Name: "number-of-ues", Value: 1, Aliases: []string{"n"}},
-					&cli.IntFlag{Name: "timeBetweenRegistration", Value: 500, Aliases: []string{"tr"}, Usage: "The time in ms, between UE registration."},
-					&cli.IntFlag{Name: "timeBeforeDeregistration", Value: 0, Aliases: []string{"td"}, Usage: "The time in ms, before a UE deregisters once it has been registered. 0 to disable auto-deregistration."},
-					&cli.IntFlag{Name: "timeBeforeNgapHandover", Value: 0, Aliases: []string{"ngh"}, Usage: "The time in ms, before triggering a UE handover using NGAP Handover. 0 to disable handover. This requires at least two gNodeB, eg: two N2/N3 IPs."},
-					&cli.IntFlag{Name: "timeBeforeXnHandover", Value: 0, Aliases: []string{"xnh"}, Usage: "The time in ms, before triggering a UE handover using Xn Handover. 0 to disable handover. This requires at least two gNodeB, eg: two N2/N3 IPs."},
-					&cli.IntFlag{Name: "timeBeforeIdle", Value: 0, Aliases: []string{"idl"}, Usage: "The time in ms, before switching UE to Idle. 0 to disable Idling."},
-					&cli.IntFlag{Name: "timeBeforeReconnecting", Value: 1000, Aliases: []string{"tbr"}, Usage: "The time in ms, before reconnecting to gNodeB after switching to Idle state. Default is 1000 ms. Only work in conjunction with timeBeforeIdle."},
-					&cli.IntFlag{Name: "numPduSessions", Value: 1, Aliases: []string{"nPdu"}, Usage: "The number of PDU Sessions to create"},
-					&cli.BoolFlag{Name: "loop", Aliases: []string{"l"}, Usage: "Register UEs in a loop."},
-					&cli.IntFlag{Name: "loopCount", Value: 0, Aliases: []string{"lc"}, Usage: "The number of times the loop is executed. 0 to loop infinitely."},
-					&cli.IntFlag{Name: "timeBeforeReregistration", Value: 200, Aliases: []string{"tbrr"}, Usage: "The time in ms before the UE registers again after deregistration if UE is looping."},
-					&cli.BoolFlag{Name: "tunnel", Aliases: []string{"t"}, Usage: "Enable the creation of the GTP-U tunnel interface."},
-					&cli.BoolFlag{Name: "tunnel-vrf", Value: true, Usage: "Enable/disable VRP usage of the GTP-U tunnel interface."},
-					&cli.BoolFlag{Name: "dedicatedGnb", Aliases: []string{"d"}, Usage: "Enable the creation of a dedicated gNB per UE. Require one IP on N2/N3 per gNB."},
-					&cli.PathFlag{Name: "pcap", Usage: "Capture traffic to given PCAP file when a path is given", Value: "./dump.pcap"},
-				},
-				Action: func(c *cli.Context) error {
-					var numUes int
-					name := "Testing registration of multiple UEs"
-					cfg := setConfig(*c)
-					if c.IsSet("number-of-ues") {
-						numUes = c.Int("number-of-ues")
-					} else {
-						log.Info(c.Command.Usage)
-						return nil
-					}
-
-					log.Info("PacketRusher version " + version)
-					log.Info("---------------------------------------")
-					log.Info("[TESTER] Starting test function: ", name)
-					log.Info("[TESTER][UE] Number of UEs: ", numUes)
-					log.Info("[TESTER][GNB] gNodeB control interface IP/Port: ", cfg.GNodeB.ControlIF.AddrPort, "~")
-					log.Info("[TESTER][GNB] gNodeB data interface IP/Port: ", cfg.GNodeB.DataIF.AddrPort)
-					for _, amf := range cfg.AMFs {
-						log.Info("[TESTER][AMF] AMF IP/Port: ", amf.AddrPort)
-					}
-					log.Info("---------------------------------------")
-
-					tunnelMode := config.TunnelDisabled
-					if c.Bool("tunnel") {
-						if c.Bool("tunnel-vrf") {
-							tunnelMode = config.TunnelVrf
-						} else {
-							tunnelMode = config.TunnelTun
-						}
-					}
-					templates.TestMultiUesInQueue(numUes, tunnelMode, c.Bool("dedicatedGnb"), c.Bool("loop"), c.Int("loopCount"), c.Int("timeBeforeReregistration"), c.Int("timeBetweenRegistration"), c.Int("timeBeforeDeregistration"), c.Int("timeBeforeNgapHandover"), c.Int("timeBeforeXnHandover"), c.Int("timeBeforeIdle"), c.Int("timeBeforeReconnecting"), c.Int("numPduSessions"))
-
-					return nil
-				},
-			},
-		},
+	configFilePath := flag.String("config", "", "The config file to be provided to the server")
+	flag.Parse()
+	if *configFilePath == "" {
+		log.Fatalf("No config file provided. Use `-config` to provide a config file")
 	}
-	err := app.Run(os.Args)
+	_ = config.Load(*configFilePath)
+	testOpts := &TestOptions{
+		NumUEs:                   1,
+		TunnelMode:               config.TunnelDisabled,
+		DedicatedGnb:             false,
+		Loop:                     false,
+		LoopCount:                0,
+		TimeBeforeReregistration: 200,
+		TimeBetweenRegistration:  500,
+		TimeBeforeDeregistration: 0,
+		TimeBeforeNgapHandover:   0,
+		TimeBeforeXnHandover:     0,
+		TimeBeforeIdle:           0,
+		TimeBeforeReconnecting:   1000,
+		NumPduSessions:           1,
+	}
+	err := TestMultiUesInQueue(testOpts)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error running test: %v", err)
 	}
+	log.Info("Test completed successfully")
 }
 
-func setConfig(c cli.Context) config.Config {
-	var cfg config.Config
-	if c.IsSet("config") {
-		cfg = config.Load(c.Path("config"))
-	} else {
-		cfg = config.LoadDefaultConfig()
+type TestOptions struct {
+	NumUEs                   int
+	TunnelMode               config.TunnelMode
+	DedicatedGnb             bool
+	Loop                     bool
+	LoopCount                int
+	TimeBeforeReregistration int
+	TimeBetweenRegistration  int
+	TimeBeforeDeregistration int
+	TimeBeforeNgapHandover   int
+	TimeBeforeXnHandover     int
+	TimeBeforeIdle           int
+	TimeBeforeReconnecting   int
+	NumPduSessions           int
+}
+
+func TestMultiUesInQueue(opts *TestOptions) error {
+	if opts.TunnelMode != config.TunnelDisabled {
+		if !opts.DedicatedGnb {
+			return fmt.Errorf("you cannot use the tunnel option, without using the dedicatedGnb option")
+		}
+		if opts.TimeBetweenRegistration < 500 {
+			return fmt.Errorf("when using the tunnel option, timeBetweenRegistration must be equal to at least 500 ms, or else gtp5g kernel module may crash if you create tunnels too rapidly")
+		}
 	}
-	return cfg
+
+	if opts.NumPduSessions > 16 {
+		return fmt.Errorf("you can't have more than 16 PDU Sessions per UE as per spec")
+	}
+
+	wg := sync.WaitGroup{}
+
+	cfg := config.GetConfig()
+
+	var numGnb int
+	if opts.DedicatedGnb {
+		numGnb = opts.NumUEs
+	} else {
+		numGnb = 1
+	}
+	if numGnb <= 1 && (opts.TimeBeforeXnHandover != 0 || opts.TimeBeforeNgapHandover != 0) {
+		log.Warn("[TESTER] We are increasing the number of gNodeB to two for handover test cases. Make you sure you fill the requirements for having two gNodeBs.")
+		numGnb++
+	}
+	gnbs := tools.CreateGnbs(numGnb, cfg, &wg)
+
+	// Wait for gNB to be connected before registering UEs
+	time.Sleep(1 * time.Second)
+
+	cfg.Ue.TunnelMode = opts.TunnelMode
+
+	scenarioChans := make([]chan procedures.UeTesterMessage, opts.NumUEs+1)
+
+	sigStop := make(chan os.Signal, 1)
+	signal.Notify(sigStop, os.Interrupt)
+
+	ueSimCfg := tools.UESimulationConfig{
+		Gnbs:                     gnbs,
+		Cfg:                      cfg,
+		TimeBeforeDeregistration: opts.TimeBeforeDeregistration,
+		TimeBeforeNgapHandover:   opts.TimeBeforeNgapHandover,
+		TimeBeforeXnHandover:     opts.TimeBeforeXnHandover,
+		TimeBeforeIdle:           opts.TimeBeforeIdle,
+		TimeBeforeReconnecting:   opts.TimeBeforeReconnecting,
+		NumPduSessions:           opts.NumPduSessions,
+		RegistrationLoop:         opts.Loop,
+		LoopCount:                opts.LoopCount,
+		TimeBeforeReregistration: opts.TimeBeforeReregistration,
+	}
+
+	stopSignal := true
+	// If CTRL-C signal has been received,
+	// stop creating new UEs, else we create numUes UEs
+	for ueSimCfg.UeId = 1; stopSignal && ueSimCfg.UeId <= opts.NumUEs; ueSimCfg.UeId++ {
+		// If there is currently a coroutine handling current UE
+		// kill it, before creating a new coroutine with same UE
+		// Use case: Registration of N UEs in loop, when loop = true
+		if scenarioChans[ueSimCfg.UeId] != nil {
+			scenarioChans[ueSimCfg.UeId] <- procedures.UeTesterMessage{Type: procedures.Kill}
+			close(scenarioChans[ueSimCfg.UeId])
+			scenarioChans[ueSimCfg.UeId] = nil
+		}
+		scenarioChans[ueSimCfg.UeId] = make(chan procedures.UeTesterMessage)
+		ueSimCfg.ScenarioChan = scenarioChans[ueSimCfg.UeId]
+
+		tools.SimulateSingleUE(ueSimCfg, &wg)
+
+		// Before creating a new UE, we wait for timeBetweenRegistration ms
+		time.Sleep(time.Duration(opts.TimeBetweenRegistration) * time.Millisecond)
+
+		select {
+		case <-sigStop:
+			stopSignal = false
+		default:
+		}
+	}
+
+	if stopSignal {
+		<-sigStop
+	}
+	for _, scenarioChan := range scenarioChans {
+		if scenarioChan != nil {
+			scenarioChan <- procedures.UeTesterMessage{Type: procedures.Terminate}
+		}
+	}
+
+	time.Sleep(time.Second * 1)
+	return nil
 }
