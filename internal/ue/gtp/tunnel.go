@@ -101,12 +101,14 @@ func (t *Tunnel) Close() error {
 }
 
 func tunToGtp(conn *net.UDPConn, ifce *water.Interface, teidRAN uint32) {
+
 	packet := make([]byte, 2000)
 	packet[0] = 0x30                                 // Version 1, Protocol type GTP
 	packet[1] = 0xFF                                 // Message type T-PDU
 	binary.BigEndian.PutUint16(packet[2:4], 0)       // Length
 	binary.BigEndian.PutUint32(packet[4:8], teidRAN) // TEID
 	for {
+		log.Printf("received packet from TUN interface")
 		n, err := ifce.Read(packet[8:])
 		if err != nil {
 			log.Printf("error reading from tun interface: %v", err)
@@ -129,6 +131,7 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 	var payloadStart int
 	packet := make([]byte, 2000)
 	for {
+		log.Printf("received packet from GTP")
 		// Read a packet from UDP
 		// Currently ignores the address
 		n, _, err := conn.ReadFrom(packet)
