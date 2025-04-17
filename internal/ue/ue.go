@@ -5,6 +5,7 @@
 package ue
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -43,7 +44,6 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		conf.Ue.Dnn,
 		int32(conf.Ue.Snssai.Sst),
 		conf.Ue.Snssai.Sd,
-		conf.Ue.TunnelMode,
 		scenarioChan,
 		gnbInboundChannel,
 		id)
@@ -64,7 +64,10 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 					ue.SetGnbTx(nil)
 					break
 				}
-				gnbMsgHandler(msg, ue)
+				err := gnbMsgHandler(msg, ue)
+				if err != nil {
+					log.Error("[UE][", ue.GetMsin(), "] Error while handling message from gNB: ", err)
+				}
 			case msg, open := <-ueMgrChannel:
 				if !open {
 					log.Warn("[UE][", ue.GetMsin(), "] Stopping UE as communication with scenario was closed")
@@ -83,12 +86,15 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 	return scenarioChan
 }
 
-func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) {
+func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) error {
 	if msg.IsNas {
 		state.DispatchState(ue, msg.Nas)
 	} else if msg.GNBPduSessions[0] != nil {
 		// Setup PDU Session
-		serviceGtp.SetupGtpInterface(ue, msg)
+		err := serviceGtp.SetupGtpInterface(ue, msg)
+		if err != nil {
+			return fmt.Errorf("could not setup GTP interface: %w", err)
+		}
 	} else if msg.GNBRx != nil && msg.GNBTx != nil && msg.GNBInboundChannel != nil {
 		log.Info("[UE] gNodeB is telling us to use another gNodeB")
 		previousGnbRx := ue.GetGnbRx()
@@ -98,8 +104,9 @@ func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) {
 		previousGnbRx <- context2.UEMessage{ConnectionClosed: true}
 		close(previousGnbRx)
 	} else {
-		log.Error("[UE] Received unknown message from gNodeB", msg)
+		return fmt.Errorf("unknown message from gNodeB")
 	}
+	return nil
 }
 
 func verifyPaging(ue *context.UEContext) {

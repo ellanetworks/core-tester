@@ -20,18 +20,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// TunnelMode indicates how to create a GTP-U tunnel interface in an UE.
-type TunnelMode int
-
-const (
-	// TunnelDisabled disables the GTP-U tunnel.
-	TunnelDisabled TunnelMode = iota
-	// TunnelPlain creates a TUN device only.
-	TunnelTun
-	// TunnelPlain creates a TUN device and a VRF device.
-	TunnelVrf
-)
-
 var config *Config
 
 type Config struct {
@@ -60,21 +48,20 @@ type SliceSupportList struct {
 }
 
 type Ue struct {
-	Msin                   string     `yaml:"msin"`
-	Key                    string     `yaml:"key"`
-	Opc                    string     `yaml:"opc"`
-	Amf                    string     `yaml:"amf"`
-	Sqn                    string     `yaml:"sqn"`
-	Dnn                    string     `yaml:"dnn"`
-	ProtectionScheme       int        `yaml:"protectionScheme"`
-	HomeNetworkPublicKey   string     `yaml:"homeNetworkPublicKey"`
-	HomeNetworkPublicKeyID uint8      `yaml:"homeNetworkPublicKeyID"`
-	RoutingIndicator       string     `yaml:"routingindicator"`
-	Hplmn                  Hplmn      `yaml:"hplmn"`
-	Snssai                 Snssai     `yaml:"snssai"`
-	Integrity              Integrity  `yaml:"integrity"`
-	Ciphering              Ciphering  `yaml:"ciphering"`
-	TunnelMode             TunnelMode `yaml:"-"`
+	Msin                   string    `yaml:"msin"`
+	Key                    string    `yaml:"key"`
+	Opc                    string    `yaml:"opc"`
+	Amf                    string    `yaml:"amf"`
+	Sqn                    string    `yaml:"sqn"`
+	Dnn                    string    `yaml:"dnn"`
+	ProtectionScheme       int       `yaml:"protectionScheme"`
+	HomeNetworkPublicKey   string    `yaml:"homeNetworkPublicKey"`
+	HomeNetworkPublicKeyID uint8     `yaml:"homeNetworkPublicKeyID"`
+	RoutingIndicator       string    `yaml:"routingindicator"`
+	Hplmn                  Hplmn     `yaml:"hplmn"`
+	Snssai                 Snssai    `yaml:"snssai"`
+	Integrity              Integrity `yaml:"integrity"`
+	Ciphering              Ciphering `yaml:"ciphering"`
 }
 
 type Hplmn struct {
