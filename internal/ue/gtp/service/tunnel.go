@@ -13,9 +13,6 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// var teidUPF uint32 = 0x000000001
-// var teidRAN uint32 = 0x000000010
-
 type Tunnel struct {
 	Name    string
 	gtpConn *net.UDPConn
