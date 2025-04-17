@@ -44,8 +44,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 		TunInterfaceName: nameInf,
 		GnbIP:            ueGnbIp.String(),
 		UpfIP:            upfIp,
-		Lteid:            gnbPduSession.GetTeidDownlink(),
-		Rteid:            gnbPduSession.GetTeidUplink(),
+		Lteid:            gnbPduSession.GetTeidUplink(),
+		Rteid:            gnbPduSession.GetTeidDownlink(),
 	}
 	_, err = NewTunnel(tunOpts)
 	if err != nil {
