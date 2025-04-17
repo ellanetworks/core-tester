@@ -1,7 +1,7 @@
 # Ella Core Tester
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="Ella Core Logo" width="150"/>
+  <img src="https://raw.githubusercontent.com/ellanetworks/core/main/docs/images/logo.png" alt="Ella Core Logo" width="150"/>
 </p>
 
 > :construction: **Beta Notice**  
@@ -36,4 +36,4 @@ iperf3 -c <router n6 IP> --bind-dev ellatester0 -M 1420 -t 30
 
 At the moment, Ella Core Tester is a Frankenstein project that combines the following open source projects:
 - [PacketRusher](https://github.com/HewlettPackard/PacketRusher)
-- [Uproot](https://github.com/ghislainbourgeois/uproot)
+- [UProot](https://github.com/ghislainbourgeois/uproot)
