@@ -34,8 +34,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	ueGnbIp := pduSession.GetGnbIp()
 	upfIp := pduSession.GnbPduSession.GetUpfIp()
 	ueIp := pduSession.GetIp()
-	msin := ue.GetMsin()
-	nameInf := fmt.Sprintf("val%s", msin)
+	nameInf := "ellatester0"
 	stopSignal := make(chan bool)
 
 	if pduSession.GetStopSignal() != nil {
@@ -48,7 +47,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	time.Sleep(time.Second)
 
 	tunOpts := &TunnelOptions{
-		UEIP:             ueIp + "/16", // TODO: Get netmask from UE context
+		UEIP:             ueIp + "/16",
 		GTPUPort:         2152,
 		TunInterfaceName: "ellatester0",
 		GnbIP:            ueGnbIp.String(),
