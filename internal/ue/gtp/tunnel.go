@@ -1,7 +1,7 @@
 // Copyright 2025 Ghislain Bourgeois
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package service
+package gtp
 
 import (
 	"encoding/binary"

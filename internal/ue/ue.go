@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/config"
-	context2 "github.com/ellanetworks/core-tester/internal/gnb/context"
+	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/procedures"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
-	serviceGtp "github.com/ellanetworks/core-tester/internal/ue/gtp/service"
+	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/service"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/trigger"
 	"github.com/ellanetworks/core-tester/internal/ue/scenario"
@@ -23,7 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMessage, gnbInboundChannel chan context2.UEMessage, wg *sync.WaitGroup) chan scenario.ScenarioMessage {
+func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMessage, gnbInboundChannel chan gnbContext.UEMessage, wg *sync.WaitGroup) chan scenario.ScenarioMessage {
 	// new UE instance.
 	ue := &context.UEContext{}
 	scenarioChan := make(chan scenario.ScenarioMessage)
@@ -86,12 +86,12 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 	return scenarioChan
 }
 
-func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) error {
+func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
 	if msg.IsNas {
 		state.DispatchState(ue, msg.Nas)
 	} else if msg.GNBPduSessions[0] != nil {
 		// Setup PDU Session
-		err := serviceGtp.SetupGtpInterface(ue, msg)
+		err := gtp.SetupGtpInterface(ue, msg)
 		if err != nil {
 			return fmt.Errorf("could not setup GTP interface: %w", err)
 		}
@@ -101,7 +101,7 @@ func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) error {
 		ue.SetGnbInboundChannel(msg.GNBInboundChannel)
 		ue.SetGnbRx(msg.GNBRx)
 		ue.SetGnbTx(msg.GNBTx)
-		previousGnbRx <- context2.UEMessage{ConnectionClosed: true}
+		previousGnbRx <- gnbContext.UEMessage{ConnectionClosed: true}
 		close(previousGnbRx)
 	} else {
 		return fmt.Errorf("unknown message from gNodeB")
@@ -110,9 +110,9 @@ func gnbMsgHandler(msg context2.UEMessage, ue *context.UEContext) error {
 }
 
 func verifyPaging(ue *context.UEContext) {
-	gnbTx := make(chan context2.UEMessage, 1)
+	gnbTx := make(chan gnbContext.UEMessage, 1)
 
-	ue.GetGnbInboundChannel() <- context2.UEMessage{GNBTx: gnbTx, FetchPagedUEs: true}
+	ue.GetGnbInboundChannel() <- gnbContext.UEMessage{GNBTx: gnbTx, FetchPagedUEs: true}
 	msg := <-gnbTx
 	for _, pagedUE := range msg.PagedUEs {
 		if ue.Get5gGuti() != nil && pagedUE.FiveGSTMSI != nil && [4]uint8(pagedUE.FiveGSTMSI.FiveGTMSI.Value) == ue.GetTMSI5G() {
