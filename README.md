@@ -4,5 +4,5 @@
 
 ```shell
 go build cmd/core-tester/main.go
-./main --config config.yaml
+sudo ./main --config config.yml
 ```
