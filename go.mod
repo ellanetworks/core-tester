@@ -6,7 +6,6 @@ toolchain go1.24.2
 
 require (
 	github.com/free5gc/aper v1.0.6-0.20250102035630-3ddc831eed6a
-	github.com/free5gc/go-gtp5gnl v1.6.0
 	github.com/free5gc/nas v1.1.3
 	github.com/free5gc/ngap v1.0.9
 	github.com/free5gc/openapi v1.0.9-0.20250102040443-6ef25ba56c88
@@ -21,9 +20,6 @@ require (
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
-	github.com/khirono/go-genl v1.0.1 // indirect
-	github.com/khirono/go-nl v1.0.5 // indirect
-	github.com/khirono/go-rtnllink v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect

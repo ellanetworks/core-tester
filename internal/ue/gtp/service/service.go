@@ -10,7 +10,6 @@ import (
 
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
-	gtpLink "github.com/free5gc/go-gtp5gnl/linkcmd"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,20 +39,10 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	// vrfInf := fmt.Sprintf("vrf%s", msin)
 	stopSignal := make(chan bool)
 
-	_ = gtpLink.CmdDel(nameInf)
-
 	if pduSession.GetStopSignal() != nil {
 		close(pduSession.GetStopSignal())
 		time.Sleep(time.Second)
 	}
-
-	go func() {
-		// This function should not return as long as the GTP-U UDP socket is open
-		if err := gtpLink.CmdAddWithStopCh(nameInf, 1, 131072, ueGnbIp.String(), "", stopSignal); err != nil {
-			log.Fatal("[GNB][GTP] Unable to create Kernel GTP interface: ", err, msin, nameInf)
-			return
-		}
-	}()
 
 	pduSession.SetStopSignal(stopSignal)
 
