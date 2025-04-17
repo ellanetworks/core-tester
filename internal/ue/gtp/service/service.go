@@ -13,21 +13,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
+func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	gnbPduSession := msg.GNBPduSessions[0]
 	pduSession, err := ue.GetPduSession(uint8(gnbPduSession.GetPduSessionId()))
-	if pduSession == nil || err != nil {
-		log.Error("[GNB][GTP] Aborting the setup of PDU Session ", gnbPduSession.GetPduSessionId(), ", this PDU session was not successfully configured on the UE's side.")
-		return
+	if err != nil {
+		return fmt.Errorf("failed to get PDU session: %w", err)
 	}
+	if pduSession == nil {
+		return fmt.Errorf("pdu session not found")
+	}
+
 	pduSession.GnbPduSession = gnbPduSession
 
 	if pduSession.Id != 1 {
-		log.Warn("[GNB][GTP] Only one tunnel per UE is supported for now, no tunnel will be created for second PDU Session of given UE")
-		return
+		return fmt.Errorf("pdu session id is not 1")
 	}
 
-	// get UE GNB IP.
 	pduSession.SetGnbIp(msg.GnbIp)
 
 	ueGnbIp := pduSession.GetGnbIp()
@@ -57,11 +58,11 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	}
 	_, err = NewTunnel(tunOpts)
 	if err != nil {
-		log.Fatal("[UE][DATA] Unable to create tunnel: ", err)
-		return
+		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
 
 	log.Info(fmt.Sprintf("[UE][GTP] Interface %s has successfully been configured for UE %s", nameInf, ueIp))
 	log.Info(fmt.Sprintf("[UE][GTP] You can do traffic for this UE by binding to IP %s, eg:", ueIp))
 	log.Info(fmt.Sprintf("[UE][GTP] iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp))
+	return nil
 }
