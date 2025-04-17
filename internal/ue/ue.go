@@ -43,7 +43,6 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		conf.Ue.Dnn,
 		int32(conf.Ue.Snssai.Sst),
 		conf.Ue.Snssai.Sd,
-		conf.Ue.TunnelMode,
 		scenarioChan,
 		gnbInboundChannel,
 		id)

@@ -23,7 +23,6 @@ func main() {
 	_ = config.Load(*configFilePath)
 	testOpts := &TestOptions{
 		NumUEs:                   1,
-		TunnelMode:               config.TunnelDisabled,
 		DedicatedGnb:             false,
 		Loop:                     false,
 		LoopCount:                0,
@@ -45,7 +44,6 @@ func main() {
 
 type TestOptions struct {
 	NumUEs                   int
-	TunnelMode               config.TunnelMode
 	DedicatedGnb             bool
 	Loop                     bool
 	LoopCount                int
@@ -60,15 +58,6 @@ type TestOptions struct {
 }
 
 func TestMultiUesInQueue(opts *TestOptions) error {
-	if opts.TunnelMode != config.TunnelDisabled {
-		if !opts.DedicatedGnb {
-			return fmt.Errorf("you cannot use the tunnel option, without using the dedicatedGnb option")
-		}
-		if opts.TimeBetweenRegistration < 500 {
-			return fmt.Errorf("when using the tunnel option, timeBetweenRegistration must be equal to at least 500 ms, or else gtp5g kernel module may crash if you create tunnels too rapidly")
-		}
-	}
-
 	if opts.NumPduSessions > 16 {
 		return fmt.Errorf("you can't have more than 16 PDU Sessions per UE as per spec")
 	}
@@ -91,8 +80,6 @@ func TestMultiUesInQueue(opts *TestOptions) error {
 
 	// Wait for gNB to be connected before registering UEs
 	time.Sleep(1 * time.Second)
-
-	cfg.Ue.TunnelMode = opts.TunnelMode
 
 	scenarioChans := make([]chan procedures.UeTesterMessage, opts.NumUEs+1)
 

@@ -19,7 +19,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/common/auth"
 	"github.com/ellanetworks/core-tester/internal/common/sidf"
-	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/ue/scenario"
 	"github.com/free5gc/nas/nasType"
@@ -61,9 +60,8 @@ type UEContext struct {
 	PduSession        [16]*UEPDUSession
 	amfInfo           Amf
 
-	Dnn        string
-	Snssai     models.Snssai
-	TunnelMode config.TunnelMode
+	Dnn    string
+	Snssai models.Snssai
 
 	// Sync primitive
 	scenarioChan chan scenario.ScenarioMessage
@@ -118,7 +116,7 @@ type SECURITY struct {
 func (ue *UEContext) NewRanUeContext(msin string,
 	ueSecurityCapability *nasType.UESecurityCapability,
 	k, opc, op, amf, sqn, mcc, mnc string, homeNetworkPublicKey sidf.HomeNetworkPublicKey, routingIndicator, dnn string,
-	sst int32, sd string, tunnelMode config.TunnelMode, scenarioChan chan scenario.ScenarioMessage,
+	sst int32, sd string, scenarioChan chan scenario.ScenarioMessage,
 	gnbInboundChannel chan context.UEMessage, id int,
 ) {
 	// added SUPI.
@@ -162,7 +160,6 @@ func (ue *UEContext) NewRanUeContext(msin string,
 
 	// added Domain Network Name.
 	ue.Dnn = dnn
-	ue.TunnelMode = tunnelMode
 
 	ue.UeSecurity.Suci = ue.EncodeSuci()
 

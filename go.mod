@@ -14,6 +14,7 @@ require (
 	github.com/goccy/go-yaml v1.17.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/sirupsen/logrus v1.9.3
+	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/vishvananda/netlink v1.3.0
 )
 
