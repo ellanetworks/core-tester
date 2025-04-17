@@ -1,7 +1,7 @@
 // Copyright 2025 Ghislain Bourgeois
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package service
+package gtp
 
 import (
 	"encoding/binary"
@@ -100,12 +100,12 @@ func (t *Tunnel) Close() error {
 	return err
 }
 
-func tunToGtp(conn *net.UDPConn, ifce *water.Interface, teidRAN uint32) {
+func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	packet := make([]byte, 2000)
-	packet[0] = 0x30                                 // Version 1, Protocol type GTP
-	packet[1] = 0xFF                                 // Message type T-PDU
-	binary.BigEndian.PutUint16(packet[2:4], 0)       // Length
-	binary.BigEndian.PutUint32(packet[4:8], teidRAN) // TEID
+	packet[0] = 0x30                               // Version 1, Protocol type GTP
+	packet[1] = 0xFF                               // Message type T-PDU
+	binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
+	binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
 	for {
 		n, err := ifce.Read(packet[8:])
 		if err != nil {

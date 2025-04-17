@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  * © Copyright 2023 Hewlett Packard Enterprise Development LP
  */
-package service
+package gtp
 
 import (
 	"fmt"
@@ -35,21 +35,13 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	upfIp := pduSession.GnbPduSession.GetUpfIp()
 	ueIp := pduSession.GetIp()
 	nameInf := "ellatester0"
-	stopSignal := make(chan bool)
-
-	if pduSession.GetStopSignal() != nil {
-		close(pduSession.GetStopSignal())
-		time.Sleep(time.Second)
-	}
-
-	pduSession.SetStopSignal(stopSignal)
 
 	time.Sleep(time.Second)
 
 	tunOpts := &TunnelOptions{
 		UEIP:             ueIp + "/16",
 		GTPUPort:         2152,
-		TunInterfaceName: "ellatester0",
+		TunInterfaceName: nameInf,
 		GnbIP:            ueGnbIp.String(),
 		UpfIP:            upfIp,
 		Lteid:            gnbPduSession.GetTeidUplink(),
@@ -59,9 +51,11 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
+	log.Infof("Created tunnel with options: %+v", tunOpts)
 
 	log.Info(fmt.Sprintf("[UE][GTP] Interface %s has successfully been configured for UE %s", nameInf, ueIp))
 	log.Info(fmt.Sprintf("[UE][GTP] You can do traffic for this UE by binding to IP %s, eg:", ueIp))
 	log.Info(fmt.Sprintf("[UE][GTP] iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp))
+	time.Sleep(time.Second * 120)
 	return nil
 }
