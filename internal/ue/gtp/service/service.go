@@ -142,7 +142,8 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) {
 	// Configure routing policy or VRF for the UE.
 	// tableId := gnbPduSession.GetTeidUplink()
 	tunOpts := &TunnelOptions{
-		UEIP:             ueIp,
+		UEIP:             ueIp + "/16", // TODO: Get netmask from UE context
+		GTPUPort:         2152,
 		TunInterfaceName: "ellatester0",
 		GnbIP:            ueGnbIp.String(),
 		UpfIP:            upfIp,
