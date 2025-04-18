@@ -196,7 +196,7 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 			pDUSessionResourceSetupRequestTransfer := &ngapType.PDUSessionResourceSetupRequestTransfer{}
 			err := aper.UnmarshalWithParams(pDUSessionResourceSetupRequestTransferBytes, pDUSessionResourceSetupRequestTransfer, "valueExt")
 			if err != nil {
-				logger.GnbLog.Error("[GNB] Unable to unmarshall PDUSessionResourceSetupRequestTransfer: ", err)
+				logger.GnbLog.Error("Unable to unmarshall PDUSessionResourceSetupRequestTransfer: ", err)
 				continue
 			}
 
@@ -216,7 +216,7 @@ func HandlerInitialContextSetupRequest(gnb *context.GNBContext, message *ngapTyp
 
 			_, err = ue.CreatePduSession(pduSessionId, upfIp, sst, sd, 0, 1, 0, 0, binary.BigEndian.Uint32(teidUplink), gnb.GetUeTeid(ue))
 			if err != nil {
-				logger.GnbLog.Error("[GNB] ", err)
+				logger.GnbLog.Error("", err)
 			}
 
 			if pDUSessionResourceSetupItemCtxReq.NASPDU != nil {
@@ -351,17 +351,17 @@ func HandlerPduSessionResourceSetupRequest(gnb *context.GNBContext, message *nga
 		}
 		configuredPduSessions = append(configuredPduSessions, pduSession)
 
-		logger.GnbLog.Info("[GNB][NGAP][UE] PDU Session was created with successful.")
-		logger.GnbLog.Info("[GNB][NGAP][UE] PDU Session Id: ", pduSession.GetPduSessionId())
+		logger.GnbLog.Info("PDU Session was created with successful.")
+		logger.GnbLog.Info("PDU Session Id: ", pduSession.GetPduSessionId())
 		sst, sd = ue.GetSelectedNssai(pduSession.GetPduSessionId())
-		logger.GnbLog.Info("[GNB][NGAP][UE] NSSAI Selected --- sst: ", sst, " sd: ", sd)
-		logger.GnbLog.Info("[GNB][NGAP][UE] PDU Session Type: ", pduSession.GetPduType())
-		logger.GnbLog.Info("[GNB][NGAP][UE] QOS Flow Identifier: ", pduSession.GetQosId())
-		logger.GnbLog.Info("[GNB][NGAP][UE] Uplink Teid: ", pduSession.GetTeidUplink())
-		logger.GnbLog.Info("[GNB][NGAP][UE] Downlink Teid: ", pduSession.GetTeidDownlink())
-		logger.GnbLog.Info("[GNB][NGAP][UE] Non-Dynamic-5QI: ", pduSession.GetFiveQI())
-		logger.GnbLog.Info("[GNB][NGAP][UE] Priority Level ARP: ", pduSession.GetPriorityARP())
-		logger.GnbLog.Info("[GNB][NGAP][UE] UPF Address: ", fmt.Sprintf("%d.%d.%d.%d", upfAddress[0], upfAddress[1], upfAddress[2], upfAddress[3]), " :2152")
+		logger.GnbLog.Info("NSSAI Selected --- sst: ", sst, " sd: ", sd)
+		logger.GnbLog.Info("PDU Session Type: ", pduSession.GetPduType())
+		logger.GnbLog.Info("QOS Flow Identifier: ", pduSession.GetQosId())
+		logger.GnbLog.Info("Uplink Teid: ", pduSession.GetTeidUplink())
+		logger.GnbLog.Info("Downlink Teid: ", pduSession.GetTeidDownlink())
+		logger.GnbLog.Info("Non-Dynamic-5QI: ", pduSession.GetFiveQI())
+		logger.GnbLog.Info("Priority Level ARP: ", pduSession.GetPriorityARP())
+		logger.GnbLog.Info("UPF Address: ", fmt.Sprintf("%d.%d.%d.%d", upfAddress[0], upfAddress[1], upfAddress[2], upfAddress[3]), " :2152")
 
 		// send NAS message to UE.
 		sender.SendToUe(ue, messageNas)
@@ -537,20 +537,20 @@ func HandlerNgSetupResponse(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	}
 
 	if err {
-		logger.GnbLog.Fatal("[GNB][AMF] AMF is inactive")
+		logger.GnbLog.Fatal("AMF is inactive")
 		amf.SetStateInactive()
 	} else {
 		amf.SetStateActive()
-		logger.GnbLog.Info("[GNB][AMF] AMF Name: ", amf.GetAmfName())
-		logger.GnbLog.Info("[GNB][AMF] State of AMF: Active")
-		logger.GnbLog.Info("[GNB][AMF] Capacity of AMF: ", amf.GetAmfCapacity())
+		logger.GnbLog.Info("AMF Name: ", amf.GetAmfName())
+		logger.GnbLog.Info("State of AMF: Active")
+		logger.GnbLog.Info("Capacity of AMF: ", amf.GetAmfCapacity())
 		for i := 0; i < amf.GetLenPlmns(); i++ {
 			mcc, mnc := amf.GetPlmnSupport(i)
-			logger.GnbLog.Info("[GNB][AMF] PLMNs Identities Supported by AMF -- mcc: ", mcc, " mnc:", mnc)
+			logger.GnbLog.Info("PLMNs Identities Supported by AMF -- mcc: ", mcc, " mnc:", mnc)
 		}
 		for i := 0; i < amf.GetLenSlice(); i++ {
 			sst, sd := amf.GetSliceSupport(i)
-			logger.GnbLog.Info("[GNB][AMF] List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
+			logger.GnbLog.Info("List of AMF slices Supported by AMF -- sst:", sst, " sd:", sd)
 		}
 	}
 }
@@ -602,7 +602,7 @@ func HandlerUeContextReleaseCommand(gnb *context.GNBContext, message *ngapType.N
 
 	ue, err := gnb.GetGnbUe(ue_id.Value)
 	if err != nil {
-		logger.GnbLog.Error("[GNB][AMF] AMF is trying to free the context of an unknown UE")
+		logger.GnbLog.Error("AMF is trying to free the context of an unknown UE")
 		return
 	}
 	gnb.DeleteGnBUe(ue)
@@ -651,7 +651,7 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 				ipv4Port := netip.AddrPortFrom(netip.MustParseAddr(ipv4String), 38412) // with default sctp port
 
 				if oldAmf := gnb.FindGnbAmfByIpPort(ipv4Port); oldAmf != nil {
-					logger.GnbLog.Info("[GNB] SCTP/NGAP service exists")
+					logger.GnbLog.Info("SCTP/NGAP service exists")
 					continue
 				}
 
@@ -668,7 +668,7 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 				if err := InitConn(newAmf, gnb); err != nil {
 					logger.GnbLog.Fatal("Error in", err)
 				} else {
-					logger.GnbLog.Info("[GNB] SCTP/NGAP service is running")
+					logger.GnbLog.Info("SCTP/NGAP service is running")
 				}
 
 				trigger.SendNgSetupRequest(gnb, newAmf)
@@ -689,11 +689,11 @@ func HandlerAmfConfigurationUpdate(amf *context.GNBAmf, gnb *context.GNBContext,
 					continue
 				}
 
-				logger.GnbLog.Info("[GNB][AMF] Remove AMF:", amf.GetAmfName(), " IP:", amf.GetAmfIpPort().Addr())
+				logger.GnbLog.Info("Remove AMF:", amf.GetAmfName(), " IP:", amf.GetAmfIpPort().Addr())
 				tnla := amf.GetTNLA()
 				err := tnla.Release() // Close SCTP Conntection
 				if err != nil {
-					logger.GnbLog.Error("[GNB][AMF] Error in releasing TNLA: ", err)
+					logger.GnbLog.Error("Error in releasing TNLA: ", err)
 				}
 				gnb.DeleteGnBAmf(oldAmf.GetAmfId())
 			}
@@ -773,7 +773,7 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 							reflect.DeepEqual(oldAmf.GetRegionId(), unavailableGuamiItem.GUAMI.AMFRegionID.Value) &&
 							reflect.DeepEqual(oldAmf.GetSetId(), unavailableGuamiItem.GUAMI.AMFSetID.Value) &&
 							reflect.DeepEqual(oldAmf.GetPointer(), unavailableGuamiItem.GUAMI.AMFPointer.Value) {
-							logger.GnbLog.Info("[GNB][AMF] Remove AMF: [",
+							logger.GnbLog.Info("Remove AMF: [",
 								"Id: ", oldAmf.GetAmfId(),
 								"Name: ", oldAmf.GetAmfName(),
 								"Ipv4: ", oldAmf.GetAmfIpPort().Addr(),
@@ -817,7 +817,7 @@ func HandlerAmfStatusIndication(amf *context.GNBAmf, gnb *context.GNBContext, me
 
 							err := tnla.Release()
 							if err != nil {
-								logger.GnbLog.Error("[GNB][AMF] Error in TNLA Release: ", err)
+								logger.GnbLog.Error("Error in TNLA Release: ", err)
 							}
 							gnb.DeleteGnBAmf(oldAmf.GetAmfId())
 
@@ -866,7 +866,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 	}
 
 	if pduSessionResourceSwitchedList == nil || len(pduSessionResourceSwitchedList.List) == 0 {
-		logger.GnbLog.Warn("[GNB] No PDU Sessions to be switched")
+		logger.GnbLog.Warn("No PDU Sessions to be switched")
 		return
 	}
 
@@ -874,7 +874,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 		pduSessionId := pduSessionResourceSwitchedItem.PDUSessionID.Value
 		pduSession, err := ue.GetPduSession(pduSessionId)
 		if err != nil {
-			logger.GnbLog.Error("[GNB] Trying to path switch an unknown PDU Session ID ", pduSessionId, ": ", err)
+			logger.GnbLog.Error("Trying to path switch an unknown PDU Session ID ", pduSessionId, ": ", err)
 			continue
 		}
 
@@ -882,7 +882,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 		pathSwitchRequestAcknowledgeTransfer := &ngapType.PathSwitchRequestAcknowledgeTransfer{}
 		err = aper.UnmarshalWithParams(pathSwitchRequestAcknowledgeTransferBytes, pathSwitchRequestAcknowledgeTransfer, "valueExt")
 		if err != nil {
-			logger.GnbLog.Error("[GNB] Unable to unmarshall PathSwitchRequestAcknowledgeTransfer: ", err)
+			logger.GnbLog.Error("Unable to unmarshall PathSwitchRequestAcknowledgeTransfer: ", err)
 			continue
 		}
 
@@ -903,7 +903,7 @@ func HandlerPathSwitchRequestAcknowledge(gnb *context.GNBContext, message *ngapT
 		sender.SendMessageToUe(ue, msg)
 	}
 
-	logger.GnbLog.Info("[GNB] Handover completed successfully for UE ", ue.GetRanUeId())
+	logger.GnbLog.Info("Handover completed successfully for UE ", ue.GetRanUeId())
 }
 
 func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, message *ngapType.NGAPPDU) {
@@ -978,7 +978,7 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	}
 
 	if sourceToTargetContainer == nil {
-		logger.GnbLog.Error("[GNB] HandoverRequest message from AMF is missing mandatory SourceToTargetTransparentContainer")
+		logger.GnbLog.Error("HandoverRequest message from AMF is missing mandatory SourceToTargetTransparentContainer")
 		return
 	}
 
@@ -986,18 +986,18 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	sourceToTargetContainerNgap := &ngapType.SourceNGRANNodeToTargetNGRANNodeTransparentContainer{}
 	err := aper.UnmarshalWithParams(sourceToTargetContainerBytes, sourceToTargetContainerNgap, "valueExt")
 	if err != nil {
-		logger.GnbLog.Error("[GNB] Unable to unmarshall SourceToTargetTransparentContainer: ", err)
+		logger.GnbLog.Error("Unable to unmarshall SourceToTargetTransparentContainer: ", err)
 		return
 	}
 	if sourceToTargetContainerNgap.IndexToRFSP == nil {
-		logger.GnbLog.Error("[GNB] SourceToTargetTransparentContainer from source gNodeB is missing IndexToRFSP")
+		logger.GnbLog.Error("SourceToTargetTransparentContainer from source gNodeB is missing IndexToRFSP")
 		return
 	}
 	prUeId := sourceToTargetContainerNgap.IndexToRFSP.Value
 
 	ue, err := gnb.NewGnBUe(nil, nil, prUeId, nil)
 	if ue == nil || err != nil {
-		logger.GnbLog.Fatalf("[GNB] HandoverFailure: %s", err)
+		logger.GnbLog.Fatalf("HandoverFailure: %s", err)
 	}
 	ue.SetAmfUeId(amfUeId)
 
@@ -1015,7 +1015,7 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 		handOverRequestTransfer := &ngapType.PDUSessionResourceSetupRequestTransfer{}
 		err := aper.UnmarshalWithParams(handOverRequestTransferBytes, handOverRequestTransfer, "valueExt")
 		if err != nil {
-			logger.GnbLog.Error("[GNB] Unable to unmarshall HandOverRequestTransfer: ", err)
+			logger.GnbLog.Error("Unable to unmarshall HandOverRequestTransfer: ", err)
 			continue
 		}
 
@@ -1035,7 +1035,7 @@ func HandlerHandoverRequest(amf *context.GNBAmf, gnb *context.GNBContext, messag
 
 		_, err = ue.CreatePduSession(pduSessionId, upfIp, sst, sd, 0, 1, 0, 0, binary.BigEndian.Uint32(teidUplink), gnb.GetUeTeid(ue))
 		if err != nil {
-			logger.GnbLog.Error("[GNB] ", err)
+			logger.GnbLog.Error("", err)
 		}
 	}
 
@@ -1071,7 +1071,7 @@ func HandlerHandoverCommand(amf *context.GNBAmf, gnb *context.GNBContext, messag
 	}
 	newGnb := ue.GetHandoverGnodeB()
 	if newGnb == nil {
-		logger.GnbLog.Error("[GNB] AMF is sending a Handover Command for an UE we did not send a Handover Required message")
+		logger.GnbLog.Error("AMF is sending a Handover Command for an UE we did not send a Handover Required message")
 		return
 	}
 
@@ -1111,7 +1111,7 @@ func HandlerPaging(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
 
 	gnb.AddPagedUE(uEPagingIdentity.FiveGSTMSI)
 
-	logger.GnbLog.Info("[GNB][AMF] Paging UE")
+	logger.GnbLog.Info("Paging UE")
 }
 
 func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) {
@@ -1137,7 +1137,7 @@ func HandlerErrorIndication(gnb *context.GNBContext, message *ngapType.NGAPPDU) 
 		}
 	}
 
-	logger.GnbLog.Warn("[GNB][AMF] Received an Error Indication for UE with AMF UE ID: ", amfUeId, " RAN UE ID: ", ranUeId)
+	logger.GnbLog.Warn("Received an Error Indication for UE with AMF UE ID: ", amfUeId, " RAN UE ID: ", ranUeId)
 }
 
 func getUeFromContext(gnb *context.GNBContext, ranUeId int64, amfUeId int64) *context.GNBUe {

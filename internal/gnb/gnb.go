@@ -42,7 +42,7 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 		if err := ngap.InitConn(amf, gnb); err != nil {
 			logger.GnbLog.Fatal("Error in", err)
 		} else {
-			logger.GnbLog.Info("[GNB] SCTP/NGAP service is running")
+			logger.GnbLog.Info("SCTP/NGAP service is running")
 			// wg.Add(1)
 		}
 

@@ -17,7 +17,7 @@ import (
 )
 
 func SendPduSessionResourceSetupResponse(pduSessions []*context.GnbPDUSession, ue *context.GNBUe, gnb *context.GNBContext) {
-	logger.GnbLog.Info("[GNB] Initiating PDU Session Resource Setup Response")
+	logger.GnbLog.Info("Initiating PDU Session Resource Setup Response")
 
 	// send PDU Session Resource Setup Response.
 	ngapMsg, err := pdu_session_management.PDUSessionResourceSetupResponse(pduSessions, ue, gnb)
@@ -31,12 +31,12 @@ func SendPduSessionResourceSetupResponse(pduSessions []*context.GnbPDUSession, u
 	conn := ue.GetSCTP()
 	err = sender.SendToAmF(ngapMsg, conn)
 	if err != nil {
-		logger.GnbLog.Fatal("[GNB][AMF] Error sending PDU Session Resource Setup Response.: ", err)
+		logger.GnbLog.Fatal("Error sending PDU Session Resource Setup Response.: ", err)
 	}
 }
 
 func SendPduSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating PDU Session Release Response")
+	logger.GnbLog.Info("Initiating PDU Session Release Response")
 
 	if len(pduSessionIds) == 0 {
 		logger.GnbLog.Fatal("Trying to send a PDU Session Release Response for no PDU Session")
@@ -55,7 +55,7 @@ func SendPduSessionReleaseResponse(pduSessionIds []ngapType.PDUSessionID, ue *co
 }
 
 func SendInitialContextSetupResponse(ue *context.GNBUe, gnb *context.GNBContext) {
-	logger.GnbLog.Info("[GNB] Initiating Initial Context Setup Response")
+	logger.GnbLog.Info("Initiating Initial Context Setup Response")
 
 	// send Initial Context Setup Response.
 	ngapMsg, err := ue_context_management.InitialContextSetupResponse(ue, gnb)
@@ -67,12 +67,12 @@ func SendInitialContextSetupResponse(ue *context.GNBUe, gnb *context.GNBContext)
 	conn := ue.GetSCTP()
 	err = sender.SendToAmF(ngapMsg, conn)
 	if err != nil {
-		logger.GnbLog.Fatal("[GNB][AMF] Error sending Initial Context Setup Response: ", err)
+		logger.GnbLog.Fatal("Error sending Initial Context Setup Response: ", err)
 	}
 }
 
 func SendUeContextReleaseRequest(ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating UE Context Release Request")
+	logger.GnbLog.Info("Initiating UE Context Release Request")
 
 	// send UE Context Release Complete
 	ngapMsg, err := ue_context_management.UeContextReleaseRequest(ue)
@@ -84,12 +84,12 @@ func SendUeContextReleaseRequest(ue *context.GNBUe) {
 	conn := ue.GetSCTP()
 	err = sender.SendToAmF(ngapMsg, conn)
 	if err != nil {
-		logger.GnbLog.Fatal("[GNB][AMF] Error sending UE Context Release Request: ", err)
+		logger.GnbLog.Fatal("Error sending UE Context Release Request: ", err)
 	}
 }
 
 func SendUeContextReleaseComplete(ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating UE Context Complete")
+	logger.GnbLog.Info("Initiating UE Context Complete")
 
 	// send UE Context Release Complete
 	ngapMsg, err := ue_context_management.UeContextReleaseComplete(ue)
@@ -101,12 +101,12 @@ func SendUeContextReleaseComplete(ue *context.GNBUe) {
 	conn := ue.GetSCTP()
 	err = sender.SendToAmF(ngapMsg, conn)
 	if err != nil {
-		logger.GnbLog.Fatal("[GNB][AMF] Error sending UE Context Complete: ", err)
+		logger.GnbLog.Fatal("Error sending UE Context Complete: ", err)
 	}
 }
 
 func SendAmfConfigurationUpdateAcknowledge(amf *context.GNBAmf) {
-	logger.GnbLog.Info("[GNB] Initiating AMF Configuration Update Acknowledge")
+	logger.GnbLog.Info("Initiating AMF Configuration Update Acknowledge")
 
 	// send AMF Configure Update Acknowledge
 	ngapMsg, err := interface_management.AmfConfigurationUpdateAcknowledge()
@@ -123,7 +123,7 @@ func SendAmfConfigurationUpdateAcknowledge(amf *context.GNBAmf) {
 }
 
 func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
-	logger.GnbLog.Info("[GNB] Initiating NG Setup Request")
+	logger.GnbLog.Info("Initiating NG Setup Request")
 
 	// send NG setup response.
 	ngapMsg, err := interface_management.NGSetupRequest(gnb, "PacketRusher")
@@ -134,12 +134,12 @@ func SendNgSetupRequest(gnb *context.GNBContext, amf *context.GNBAmf) {
 	conn := amf.GetSCTPConn()
 	err = sender.SendToAmF(ngapMsg, conn)
 	if err != nil {
-		logger.GnbLog.Info("[GNB][AMF] Error sending NG Setup Request: ", err)
+		logger.GnbLog.Info("Error sending NG Setup Request: ", err)
 	}
 }
 
 func SendPathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating Path Switch Request")
+	logger.GnbLog.Info("Initiating Path Switch Request")
 
 	// send NG setup response.
 	ngapMsg, err := ue_mobility_management.PathSwitchRequest(gnb, ue)
@@ -155,7 +155,7 @@ func SendPathSwitchRequest(gnb *context.GNBContext, ue *context.GNBUe) {
 }
 
 func SendHandoverRequestAcknowledge(gnb *context.GNBContext, ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating Handover Request Acknowledge")
+	logger.GnbLog.Info("Initiating Handover Request Acknowledge")
 
 	// send NG setup response.
 	ngapMsg, err := ue_mobility_management.HandoverRequestAcknowledge(gnb, ue)
@@ -171,7 +171,7 @@ func SendHandoverRequestAcknowledge(gnb *context.GNBContext, ue *context.GNBUe) 
 }
 
 func SendHandoverNotify(gnb *context.GNBContext, ue *context.GNBUe) {
-	logger.GnbLog.Info("[GNB] Initiating Handover Notify")
+	logger.GnbLog.Info("Initiating Handover Notify")
 
 	// send NG setup response.
 	ngapMsg, err := ue_mobility_management.HandoverNotify(gnb, ue)
@@ -187,7 +187,7 @@ func SendHandoverNotify(gnb *context.GNBContext, ue *context.GNBUe) {
 }
 
 func TriggerXnHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext, prUeId int64) {
-	logger.GnbLog.Info("[GNB] Initiating Xn UE Handover")
+	logger.GnbLog.Info("Initiating Xn UE Handover")
 
 	gnbUeContext, err := oldGnb.GetGnbUeByPrUeId(prUeId)
 	if err != nil {
@@ -204,7 +204,7 @@ func TriggerXnHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext, p
 }
 
 func TriggerNgapHandover(oldGnb *context.GNBContext, newGnb *context.GNBContext, prUeId int64) {
-	logger.GnbLog.Info("[GNB] Initiating NGAP UE Handover")
+	logger.GnbLog.Info("Initiating NGAP UE Handover")
 
 	gnbUeContext, err := oldGnb.GetGnbUeByPrUeId(prUeId)
 	if err != nil {
