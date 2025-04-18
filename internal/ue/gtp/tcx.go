@@ -89,7 +89,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 func ensureClsactQdisc(ifaceName string) error {
 	link, err := netlink.LinkByName(ifaceName)
 	if err != nil {
-		return fmt.Errorf("LinkByName(%s): %w", ifaceName, err)
+		return fmt.Errorf("could not find interface %q: %w", ifaceName, err)
 	}
 	// Try to replace any existing clsact—if something else is there it will be replaced
 	q := &netlink.GenericQdisc{
