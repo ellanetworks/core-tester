@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
@@ -17,7 +16,7 @@ import (
 	"github.com/free5gc/nas/security"
 )
 
-func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.RequestedNSSAI, uplinkDataStatus *nasType.UplinkDataStatus, capability bool, ue *context.UEContext) []byte {
+func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.RequestedNSSAI, uplinkDataStatus *nasType.UplinkDataStatus, capability bool, ue *context.UEContext) ([]byte, error) {
 	ueSecurityCapability := ue.GetUeSecurityCapability()
 
 	m := nas.NewMessage()
@@ -81,7 +80,7 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 	data := new(bytes.Buffer)
 	err := m.GmmMessageEncode(data)
 	if err != nil {
-		fmt.Println(err.Error())
+		return nil, fmt.Errorf("error encoding GMM message: %w", err)
 	}
 
 	nasPdu := data.Bytes()
@@ -89,8 +88,7 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 	if pduFlag != 0 {
 		if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, nasPdu); err != nil {
-			logger.UELog.Errorf("Error while encrypting NAS Message: %s", err)
-			return nasPdu
+			return nasPdu, fmt.Errorf("error encrypting NAS message: %w", err)
 		}
 
 		registrationRequest.NASMessageContainer = nasType.NewNASMessageContainer(nasMessage.RegistrationRequestNASMessageContainerType)
@@ -103,10 +101,10 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 		data = new(bytes.Buffer)
 		err = m.GmmMessageEncode(data)
 		if err != nil {
-			fmt.Println(err.Error())
+			return nil, fmt.Errorf("error encoding GMM message: %w", err)
 		}
 
 		nasPdu = data.Bytes()
 	}
-	return nasPdu
+	return nasPdu, nil
 }

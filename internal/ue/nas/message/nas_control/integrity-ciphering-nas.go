@@ -7,7 +7,6 @@ package nas_control
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
@@ -57,8 +56,7 @@ func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable
 		if msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtected && msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext {
 			if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 				security.DirectionUplink, payload); err != nil {
-				logger.UELog.Errorf("Error while encrypting NAS Message: %s", err)
-				return nil, err
+				return nil, fmt.Errorf("Error while encrypting NAS Message: %s", err)
 			}
 		}
 
@@ -67,8 +65,7 @@ func NASEncode(ue *context.UEContext, msg *nas.Message, securityContextAvailable
 
 		mac32, err := security.NASMacCalculate(ue.UeSecurity.IntegrityAlg, ue.UeSecurity.KnasInt, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP, security.DirectionUplink, payload)
 		if err != nil {
-			logger.UELog.Errorf("Error while calculating MAC of NAS Message: %s", err)
-			return nil, err
+			return nil, fmt.Errorf("Error while calculating MAC of NAS Message: %s", err)
 		}
 
 		// Add mac value

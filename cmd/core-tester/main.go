@@ -87,7 +87,10 @@ func TestMultiUesInQueue(opts *TestOptions) error {
 		logger.EllaCoreTesterLog.Warn("We are increasing the number of gNodeB to two for handover test cases. Make you sure you fill the requirements for having two gNodeBs.")
 		numGnb++
 	}
-	gnbs := tools.CreateGnbs(numGnb, cfg, &wg)
+	gnbs, err := tools.CreateGnbs(numGnb, cfg, &wg)
+	if err != nil {
+		return fmt.Errorf("error creating gNBs: %v", err)
+	}
 
 	// Wait for gNB to be connected before registering UEs
 	time.Sleep(1 * time.Second)

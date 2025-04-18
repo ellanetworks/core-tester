@@ -8,7 +8,6 @@ import (
 	"crypto/ecdh"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
@@ -145,7 +144,7 @@ func (config *Config) GetUESecurityCapability() *nasType.UESecurityCapability {
 	return UESecurityCapability
 }
 
-func (config *Config) GetHomeNetworkPublicKey() sidf.HomeNetworkPublicKey {
+func (config *Config) GetHomeNetworkPublicKey() (sidf.HomeNetworkPublicKey, error) {
 	switch config.Ue.ProtectionScheme {
 	case 0:
 		config.Ue.HomeNetworkPublicKey = ""
@@ -153,44 +152,44 @@ func (config *Config) GetHomeNetworkPublicKey() sidf.HomeNetworkPublicKey {
 	case 1:
 		key, err := hex.DecodeString(config.Ue.HomeNetworkPublicKey)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile A: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
 		}
 
 		publicKey, err := ecdh.X25519().NewPublicKey(key)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile A: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
 		}
 
 		return sidf.HomeNetworkPublicKey{
 			ProtectionScheme: strconv.Itoa(config.Ue.ProtectionScheme),
 			PublicKey:        publicKey,
 			PublicKeyID:      strconv.Itoa(int(config.Ue.HomeNetworkPublicKeyID)),
-		}
+		}, nil
 	case 2:
 		key, err := hex.DecodeString(config.Ue.HomeNetworkPublicKey)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile B: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile B: %w", err)
 		}
 
 		publicKey, err := ecdh.P256().NewPublicKey(key)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile B: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile B: %w", err)
 		}
 
 		return sidf.HomeNetworkPublicKey{
 			ProtectionScheme: strconv.Itoa(config.Ue.ProtectionScheme),
 			PublicKey:        publicKey,
 			PublicKeyID:      strconv.Itoa(int(config.Ue.HomeNetworkPublicKeyID)),
-		}
+		}, nil
 	default:
-		log.Fatal("Invalid Protection Scheme for SUCI. Valid values are 0, 1 and 2")
+		return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Protection Scheme for SUCI. Valid values are 0, 1 and 2")
 	}
 
 	return sidf.HomeNetworkPublicKey{
 		ProtectionScheme: "0",
 		PublicKey:        nil,
 		PublicKeyID:      "0",
-	}
+	}, nil
 }
 
 func boolToUint8(boolean bool) uint8 {

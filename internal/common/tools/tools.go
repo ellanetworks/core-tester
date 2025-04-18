@@ -20,7 +20,7 @@ import (
 	ueCtx "github.com/ellanetworks/core-tester/internal/ue/context"
 )
 
-func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gnbCxt.GNBContext {
+func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) (map[string]*gnbCxt.GNBContext, error) {
 	gnbs := make(map[string]*gnbCxt.GNBContext)
 	// Each gNB have their own IP address on both N2 and N3
 	// gnb[0].n2_ip = 192.168.2.10, gnb[0].n3_ip = 192.168.3.10
@@ -28,25 +28,32 @@ func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gn
 	// ...
 	baseGnbId := cfg.GNodeB.PlmnList.GnbId
 	for i := 1; i <= count; i++ {
-		gnbs[cfg.GNodeB.PlmnList.GnbId] = gnb.InitGnb(cfg, wg)
+		gnb, err := gnb.InitGnb(cfg, wg)
+		if err != nil {
+			return nil, fmt.Errorf("could not create gnb: %w", err)
+		}
+		gnbs[cfg.GNodeB.PlmnList.GnbId] = gnb
 		wg.Add(1)
-
-		cfg.GNodeB.PlmnList.GnbId = gnbIdGenerator(i, baseGnbId)
+		gnbID, err := gnbIdGenerator(i, baseGnbId)
+		if err != nil {
+			return nil, fmt.Errorf("could not generate gnbId: %w", err)
+		}
+		cfg.GNodeB.PlmnList.GnbId = gnbID
 		cfg.GNodeB.ControlIF = cfg.GNodeB.ControlIF.WithNextAddr()
 		cfg.GNodeB.DataIF = cfg.GNodeB.DataIF.WithNextAddr()
 	}
-	return gnbs
+	return gnbs, nil
 }
 
-func gnbIdGenerator(i int, gnbId string) string {
+func gnbIdGenerator(i int, gnbId string) (string, error) {
 	gnbId_int, err := strconv.ParseInt(gnbId, 16, 0)
 	if err != nil {
-		logger.UELog.Fatal("given gnbId is invalid")
+		return "", fmt.Errorf("given gnbId is invalid: %w", err)
 	}
 	base := int(gnbId_int) + i
 
 	gnbId = fmt.Sprintf("%06X", base)
-	return gnbId
+	return gnbId, nil
 }
 
 type UESimulationConfig struct {
@@ -68,11 +75,19 @@ type UESimulationConfig struct {
 func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 	numGnb := len(simConfig.Gnbs)
 	ueCfg := simConfig.Cfg
-	ueCfg.Ue.Msin = IncrementMsin(simConfig.UeId, simConfig.Cfg.Ue.Msin)
+	msin, err := IncrementMsin(simConfig.UeId, simConfig.Cfg.Ue.Msin)
+	if err != nil {
+		logger.UELog.Fatal("could not generate msin: ", err)
+	}
+	ueCfg.Ue.Msin = msin
 	logger.EllaCoreTesterLog.Info("testing registration using IMSI ", ueCfg.Ue.Msin, " UE")
 
 	gnbIdGen := func(index int) string {
-		return gnbIdGenerator((simConfig.UeId+index)%numGnb, ueCfg.GNodeB.PlmnList.GnbId)
+		id, err := gnbIdGenerator((simConfig.UeId+index)%numGnb, ueCfg.GNodeB.PlmnList.GnbId)
+		if err != nil {
+			logger.UELog.Fatal("could not generate gnbId: ", err)
+		}
+		return id
 	}
 
 	// Launch a coroutine to handle UE's individual scenario
@@ -86,7 +101,10 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 
 			// Create a new UE coroutine
 			// ue.NewUE returns context of the new UE
-			ueTx := ue.NewUE(ueCfg, ueId, ueRx, simConfig.Gnbs[gnbIdGen(0)].GetInboundChannel(), wg)
+			ueTx, err := ue.NewUE(ueCfg, ueId, ueRx, simConfig.Gnbs[gnbIdGen(0)].GetInboundChannel(), wg)
+			if err != nil {
+				logger.UELog.Fatal("could not create UE: ", err)
+			}
 
 			// We tell the UE to perform a registration
 			ueRx <- procedures.UeTesterMessage{Type: procedures.Registration}
@@ -123,10 +141,16 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 						ueRx = nil
 					}
 				case <-ngapHandoverChannel:
-					trigger.TriggerNgapHandover(simConfig.Gnbs[gnbIdGen(nextHandoverId)], simConfig.Gnbs[gnbIdGen(nextHandoverId+1)], int64(ueId))
+					err := trigger.TriggerNgapHandover(simConfig.Gnbs[gnbIdGen(nextHandoverId)], simConfig.Gnbs[gnbIdGen(nextHandoverId+1)], int64(ueId))
+					if err != nil {
+						logger.UELog.Error("could not trigger Ngap handover: ", err)
+					}
 					nextHandoverId++
 				case <-xnHandoverChannel:
-					trigger.TriggerXnHandover(simConfig.Gnbs[gnbIdGen(nextHandoverId)], simConfig.Gnbs[gnbIdGen(nextHandoverId+1)], int64(ueId))
+					err := trigger.TriggerXnHandover(simConfig.Gnbs[gnbIdGen(nextHandoverId)], simConfig.Gnbs[gnbIdGen(nextHandoverId+1)], int64(ueId))
+					if err != nil {
+						logger.UELog.Error("could not trigger Xn handover: ", err)
+					}
 					nextHandoverId++
 				case <-idleChannel:
 					if ueRx != nil {
@@ -174,10 +198,10 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 	}(simConfig.ScenarioChan, simConfig.UeId)
 }
 
-func IncrementMsin(i int, msin string) string {
+func IncrementMsin(i int, msin string) (string, error) {
 	msin_int, err := strconv.Atoi(msin)
 	if err != nil {
-		logger.UELog.Fatal("given msin is invalid")
+		return "", fmt.Errorf("given msin is invalid: %w", err)
 	}
 	base := msin_int + (i - 1)
 
@@ -187,5 +211,5 @@ func IncrementMsin(i int, msin string) string {
 	} else {
 		imsi = fmt.Sprintf("%010d", base)
 	}
-	return imsi
+	return imsi, nil
 }

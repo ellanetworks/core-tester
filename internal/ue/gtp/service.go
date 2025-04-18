@@ -51,11 +51,6 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
-	logger.UELog.Infof("created tunnel with options: %+v", tunOpts)
-
-	logger.UELog.Info(fmt.Sprintf("Interface %s has successfully been configured for UE %s", nameInf, ueIp))
-	logger.UELog.Info(fmt.Sprintf("You can do traffic for this UE by binding to IP %s, eg:", ueIp))
-	logger.UELog.Info(fmt.Sprintf("iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp))
-	time.Sleep(time.Second * 120)
+	logger.UELog.Infof("created gtp-u tunnel for UE %s", ueIp)
 	return nil
 }

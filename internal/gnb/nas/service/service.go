@@ -51,7 +51,10 @@ func gnbListen(gnb *context.GNBContext) {
 
 			ue.SetStateReady()
 
-			trigger.SendHandoverNotify(gnb, ue)
+			err := trigger.SendHandoverNotify(gnb, ue)
+			if err != nil {
+				logger.GnbLog.Errorf("error while sending Handover Notify: %s", err)
+			}
 		} else {
 			var err error
 			ue, err = gnb.NewGnBUe(message.GNBTx, message.GNBRx, message.PrUeId, message.Tmsi)
@@ -65,7 +68,10 @@ func gnbListen(gnb *context.GNBContext) {
 				logger.GnbLog.Info("received incoming handover for UE from another gNodeB")
 				ue.SetStateReady()
 				ue.CopyFromPreviousContext(message.UEContext)
-				trigger.SendPathSwitchRequest(gnb, ue)
+				err := trigger.SendPathSwitchRequest(gnb, ue)
+				if err != nil {
+					logger.GnbLog.Errorf("error while sending Path Switch Request: %s", err)
+				}
 			} else {
 				// Usual first UE connection to a gNodeB
 				logger.GnbLog.Info("received incoming connection from new UE")
@@ -113,7 +119,10 @@ func processingConn(ue *context.GNBUe, gnb *context.GNBContext) {
 		} else if message.IsNas {
 			nas.Dispatch(ue, message.Nas, gnb)
 		} else if message.Idle {
-			trigger.SendUeContextReleaseRequest(ue)
+			err := trigger.SendUeContextReleaseRequest(ue)
+			if err != nil {
+				logger.GnbLog.Errorf("error while sending UE Context Release Request: %s", err)
+			}
 		} else {
 			logger.GnbLog.Error("received unknown message from UE")
 		}

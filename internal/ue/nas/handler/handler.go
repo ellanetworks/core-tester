@@ -27,48 +27,48 @@ func HandlerAuthenticationReject(ue *context.UEContext, message *nas.Message) {
 	ue.SetStateMM_DEREGISTERED()
 }
 
-func HandlerAuthenticationRequest(ue *context.UEContext, message *nas.Message) {
+func HandlerAuthenticationRequest(ue *context.UEContext, message *nas.Message) error {
 	var authenticationResponse []byte
 
 	// check the mandatory fields
 	if reflect.ValueOf(message.AuthenticationRequest.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in Authentication Request, Extended Protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.AuthenticationRequest.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in Authentication Request, Extended Protocol not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.AuthenticationRequest.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Authentication Request, Spare Half Octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.AuthenticationRequest.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in Authentication Request, Security Header Type not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if reflect.ValueOf(message.AuthenticationRequest.AuthenticationRequestMessageIdentity).IsZero() {
-		logger.UELog.Fatal("Error in Authentication Request, Message Type is missing")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if message.AuthenticationRequest.AuthenticationRequestMessageIdentity.GetMessageType() != 86 {
-		logger.UELog.Fatal("Error in Authentication Request, Message Type not the expected value")
+		return fmt.Errorf("message type not the expected value")
 	}
 
 	if message.AuthenticationRequest.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Authentication Request, Spare Half Octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.AuthenticationRequest.SpareHalfOctetAndNgksi.GetNasKeySetIdentifiler() == 7 {
-		logger.UELog.Fatal("Error in Authentication Request, ngKSI not the expected value")
+		return fmt.Errorf("ngKSI not the expected value")
 	}
 
 	if reflect.ValueOf(message.AuthenticationRequest.ABBA).IsZero() {
-		logger.UELog.Fatal("Error in Authentication Request, ABBA is missing")
+		return fmt.Errorf("ABBA is missing")
 	}
 
 	if message.AuthenticationRequest.GetABBAContents() == nil {
-		logger.UELog.Fatal("Error in Authentication Request, ABBA Content is missing")
+		return fmt.Errorf("ABBA content is missing")
 	}
 
 	// getting RAND and AUTN from the message.
@@ -76,23 +76,23 @@ func HandlerAuthenticationRequest(ue *context.UEContext, message *nas.Message) {
 	autn := message.AuthenticationRequest.GetAUTN()
 
 	// getting resStar
-	paramAutn, check := ue.DeriveRESstarAndSetKey(ue.UeSecurity.AuthenticationSubs, rand[:], ue.UeSecurity.Snn, autn[:])
+	paramAutn, err := ue.DeriveRESstarAndSetKey(ue.UeSecurity.AuthenticationSubs, rand[:], ue.UeSecurity.Snn, autn[:])
 
-	switch check {
-	case "MAC failure":
+	switch err {
+	case context.ErrMACFailure:
 		logger.UELog.Info("[UE][NAS][MAC] Authenticity of the authentication request message: FAILED")
 		logger.UELog.Info("Send authentication failure with MAC failure")
 		authenticationResponse = mm_5gs.AuthenticationFailure("MAC failure", "", paramAutn)
 		// not change the state of UE.
 
-	case "SQN failure":
+	case context.ErrSQNFailure:
 		logger.UELog.Info("[UE][NAS][MAC] Authenticity of the authentication request message: OK")
 		logger.UELog.Info("[UE][NAS][SQN] SQN of the authentication request message: INVALID")
 		logger.UELog.Info("Send authentication failure with Synch failure")
 		authenticationResponse = mm_5gs.AuthenticationFailure("SQN failure", "", paramAutn)
 		// not change the state of UE.
 
-	case "successful":
+	case nil:
 		// getting NAS Authentication Response.
 		logger.UELog.Info("[UE][NAS][MAC] Authenticity of the authentication request message: OK")
 		logger.UELog.Info("[UE][NAS][SQN] SQN of the authentication request message: VALID")
@@ -101,51 +101,55 @@ func HandlerAuthenticationRequest(ue *context.UEContext, message *nas.Message) {
 
 		// change state of UE for registered-initiated
 		ue.SetStateMM_REGISTERED_INITIATED()
+	default:
+		logger.UELog.Error("Error in authentication: ", err)
+		return fmt.Errorf("error in authentication: %w", err)
 	}
 
 	// sending to GNB
 	sender.SendToGnb(ue, authenticationResponse)
+	return nil
 }
 
-func HandlerSecurityModeCommand(ue *context.UEContext, message *nas.Message) { // check the mandatory fields
+func HandlerSecurityModeCommand(ue *context.UEContext, message *nas.Message) error {
 	if reflect.ValueOf(message.SecurityModeCommand.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in Security Mode Command, Extended Protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.SecurityModeCommand.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in Security Mode Command, Extended Protocol not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.SecurityModeCommand.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in Security Mode Command, Security Header Type not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if message.SecurityModeCommand.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Security Mode Command, Spare Half Octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if reflect.ValueOf(message.SecurityModeCommand.SecurityModeCommandMessageIdentity).IsZero() {
-		logger.UELog.Fatal("Error in Security Mode Command, Message Type is missing")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if message.SecurityModeCommand.SecurityModeCommandMessageIdentity.GetMessageType() != 93 {
-		logger.UELog.Fatal("Error in Security Mode Command, Message Type not the expected value")
+		return fmt.Errorf("message type not the expected value")
 	}
 
 	if reflect.ValueOf(message.SecurityModeCommand.SelectedNASSecurityAlgorithms).IsZero() {
-		logger.UELog.Fatal("Error in Security Mode Command, NAS Security Algorithms is missing")
+		return fmt.Errorf("nas security algorithms is missing")
 	}
 
 	if message.SecurityModeCommand.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Security Mode Command, Spare Half Octet is missing")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.SecurityModeCommand.SpareHalfOctetAndNgksi.GetNasKeySetIdentifiler() == 7 {
-		logger.UELog.Fatal("Error in Security Mode Command, ngKSI not the expected value")
+		return fmt.Errorf("ngKSI not the expected value")
 	}
 
 	if reflect.ValueOf(message.SecurityModeCommand.ReplayedUESecurityCapabilities).IsZero() {
-		logger.UELog.Fatal("Error in Security Mode Command, Replayed UE Security Capabilities is missing")
+		return fmt.Errorf("replayed ue security capabilities is missing")
 	}
 
 	switch ue.UeSecurity.CipheringAlg {
@@ -185,45 +189,46 @@ func HandlerSecurityModeCommand(ue *context.UEContext, message *nas.Message) { /
 	// getting NAS Security Mode Complete.
 	securityModeComplete, err := mm_5gs.SecurityModeComplete(ue, rinmr)
 	if err != nil {
-		logger.UELog.Fatal("Error sending Security Mode Complete: ", err)
+		return fmt.Errorf("error sending Security Mode Complete: %w", err)
 	}
 
 	// sending to GNB
 	sender.SendToGnb(ue, securityModeComplete)
+	return nil
 }
 
-func HandlerRegistrationAccept(ue *context.UEContext, message *nas.Message) {
+func HandlerRegistrationAccept(ue *context.UEContext, message *nas.Message) error {
 	// check the mandatory fields
 	if reflect.ValueOf(message.RegistrationAccept.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in Registration Accept, Extended Protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.RegistrationAccept.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in Registration Accept, Extended Protocol not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.RegistrationAccept.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Registration Accept, Spare Half not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.RegistrationAccept.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in Registration Accept, Security Header not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if reflect.ValueOf(message.RegistrationAccept.RegistrationAcceptMessageIdentity).IsZero() {
-		logger.UELog.Fatal("Error in Registration Accept, Message Type is missing")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if message.RegistrationAccept.RegistrationAcceptMessageIdentity.GetMessageType() != 66 {
-		logger.UELog.Fatal("Error in Registration Accept, Message Type not the expected value")
+		return fmt.Errorf("message type not the expected value")
 	}
 
 	if reflect.ValueOf(message.RegistrationAccept.RegistrationResult5GS).IsZero() {
-		logger.UELog.Fatal("Error in Registration Accept, Registration Result 5GS is missing")
+		return fmt.Errorf("registration result 5GS is missing")
 	}
 
 	if message.RegistrationAccept.RegistrationResult5GS.GetRegistrationResultValue5GS() != 1 {
-		logger.UELog.Fatal("Error in Registration Accept, Registration Result 5GS not the expected value")
+		return fmt.Errorf("registration result 5GS not the expected value")
 	}
 
 	// change the state of ue for registered
@@ -254,11 +259,12 @@ func HandlerRegistrationAccept(ue *context.UEContext, message *nas.Message) {
 	// getting NAS registration complete.
 	registrationComplete, err := mm_5gs.RegistrationComplete(ue)
 	if err != nil {
-		logger.UELog.Fatal("Error sending Registration Complete: ", err)
+		return fmt.Errorf("error sending Registration Complete: %w", err)
 	}
 
 	// sending to GNB
 	sender.SendToGnb(ue, registrationComplete)
+	return nil
 }
 
 func HandlerServiceAccept(ue *context.UEContext, message *nas.Message) {
@@ -266,52 +272,52 @@ func HandlerServiceAccept(ue *context.UEContext, message *nas.Message) {
 	ue.SetStateMM_REGISTERED()
 }
 
-func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message) {
+func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message) error {
 	// check the mandatory fields
 	if reflect.ValueOf(message.DLNASTransport.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in DL NAS Transport, Extended Protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.DLNASTransport.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in DL NAS Transport, Extended Protocol not expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.DLNASTransport.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in DL NAS Transport, Spare Half not expected value")
+		return fmt.Errorf("spare half not expected value")
 	}
 
 	if message.DLNASTransport.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in DL NAS Transport, Security Header not expected value")
+		return fmt.Errorf("security header not expected value")
 	}
 
 	if message.DLNASTransport.DLNASTRANSPORTMessageIdentity.GetMessageType() != 104 {
-		logger.UELog.Fatal("Error in DL NAS Transport, Message Type is missing or not expected value")
+		return fmt.Errorf("message type is missing or not expected value")
 	}
 
 	if reflect.ValueOf(message.DLNASTransport.SpareHalfOctetAndPayloadContainerType).IsZero() {
-		logger.UELog.Fatal("Error in DL NAS Transport, Payload Container Type is missing")
+		return fmt.Errorf("payload container type is missing")
 	}
 
 	if message.DLNASTransport.SpareHalfOctetAndPayloadContainerType.GetPayloadContainerType() != 1 {
-		logger.UELog.Fatal("Error in DL NAS Transport, Payload Container Type not expected value")
+		return fmt.Errorf("payload container type not expected value")
 	}
 
 	if reflect.ValueOf(message.DLNASTransport.PayloadContainer).IsZero() || message.DLNASTransport.PayloadContainer.GetPayloadContainerContents() == nil {
-		logger.UELog.Fatal("Error in DL NAS Transport, Payload Container is missing")
+		return fmt.Errorf("payload container is missing")
 	}
 
 	if reflect.ValueOf(message.DLNASTransport.PduSessionID2Value).IsZero() {
-		logger.UELog.Fatal("Error in DL NAS Transport, PDU Session ID is missing")
+		return fmt.Errorf("pdu session id is missing")
 	}
 
 	if message.DLNASTransport.PduSessionID2Value.GetIei() != 18 {
-		logger.UELog.Fatal("Error in DL NAS Transport, PDU Session ID not expected value")
+		return fmt.Errorf("pdu session id not expected value")
 	}
 
 	// getting PDU Session establishment accept.
 	payloadContainer, err := nas_control.GetNasPduFromPduAccept(message)
 	if err != nil {
-		logger.UELog.Fatalf("Error in DL NAS Transport, PDU Session establishment accept: %v", err)
+		return fmt.Errorf("could not get PDU Session establishment accept: %v", err)
 	}
 
 	switch payloadContainer.GsmHeader.GetMessageType() {
@@ -323,43 +329,43 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 
 		// check the mandatory fields
 		if reflect.ValueOf(pduSessionEstablishmentAccept.ExtendedProtocolDiscriminator).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, Extended Protocol Discriminator is missing")
+			return fmt.Errorf("extended protocol discriminator is missing")
 		}
 
 		if pduSessionEstablishmentAccept.GetExtendedProtocolDiscriminator() != 46 {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, Extended Protocol Discriminator not expected value")
+			return fmt.Errorf("extended protocol discriminator not expected value")
 		}
 
 		if reflect.ValueOf(pduSessionEstablishmentAccept.PDUSessionID).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, PDU Session ID is missing or not expected value")
+			return fmt.Errorf("pdu session id is missing or not expected value")
 		}
 
 		if reflect.ValueOf(pduSessionEstablishmentAccept.PTI).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, PTI is missing")
+			return fmt.Errorf("pti is missing")
 		}
 
 		if pduSessionEstablishmentAccept.PTI.GetPTI() != 1 {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, PTI not the expected value")
+			return fmt.Errorf("pti not expected value")
 		}
 
 		if pduSessionEstablishmentAccept.PDUSESSIONESTABLISHMENTACCEPTMessageIdentity.GetMessageType() != 194 {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, Message Type is missing or not expected value")
+			return fmt.Errorf("message type is missing or not expected value")
 		}
 
 		if reflect.ValueOf(pduSessionEstablishmentAccept.SelectedSSCModeAndSelectedPDUSessionType).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, SSC Mode or PDU Session Type is missing")
+			return fmt.Errorf("ssc mode or pdu session type is missing")
 		}
 
 		if pduSessionEstablishmentAccept.SelectedSSCModeAndSelectedPDUSessionType.GetPDUSessionType() != 1 {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, PDU Session Type not the expected value")
+			return fmt.Errorf("pdu session type not expected value")
 		}
 
 		if reflect.ValueOf(pduSessionEstablishmentAccept.AuthorizedQosRules).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, Authorized QoS Rules is missing")
+			return fmt.Errorf("authorized qos rules is missing")
 		}
 
 		if reflect.ValueOf(pduSessionEstablishmentAccept.SessionAMBR).IsZero() {
-			logger.UELog.Fatal("Error in PDU Session Establishment Accept, Session AMBR is missing")
+			return fmt.Errorf("session ambr is missing")
 		}
 
 		// update PDU Session information.
@@ -368,8 +374,7 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 		// change the state of ue(SM)(PDU Session Active).
 		pduSession.SetStateSM_PDU_SESSION_ACTIVE()
 		if err != nil {
-			logger.UELog.Error("Receiving PDU Session Establishment Accept about an unknown PDU Session, id: ", pduSessionId)
-			return
+			return fmt.Errorf("could not get PDU Session: %v", err)
 		}
 
 		// get UE IP
@@ -404,7 +409,10 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 			logger.UELog.Error("Unable to delete PDU Session ", pduSessionId, " from UE ", ue.GetMsin(), " as ", err)
 		}
 		logger.UELog.Info("Successfully released PDU Session ", pduSessionId, " from UE Context")
-		trigger.InitPduSessionReleaseComplete(ue, pduSession)
+		err = trigger.InitPduSessionReleaseComplete(ue, pduSession)
+		if err != nil {
+			logger.UELog.Error("Error sending PDU Session Release Complete for PDU Session ", pduSessionId, " as ", err)
+		}
 
 	case nas.MsgTypePDUSessionEstablishmentReject:
 		logger.UELog.Error("Receiving PDU Session Establishment Reject")
@@ -425,7 +433,10 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 			go func() {
 				// Exponential backoff
 				time.Sleep(time.Duration(math.Pow(5, float64(pduSession.T3580Retries))) * time.Second)
-				trigger.InitPduSessionRequestInner(ue, pduSession)
+				err := trigger.InitPduSessionRequestInner(ue, pduSession)
+				if err != nil {
+					logger.UELog.Error("Error re-trying PDU Session Request for PDU Session ", pduSessionId, " after Reject as ", err)
+				}
 				pduSession.T3580Retries++
 			}()
 		} else {
@@ -435,76 +446,81 @@ func HandlerDlNasTransportPduaccept(ue *context.UEContext, message *nas.Message)
 	default:
 		logger.UELog.Error("Receiving Unknown Dl NAS Transport message!! ", payloadContainer.GsmHeader.GetMessageType())
 	}
+	return nil
 }
 
-func HandlerIdentityRequest(ue *context.UEContext, message *nas.Message) {
+func HandlerIdentityRequest(ue *context.UEContext, message *nas.Message) error {
 	// check the mandatory fields
 	if reflect.ValueOf(message.IdentityRequest.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in Identity Request, Extended Protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.IdentityRequest.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in Identity Request, Extended Protocol not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.IdentityRequest.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Identity Request, Spare Half Octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.IdentityRequest.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in Identity Request, Security Header Type not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if reflect.ValueOf(message.IdentityRequest.IdentityRequestMessageIdentity).IsZero() {
-		logger.UELog.Fatal("Error in Identity Request, Message Type is missing")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if message.IdentityRequest.IdentityRequestMessageIdentity.GetMessageType() != 91 {
-		logger.UELog.Fatal("Error in Identity Request, Message Type not the expected value")
+		return fmt.Errorf("message type not the expected value")
 	}
 
 	if reflect.ValueOf(message.IdentityRequest.SpareHalfOctetAndIdentityType).IsZero() {
-		logger.UELog.Fatal("Error in Identity Request, Spare Half Octet And Identity Type is missing")
+		return fmt.Errorf("spare half octet and identity type is missing")
 	}
 
 	switch message.IdentityRequest.GetTypeOfIdentity() {
 	case 1:
 		logger.UELog.Info("Requested SUCI 5GS type")
 	default:
-		logger.UELog.Fatal("Only SUCI identity is supported for now inside PacketRusher")
+		return fmt.Errorf("only SUCI identity is supported for now inside Ella Core Tester")
 	}
 
 	trigger.InitIdentifyResponse(ue)
+	return nil
 }
 
-func HandlerConfigurationUpdateCommand(ue *context.UEContext, message *nas.Message) {
+func HandlerConfigurationUpdateCommand(ue *context.UEContext, message *nas.Message) error {
 	// check the mandatory fields
 	if reflect.ValueOf(message.ConfigurationUpdateCommand.ExtendedProtocolDiscriminator).IsZero() {
-		logger.UELog.Fatal("Error in Configuration Update Command, Extended Protocol Discriminator is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if message.ConfigurationUpdateCommand.ExtendedProtocolDiscriminator.GetExtendedProtocolDiscriminator() != 126 {
-		logger.UELog.Fatal("Error in Configuration Update Command, Extended Protocol Discriminator not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if message.ConfigurationUpdateCommand.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		logger.UELog.Fatal("Error in Configuration Update Command, Spare Half not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if message.ConfigurationUpdateCommand.SpareHalfOctetAndSecurityHeaderType.GetSecurityHeaderType() != 0 {
-		logger.UELog.Fatal("Error in Configuration Update Command, Security Header not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if reflect.ValueOf(message.ConfigurationUpdateCommand.ConfigurationUpdateCommandMessageIdentity).IsZero() {
-		logger.UELog.Fatal("Error in Configuration Update Command, Message type not the expected value")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if message.ConfigurationUpdateCommand.ConfigurationUpdateCommandMessageIdentity.GetMessageType() != 84 {
-		logger.UELog.Fatal("Error in Configuration Update Command, Message Type not the expected value")
+		return fmt.Errorf("message type not the expected value")
 	}
 
-	// return configuration update complete
-	trigger.InitConfigurationUpdateComplete(ue)
+	err := trigger.InitConfigurationUpdateComplete(ue)
+	if err != nil {
+		return fmt.Errorf("error sending Configuration Update Complete: %w", err)
+	}
+	return nil
 }
 
 func cause5GSMToString(causeValue uint8) string {
