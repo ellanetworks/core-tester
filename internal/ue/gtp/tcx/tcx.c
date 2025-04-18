@@ -38,7 +38,6 @@ struct
     __uint(value_size, sizeof(__u32));
 } teid_map SEC(".maps");
 
-// Logging helper
 #define LOG(fmt, ...) \
     bpf_trace_printk(fmt "\n", sizeof(fmt), ##__VA_ARGS__)
 
