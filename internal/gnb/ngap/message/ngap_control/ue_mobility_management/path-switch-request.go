@@ -10,11 +10,11 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type PathSwitchRequestBuilder struct {
@@ -136,7 +136,7 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 		buf := new(bytes.Buffer)
 		err := binary.Write(buf, binary.BigEndian, pduSession.GetTeidDownlink())
 		if err != nil {
-			log.Errorf("[GNB][NGAP] Failed to write teid downlink: %v", err)
+			logger.GnbLog.Errorf("failed to write teid downlink: %v", err)
 		}
 		transfer := ngapType.PathSwitchRequestTransfer{
 			DLNGUUPTNLInformation: ngapType.UPTransportLayerInformation{
@@ -158,7 +158,7 @@ func (builder *PathSwitchRequestBuilder) PathSwitchRequestTransfer(gnbN3Ip netip
 		ie.Value.PDUSessionResourceToBeSwitchedDLList.List = append(ie.Value.PDUSessionResourceToBeSwitchedDLList.List, item)
 	}
 	if len(ie.Value.PDUSessionResourceToBeSwitchedDLList.List) == 0 {
-		log.Error("[GNB][NGAP] No PDU Session to hand over. Xn Handover requires at least a PDU Session.")
+		logger.GnbLog.Error("no PDU Session to hand over. Xn Handover requires at least a PDU Session.")
 		return builder
 	}
 

@@ -16,7 +16,7 @@ import (
 )
 
 // TS 24.501 8.2.26
-func getSecurityModeComplete(nasMessageContainer []uint8) []byte {
+func getSecurityModeComplete(nasMessageContainer []uint8) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeSecurityModeComplete)
@@ -46,25 +46,35 @@ func getSecurityModeComplete(nasMessageContainer []uint8) []byte {
 	data := new(bytes.Buffer)
 	err := m.GmmMessageEncode(data)
 	if err != nil {
-		fmt.Println(err.Error())
+		return nil, fmt.Errorf("error encoding IMSI UE  NAS Security Mode Complete message: %v", err)
 	}
 
 	nasPdu := data.Bytes()
-	return nasPdu
+	return nasPdu, nil
 }
 
 func SecurityModeComplete(ue *context.UEContext, rinmr uint8) ([]byte, error) {
 	var registrationRequest []byte
+	var err error
 	if rinmr == 1 {
-		registrationRequest = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
+		registrationRequest, err = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
+		if err != nil {
+			return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Registration Request message: %v", ue.UeSecurity.Supi, err)
+		}
 	} else {
-		registrationRequest = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
+		registrationRequest, err = GetRegistrationRequest(nasMessage.RegistrationType5GSInitialRegistration, nil, nil, true, ue)
+		if err != nil {
+			return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Registration Request message: %v", ue.UeSecurity.Supi, err)
+		}
 	}
 
-	pdu := getSecurityModeComplete(registrationRequest)
-	pdu, err := nas_control.EncodeNasPduWithSecurity(ue, pdu, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	pdu, err := getSecurityModeComplete(registrationRequest)
 	if err != nil {
-		return nil, fmt.Errorf("Error encoding %s IMSI UE  NAS Security Mode Complete message", ue.UeSecurity.Supi)
+		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
+	}
+	pdu, err = nas_control.EncodeNasPduWithSecurity(ue, pdu, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
 	}
 	return pdu, nil
 }

@@ -6,20 +6,20 @@ package ngap
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 	if message == nil {
-		log.Info("[GNB][NGAP] NGAP message is nil")
+		logger.GnbLog.Info("NGAP message is nil")
 	}
 
 	// decode NGAP message.
 	ngapMsg, err := ngap.Decoder(message)
 	if err != nil {
-		log.Error("[GNB][NGAP] Error decoding NGAP message in ", gnb.GetGnbId(), " GNB", ": ", err)
+		logger.GnbLog.Error("Error decoding NGAP message in ", gnb.GetGnbId(), " GNB", ": ", err)
 	}
 
 	// check RanUeId and get UE.
@@ -31,53 +31,79 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		switch ngapMsg.InitiatingMessage.ProcedureCode.Value {
 		case ngapType.ProcedureCodeDownlinkNASTransport:
 			// handler NGAP Downlink NAS Transport.
-			log.Info("[GNB][NGAP] Receive Downlink NAS Transport")
-			HandlerDownlinkNasTransport(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive Downlink NAS Transport")
+			err := HandlerDownlinkNasTransport(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Downlink NAS Transport: %v", err)
+			}
 
 		case ngapType.ProcedureCodeInitialContextSetup:
 			// handler NGAP Initial Context Setup Request.
-			log.Info("[GNB][NGAP] Receive Initial Context Setup Request")
-			HandlerInitialContextSetupRequest(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive Initial Context Setup Request")
+			err := HandlerInitialContextSetupRequest(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Initial Context Setup Request: %v", err)
+			}
 
 		case ngapType.ProcedureCodePDUSessionResourceSetup:
 			// handler NGAP PDU Session Resource Setup Request.
-			log.Info("[GNB][NGAP] Receive PDU Session Resource Setup Request")
-			HandlerPduSessionResourceSetupRequest(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive PDU Session Resource Setup Request")
+			err := HandlerPduSessionResourceSetupRequest(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling PDU Session Resource Setup Request: %v", err)
+			}
 
 		case ngapType.ProcedureCodePDUSessionResourceRelease:
 			// handler NGAP PDU Session Resource Release
-			log.Info("[GNB][NGAP] Receive PDU Session Release Command")
-			HandlerPduSessionReleaseCommand(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive PDU Session Release Command")
+			err := HandlerPduSessionReleaseCommand(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling PDU Session Resource Release Command: %v", err)
+			}
 
 		case ngapType.ProcedureCodeUEContextRelease:
 			// handler NGAP UE Context Release
-			log.Info("[GNB][NGAP] Receive UE Context Release Command")
-			HandlerUeContextReleaseCommand(gnb, ngapMsg)
-
+			logger.GnbLog.Info("Receive UE Context Release Command")
+			err := HandlerUeContextReleaseCommand(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling UE Context Release Command: %v", err)
+			}
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			// handler NGAP AMF Configuration Update
-			log.Info("[GNB][NGAP] Receive AMF Configuration Update")
-			HandlerAmfConfigurationUpdate(amf, gnb, ngapMsg)
+			logger.GnbLog.Info("Receive AMF Configuration Update")
+			err := HandlerAmfConfigurationUpdate(amf, gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling AMF Configuration Update: %v", err)
+			}
 		case ngapType.ProcedureCodeAMFStatusIndication:
-			log.Info("[GNB][NGAP] Receive AMF Status Indication")
+			logger.GnbLog.Info("Receive AMF Status Indication")
 			HandlerAmfStatusIndication(amf, gnb, ngapMsg)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
 			// handler NGAP Handover Request
-			log.Info("[GNB][NGAP] Receive Handover Request")
-			HandlerHandoverRequest(amf, gnb, ngapMsg)
+			logger.GnbLog.Info("Receive Handover Request")
+			err := HandlerHandoverRequest(amf, gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Handover Request: %v", err)
+			}
 
 		case ngapType.ProcedureCodePaging:
 			// handler NGAP Paging
-			log.Info("[GNB][NGAP] Receive Paging")
-			HandlerPaging(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive Paging")
+			err := HandlerPaging(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Paging: %v", err)
+			}
 
 		case ngapType.ProcedureCodeErrorIndication:
 			// handler Error Indicator
-			log.Error("[GNB][NGAP] Receive Error Indication")
-			HandlerErrorIndication(gnb, ngapMsg)
+			logger.GnbLog.Error("Receive Error Indication")
+			err := HandlerErrorIndication(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Error Indication: %v", err)
+			}
 
 		default:
-			log.Warnf("[GNB][NGAP] Received unknown NGAP message 0x%x", ngapMsg.InitiatingMessage.ProcedureCode.Value)
+			logger.GnbLog.Warnf("Received unknown NGAP message 0x%x", ngapMsg.InitiatingMessage.ProcedureCode.Value)
 		}
 
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
@@ -85,32 +111,41 @@ func Dispatch(amf *context.GNBAmf, gnb *context.GNBContext, message []byte) {
 		switch ngapMsg.SuccessfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Response.
-			log.Info("[GNB][NGAP] Receive NG Setup Response")
-			HandlerNgSetupResponse(amf, gnb, ngapMsg)
+			logger.GnbLog.Info("Receive NG Setup Response")
+			err := HandlerNgSetupResponse(amf, gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling NG Setup Response: %v", err)
+			}
 
 		case ngapType.ProcedureCodePathSwitchRequest:
 			// handler PathSwitchRequestAcknowledge
-			log.Info("[GNB][NGAP] Receive PathSwitchRequestAcknowledge")
-			HandlerPathSwitchRequestAcknowledge(gnb, ngapMsg)
+			logger.GnbLog.Info("Receive PathSwitchRequestAcknowledge")
+			err := HandlerPathSwitchRequestAcknowledge(gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling PathSwitchRequestAcknowledge: %v", err)
+			}
 
 		case ngapType.ProcedureCodeHandoverPreparation:
 			// handler NGAP AMF Handover Command
-			log.Info("[GNB][NGAP] Receive Handover Command")
-			HandlerHandoverCommand(amf, gnb, ngapMsg)
+			logger.GnbLog.Info("Receive Handover Command")
+			err := HandlerHandoverCommand(amf, gnb, ngapMsg)
+			if err != nil {
+				logger.GnbLog.Errorf("error handling Handover Command: %v", err)
+			}
 
 		default:
-			log.Warnf("[GNB][NGAP] Received unknown NGAP message 0x%x", ngapMsg.SuccessfulOutcome.ProcedureCode.Value)
+			logger.GnbLog.Warnf("Received unknown NGAP message 0x%x", ngapMsg.SuccessfulOutcome.ProcedureCode.Value)
 		}
 
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		switch ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGSetup:
 			// handler NGAP Setup Failure.
-			log.Info("[GNB][NGAP] Receive Ng Setup Failure")
+			logger.GnbLog.Info("Receive Ng Setup Failure")
 			HandlerNgSetupFailure(amf, gnb, ngapMsg)
 
 		default:
-			log.Warnf("[GNB][NGAP] Received unknown NGAP message 0x%x", ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value)
+			logger.GnbLog.Warnf("Received unknown NGAP message 0x%x", ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value)
 		}
 	}
 }

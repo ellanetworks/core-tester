@@ -6,13 +6,14 @@ package ue_mobility_management
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type HandoverRequestAcknowledgeBuilder struct {
@@ -21,11 +22,17 @@ type HandoverRequestAcknowledgeBuilder struct {
 }
 
 func HandoverRequestAcknowledge(gnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
-	return NewHandoverRequestAcknowledgeBuilder().
+	pduSessionAdmittedList, err := NewHandoverRequestAcknowledgeBuilder().
 		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
-		SetPduSessionResourceAdmittedList(gnb, ue.GetPduSessions()).
-		SetTargetToSourceContainer().
-		Build()
+		SetPduSessionResourceAdmittedList(gnb, ue.GetPduSessions())
+	if err != nil {
+		return nil, fmt.Errorf("could not set PDU Session Resource Admitted List: %w", err)
+	}
+	targetToSourceContainer, err := pduSessionAdmittedList.SetTargetToSourceContainer()
+	if err != nil {
+		return nil, fmt.Errorf("could not set TargetToSourceContainer: %w", err)
+	}
+	return targetToSourceContainer.Build()
 }
 
 func NewHandoverRequestAcknowledgeBuilder() *HandoverRequestAcknowledgeBuilder {
@@ -79,7 +86,7 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetRanUeNgapId(ranUeNgapID int
 	return builder
 }
 
-func (builder *HandoverRequestAcknowledgeBuilder) SetPduSessionResourceAdmittedList(gnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession) *HandoverRequestAcknowledgeBuilder {
+func (builder *HandoverRequestAcknowledgeBuilder) SetPduSessionResourceAdmittedList(gnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession) (*HandoverRequestAcknowledgeBuilder, error) {
 	ie := ngapType.HandoverRequestAcknowledgeIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDPDUSessionResourceAdmittedList
 	ie.Criticality.Value = ngapType.CriticalityPresentIgnore
@@ -95,22 +102,26 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetPduSessionResourceAdmittedL
 		// PDU SessionResource Admittedy Item
 		pDUSessionResourceAdmittedItem := ngapType.PDUSessionResourceAdmittedItem{}
 		pDUSessionResourceAdmittedItem.PDUSessionID.Value = pduSession.GetPduSessionId()
-		pDUSessionResourceAdmittedItem.HandoverRequestAcknowledgeTransfer = GetHandoverRequestAcknowledgeTransfer(gnb, pduSession)
+		acknowledgeTransfer, err := GetHandoverRequestAcknowledgeTransfer(gnb, pduSession)
+		if err != nil {
+			return nil, fmt.Errorf("could not get HandoverRequestAcknowledgeTransfer: %w", err)
+		}
+		pDUSessionResourceAdmittedItem.HandoverRequestAcknowledgeTransfer = acknowledgeTransfer
 
 		pDUSessionResourceAdmittedList.List = append(pDUSessionResourceAdmittedList.List, pDUSessionResourceAdmittedItem)
 	}
 
 	if len(pDUSessionResourceAdmittedList.List) == 0 {
-		log.Info("[GNB][NGAP] No admitted PDU Session")
-		return builder
+		logger.GnbLog.Info("No admitted PDU Session")
+		return builder, nil
 	}
 
 	builder.ies.List = append(builder.ies.List, ie)
 
-	return builder
+	return builder, nil
 }
 
-func (builder *HandoverRequestAcknowledgeBuilder) SetTargetToSourceContainer() *HandoverRequestAcknowledgeBuilder {
+func (builder *HandoverRequestAcknowledgeBuilder) SetTargetToSourceContainer() (*HandoverRequestAcknowledgeBuilder, error) {
 	// Target To Source TransparentContainer
 	ie := ngapType.HandoverRequestAcknowledgeIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDTargetToSourceTransparentContainer
@@ -119,23 +130,27 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetTargetToSourceContainer() *
 	ie.Value.TargetToSourceTransparentContainer = new(ngapType.TargetToSourceTransparentContainer)
 
 	targetToSourceTransparentContainer := ie.Value.TargetToSourceTransparentContainer
-	targetToSourceTransparentContainer.Value = GetTargetToSourceTransparentTransfer()
+	targetToSourceValue, err := GetTargetToSourceTransparentTransfer()
+	if err != nil {
+		return nil, fmt.Errorf("could not get TargetToSourceTransparentTransfer: %w", err)
+	}
+	targetToSourceTransparentContainer.Value = targetToSourceValue
 	builder.ies.List = append(builder.ies.List, ie)
 
-	return builder
+	return builder, nil
 }
 
 func (builder *HandoverRequestAcknowledgeBuilder) Build() ([]byte, error) {
 	return ngap.Encoder(builder.pdu)
 }
 
-func GetHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *context.GnbPDUSession) []byte {
+func GetHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *context.GnbPDUSession) ([]byte, error) {
 	data := buildHandoverRequestAcknowledgeTransfer(gnb, pduSession)
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetHandoverRequestAcknowledgeTransfer: %+v", err)
+		return nil, fmt.Errorf("could not marshal HandoverRequestAcknowledgeTransfer: %w", err)
 	}
-	return encodeData
+	return encodeData, nil
 }
 
 func buildHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *context.GnbPDUSession) (data ngapType.HandoverRequestAcknowledgeTransfer) {
@@ -160,13 +175,13 @@ func buildHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession
 	return data
 }
 
-func GetTargetToSourceTransparentTransfer() []byte {
+func GetTargetToSourceTransparentTransfer() ([]byte, error) {
 	data := buildTargetToSourceTransparentTransfer()
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetTargetToSourceTransparentTransfer: %+v", err)
+		return nil, fmt.Errorf("could not marshal TargetToSourceTransparentTransfer: %w", err)
 	}
-	return encodeData
+	return encodeData, nil
 }
 
 func buildTargetToSourceTransparentTransfer() (data ngapType.TargetNGRANNodeToSourceNGRANNodeTransparentContainer) {

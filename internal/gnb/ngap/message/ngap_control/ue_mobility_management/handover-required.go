@@ -5,11 +5,13 @@
 package ue_mobility_management
 
 import (
+	"fmt"
+
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type HandoverRequiredBuilder struct {
@@ -18,14 +20,17 @@ type HandoverRequiredBuilder struct {
 }
 
 func HandoverRequired(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, ue *context.GNBUe) ([]byte, error) {
-	return NewHandoverRequiredBuilder().
+	message, err := NewHandoverRequiredBuilder().
 		SetAmfUeNgapId(ue.GetAmfUeId()).SetRanUeNgapId(ue.GetRanUeId()).
 		SetHandoverType(ngapType.HandoverTypePresentIntra5gs).
 		SetCause(ngapType.CauseRadioNetworkPresentHandoverDesirableForRadioReason).
 		SetPduSessionResourceList(ue.GetPduSessions()).
 		SetTargetGnodeB(targetGnb).
-		SetSourceToTargetContainer(sourceGnb, targetGnb, ue.GetPduSessions(), ue.GetPrUeId()).
-		Build()
+		SetSourceToTargetContainer(sourceGnb, targetGnb, ue.GetPduSessions(), ue.GetPrUeId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to build HandoverRequired message: %w", err)
+	}
+	return message.Build()
 }
 
 func NewHandoverRequiredBuilder() *HandoverRequiredBuilder {
@@ -178,7 +183,7 @@ func (builder *HandoverRequiredBuilder) SetPduSessionResourceList(pduSessions [1
 	}
 
 	if len(pDUSessionResourceListHORqd.List) == 0 {
-		log.Error("[GNB][NGAP] No PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
+		logger.GnbLog.Error("no PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
 		return builder
 	}
 
@@ -187,7 +192,7 @@ func (builder *HandoverRequiredBuilder) SetPduSessionResourceList(pduSessions [1
 	return builder
 }
 
-func (builder *HandoverRequiredBuilder) SetSourceToTargetContainer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) *HandoverRequiredBuilder {
+func (builder *HandoverRequiredBuilder) SetSourceToTargetContainer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) (*HandoverRequiredBuilder, error) {
 	// Source to Target Transparent Container
 	ie := ngapType.HandoverRequiredIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDSourceToTargetTransparentContainer
@@ -195,20 +200,25 @@ func (builder *HandoverRequiredBuilder) SetSourceToTargetContainer(sourceGnb *co
 	ie.Value.Present = ngapType.HandoverRequiredIEsPresentSourceToTargetTransparentContainer
 	ie.Value.SourceToTargetTransparentContainer = new(ngapType.SourceToTargetTransparentContainer)
 
-	ie.Value.SourceToTargetTransparentContainer.Value = GetSourceToTargetTransparentTransfer(sourceGnb, targetGnb, pduSessions, prUeId)
+	sourceToTargetValue, err := GetSourceToTargetTransparentTransfer(sourceGnb, targetGnb, pduSessions, prUeId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting SourceToTargetTransparentTransfer: %+v", err)
+	}
+
+	ie.Value.SourceToTargetTransparentContainer.Value = sourceToTargetValue
 
 	builder.ies.List = append(builder.ies.List, ie)
 
-	return builder
+	return builder, nil
 }
 
-func GetSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) []byte {
+func GetSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) ([]byte, error) {
 	data := buildSourceToTargetTransparentTransfer(sourceGnb, targetGnb, pduSessions, prUeId)
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetSourceToTargetTransparentTransfer: %+v", err)
+		return nil, fmt.Errorf("aper MarshalWithParams error in GetSourceToTargetTransparentTransfer: %+v", err)
 	}
-	return encodeData
+	return encodeData, nil
 }
 
 func buildSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetGnb *context.GNBContext, pduSessions [16]*context.GnbPDUSession, prUeId int64) (data ngapType.SourceNGRANNodeToTargetNGRANNodeTransparentContainer) {
@@ -231,7 +241,7 @@ func buildSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targe
 		data.PDUSessionResourceInformationList.List = append(data.PDUSessionResourceInformationList.List, infoItem)
 	}
 	if len(data.PDUSessionResourceInformationList.List) == 0 {
-		log.Error("[GNB][NGAP] No PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
+		logger.GnbLog.Error("no PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
 		data.PDUSessionResourceInformationList = nil
 	}
 

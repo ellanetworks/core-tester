@@ -13,23 +13,27 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/config"
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/procedures"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
+	"github.com/ellanetworks/core-tester/internal/ue/nas"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/service"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/trigger"
 	"github.com/ellanetworks/core-tester/internal/ue/scenario"
-	"github.com/ellanetworks/core-tester/internal/ue/state"
-	log "github.com/sirupsen/logrus"
 )
 
-func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMessage, gnbInboundChannel chan gnbContext.UEMessage, wg *sync.WaitGroup) chan scenario.ScenarioMessage {
+func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMessage, gnbInboundChannel chan gnbContext.UEMessage, wg *sync.WaitGroup) (chan scenario.ScenarioMessage, error) {
 	// new UE instance.
 	ue := &context.UEContext{}
 	scenarioChan := make(chan scenario.ScenarioMessage)
 
 	// new UE context
-	ue.NewRanUeContext(
+	pubKey, err := conf.GetHomeNetworkPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("error while getting home network public key: %w", err)
+	}
+	err = ue.NewRanUeContext(
 		conf.Ue.Msin,
 		conf.GetUESecurityCapability(),
 		conf.Ue.Key,
@@ -39,7 +43,7 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		conf.Ue.Sqn,
 		conf.Ue.Hplmn.Mcc,
 		conf.Ue.Hplmn.Mnc,
-		conf.GetHomeNetworkPublicKey(),
+		pubKey,
 		conf.Ue.RoutingIndicator,
 		conf.Ue.Dnn,
 		int32(conf.Ue.Snssai.Sst),
@@ -47,6 +51,9 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		scenarioChan,
 		gnbInboundChannel,
 		id)
+	if err != nil {
+		return nil, fmt.Errorf("error while creating UE context: %w", err)
+	}
 
 	go func() {
 		// starting communication with GNB and listen.
@@ -60,17 +67,17 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 			select {
 			case msg, open := <-ue.GetGnbTx():
 				if !open {
-					log.Warn("[UE][", ue.GetMsin(), "] Stopping UE as communication with gNB was closed")
+					logger.UELog.Warn("[", ue.GetMsin(), "] Stopping UE as communication with gNB was closed")
 					ue.SetGnbTx(nil)
 					break
 				}
 				err := gnbMsgHandler(msg, ue)
 				if err != nil {
-					log.Error("[UE][", ue.GetMsin(), "] Error while handling message from gNB: ", err)
+					logger.UELog.Error("[", ue.GetMsin(), "] Error while handling message from gNB: ", err)
 				}
 			case msg, open := <-ueMgrChannel:
 				if !open {
-					log.Warn("[UE][", ue.GetMsin(), "] Stopping UE as communication with scenario was closed")
+					logger.UELog.Warn("[", ue.GetMsin(), "] Stopping UE as communication with scenario was closed")
 					loop = false
 					break
 				}
@@ -83,12 +90,15 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		wg.Done()
 	}()
 
-	return scenarioChan
+	return scenarioChan, nil
 }
 
 func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
 	if msg.IsNas {
-		state.DispatchState(ue, msg.Nas)
+		err := nas.DispatchNas(ue, msg.Nas)
+		if err != nil {
+			return fmt.Errorf("could not dispatch NAS message: %w", err)
+		}
 	} else if msg.GNBPduSessions[0] != nil {
 		// Setup PDU Session
 		err := gtp.SetupGtpInterface(ue, msg)
@@ -96,7 +106,7 @@ func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
 			return fmt.Errorf("could not setup GTP interface: %w", err)
 		}
 	} else if msg.GNBRx != nil && msg.GNBTx != nil && msg.GNBInboundChannel != nil {
-		log.Info("[UE] gNodeB is telling us to use another gNodeB")
+		logger.UELog.Info("gNodeB is telling us to use another gNodeB")
 		previousGnbRx := ue.GetGnbRx()
 		ue.SetGnbInboundChannel(msg.GNBInboundChannel)
 		ue.SetGnbRx(msg.GNBRx)
@@ -126,18 +136,30 @@ func ueMgrHandler(msg procedures.UeTesterMessage, ue *context.UEContext) bool {
 	loop := true
 	switch msg.Type {
 	case procedures.Registration:
-		trigger.InitRegistration(ue)
+		err := trigger.InitRegistration(ue)
+		if err != nil {
+			logger.UELog.Error("cannot register UE ", err)
+		}
 	case procedures.Deregistration:
-		trigger.InitDeregistration(ue)
+		err := trigger.InitDeregistration(ue)
+		if err != nil {
+			logger.UELog.Error("cannot deregister UE ", err)
+		}
 	case procedures.NewPDUSession:
-		trigger.InitPduSessionRequest(ue)
+		err := trigger.InitPduSessionRequest(ue)
+		if err != nil {
+			logger.UELog.Error("cannot create new PDU Session ", err)
+		}
 	case procedures.DestroyPDUSession:
 		pdu, err := ue.GetPduSession(msg.Param)
 		if err != nil {
-			log.Error("[UE] Cannot release unknown PDU Session ID ", msg.Param)
+			logger.UELog.Error("cannot release unknown PDU Session ID ", msg.Param)
 			return loop
 		}
-		trigger.InitPduSessionRelease(ue, pdu)
+		err = trigger.InitPduSessionRelease(ue, pdu)
+		if err != nil {
+			logger.UELog.Error("cannot release PDU Session ID ", msg.Param)
+		}
 	case procedures.Idle:
 		// We switch UE to IDLE
 		ue.SetStateMM_IDLE()
@@ -150,22 +172,32 @@ func ueMgrHandler(msg procedures.UeTesterMessage, ue *context.UEContext) bool {
 			// Since gNodeB stopped communication after switching to Idle, we need to connect back to gNodeB
 			service.InitConn(ue, ue.GetGnbInboundChannel())
 			if ue.Get5gGuti() != nil {
-				trigger.InitServiceRequest(ue)
+				err := trigger.InitServiceRequest(ue)
+				if err != nil {
+					logger.UELog.Error("cannot send Service Request ", err)
+				}
 			} else {
 				// If AMF did not assign us a GUTI, we have to fallback to the usual Registration/Authentification process
 				// PDU Sessions will still be recovered
-				trigger.InitRegistration(ue)
+				err := trigger.InitRegistration(ue)
+				if err != nil {
+					logger.UELog.Error("cannot register UE ", err)
+				}
 			}
 		}
 	case procedures.Terminate:
-		log.Info("[UE] Terminating UE as requested")
+		logger.UELog.Info("terminating UE as requested")
 		// If UE is registered
 		if ue.GetStateMM() == context.MM5G_REGISTERED {
 			// Release PDU Sessions
 			for i := uint8(1); i <= 16; i++ {
 				pduSession, _ := ue.GetPduSession(i)
 				if pduSession != nil {
-					trigger.InitPduSessionRelease(ue, pduSession)
+					err := trigger.InitPduSessionRelease(ue, pduSession)
+					if err != nil {
+						logger.UELog.Error("cannot release PDU Session ID ", i)
+						continue
+					}
 					select {
 					case <-pduSession.Wait:
 					case <-time.After(500 * time.Millisecond):
@@ -174,7 +206,10 @@ func ueMgrHandler(msg procedures.UeTesterMessage, ue *context.UEContext) bool {
 				}
 			}
 			// Initiate Deregistration
-			trigger.InitDeregistration(ue)
+			err := trigger.InitDeregistration(ue)
+			if err != nil {
+				logger.UELog.Error("cannot deregister UE ", err)
+			}
 		}
 		// Else, nothing to do
 		loop = false

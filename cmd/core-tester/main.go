@@ -10,17 +10,27 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/common/tools"
 	"github.com/ellanetworks/core-tester/internal/config"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/procedures"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	configFilePath := flag.String("config", "", "The config file to be provided to the server")
 	flag.Parse()
 	if *configFilePath == "" {
-		log.Fatalf("No config file provided. Use `-config` to provide a config file")
+		fmt.Println("No config file provided. Use `-config` to provide a config file")
+		os.Exit(1)
 	}
-	_ = config.Load(*configFilePath)
+	cfg, err := config.Load(*configFilePath)
+	if err != nil {
+		fmt.Printf("Error loading config file: %v\n", err)
+		os.Exit(1)
+	}
+	err = logger.ConfigureLogging(cfg.LogLevel)
+	if err != nil {
+		logger.EllaCoreTesterLog.Errorf("Error configuring logging: %v", err)
+		os.Exit(1)
+	}
 	testOpts := &TestOptions{
 		NumUEs:                   1,
 		DedicatedGnb:             false,
@@ -35,11 +45,12 @@ func main() {
 		TimeBeforeReconnecting:   1000,
 		NumPduSessions:           1,
 	}
-	err := TestMultiUesInQueue(testOpts)
+	err = TestMultiUesInQueue(testOpts)
 	if err != nil {
-		log.Fatalf("Error running test: %v", err)
+		logger.EllaCoreTesterLog.Errorf("Error running test: %v", err)
+		os.Exit(1)
 	}
-	log.Info("Test completed successfully")
+	logger.EllaCoreTesterLog.Info("Test completed successfully")
 }
 
 type TestOptions struct {
@@ -73,10 +84,13 @@ func TestMultiUesInQueue(opts *TestOptions) error {
 		numGnb = 1
 	}
 	if numGnb <= 1 && (opts.TimeBeforeXnHandover != 0 || opts.TimeBeforeNgapHandover != 0) {
-		log.Warn("[TESTER] We are increasing the number of gNodeB to two for handover test cases. Make you sure you fill the requirements for having two gNodeBs.")
+		logger.EllaCoreTesterLog.Warn("We are increasing the number of gNodeB to two for handover test cases. Make you sure you fill the requirements for having two gNodeBs.")
 		numGnb++
 	}
-	gnbs := tools.CreateGnbs(numGnb, cfg, &wg)
+	gnbs, err := tools.CreateGnbs(numGnb, cfg, &wg)
+	if err != nil {
+		return fmt.Errorf("error creating gNBs: %v", err)
+	}
 
 	// Wait for gNB to be connected before registering UEs
 	time.Sleep(1 * time.Second)

@@ -5,6 +5,7 @@
 package gnb
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -14,10 +15,10 @@ import (
 	serviceNas "github.com/ellanetworks/core-tester/internal/gnb/nas/service"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
-	log "github.com/sirupsen/logrus"
+	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
-func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
+func InitGnb(conf config.Config, wg *sync.WaitGroup) (*context.GNBContext, error) {
 	// instance new gnb.
 	gnb := &context.GNBContext{}
 
@@ -40,13 +41,16 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 
 		// start communication with AMF(SCTP).
 		if err := ngap.InitConn(amf, gnb); err != nil {
-			log.Fatal("Error in", err)
+			return nil, fmt.Errorf("could not initialize SCTP connection: %w", err)
 		} else {
-			log.Info("[GNB] SCTP/NGAP service is running")
+			logger.GnbLog.Info("SCTP/NGAP service is running")
 			// wg.Add(1)
 		}
 
-		trigger.SendNgSetupRequest(gnb, amf)
+		err := trigger.SendNgSetupRequest(gnb, amf)
+		if err != nil {
+			return nil, fmt.Errorf("could not send NG Setup Request: %w", err)
+		}
 	}
 
 	// start communication with UE (server UNIX sockets).
@@ -63,5 +67,5 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 		wg.Done()
 	}()
 
-	return gnb
+	return gnb, nil
 }

@@ -20,13 +20,13 @@ import (
 	"github.com/ellanetworks/core-tester/internal/common/auth"
 	"github.com/ellanetworks/core-tester/internal/common/sidf"
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/scenario"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/milenage"
 	"github.com/free5gc/util/ueauth"
-	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -118,7 +118,7 @@ func (ue *UEContext) NewRanUeContext(msin string,
 	k, opc, op, amf, sqn, mcc, mnc string, homeNetworkPublicKey sidf.HomeNetworkPublicKey, routingIndicator, dnn string,
 	sst int32, sd string, scenarioChan chan scenario.ScenarioMessage,
 	gnbInboundChannel chan context.UEMessage, id int,
-) {
+) error {
 	// added SUPI.
 	ue.UeSecurity.Msin = msin
 
@@ -161,13 +161,18 @@ func (ue *UEContext) NewRanUeContext(msin string,
 	// added Domain Network Name.
 	ue.Dnn = dnn
 
-	ue.UeSecurity.Suci = ue.EncodeSuci()
+	suci, err := ue.EncodeSuci()
+	if err != nil {
+		return fmt.Errorf("failed to encode SUCI: %v", err)
+	}
+	ue.UeSecurity.Suci = suci
 
 	ue.gnbInboundChannel = gnbInboundChannel
 	ue.scenarioChan = scenarioChan
 
 	// added initial state for MM(NULL)
 	ue.StateMM = MM5G_NULL
+	return nil
 }
 
 func (ue *UEContext) CreatePDUSession() (*UEPDUSession, error) {
@@ -417,13 +422,13 @@ func (ue *UEContext) GetMccAndMncInOctets() []byte {
 // shall be coded as "1111" to fill the 4 digits coding of Routing Indicator (see NOTE 2). If
 // no Routing Indicator is configured in the USIM, the UE shall coxde bits 1 to 4 of octet 8
 // of the Routing Indicator as "0000" and the remaining digits as “1111".
-func (ue *UEContext) GetRoutingIndicatorInOctets() []byte {
+func (ue *UEContext) GetRoutingIndicatorInOctets() ([]byte, error) {
 	if len(ue.UeSecurity.RoutingIndicator) == 0 {
 		ue.UeSecurity.RoutingIndicator = "0"
 	}
 
 	if len(ue.UeSecurity.RoutingIndicator) > 4 {
-		log.Fatal("[UE][CONFIG] Routing indicator must be 4 digits maximum, ", ue.UeSecurity.RoutingIndicator, " is invalid")
+		return nil, fmt.Errorf("routing indicator must be 4 digits maximum, %s is invalid", ue.UeSecurity.RoutingIndicator)
 	}
 
 	routingIndicator := []byte(ue.UeSecurity.RoutingIndicator)
@@ -441,13 +446,13 @@ func (ue *UEContext) GetRoutingIndicatorInOctets() []byte {
 	// BCD conversion
 	encodedRoutingIndicator, err := hex.DecodeString(string(routingIndicator))
 	if err != nil {
-		log.Fatal("[UE][CONFIG] Unable to encode routing indicator ", err)
+		return nil, fmt.Errorf("unable to encode routing indicator %s", err)
 	}
 
-	return encodedRoutingIndicator
+	return encodedRoutingIndicator, nil
 }
 
-func (ue *UEContext) EncodeSuci() nasType.MobileIdentity5GS {
+func (ue *UEContext) EncodeSuci() (nasType.MobileIdentity5GS, error) {
 	protScheme, _ := strconv.ParseUint(ue.UeSecurity.suciPublicKey.ProtectionScheme, 10, 8)
 	buf6 := byte(protScheme)
 
@@ -461,7 +466,7 @@ func (ue *UEContext) EncodeSuci() nasType.MobileIdentity5GS {
 	} else {
 		suci, err := sidf.CipherSuci(ue.UeSecurity.Msin, ue.UeSecurity.mcc, ue.UeSecurity.mnc, ue.UeSecurity.RoutingIndicator, ue.UeSecurity.suciPublicKey)
 		if err != nil {
-			log.Fatalf("Unable to cipher SUCI: %v", err)
+			return nasType.MobileIdentity5GS{}, fmt.Errorf("unable to cipher SUCI: %v", err)
 		}
 		schemeOutput, _ = hex.DecodeString(suci.SchemeOutput)
 	}
@@ -470,7 +475,11 @@ func (ue *UEContext) EncodeSuci() nasType.MobileIdentity5GS {
 
 	buffer[0] = 1
 	copy(buffer[1:], ue.GetMccAndMncInOctets())
-	copy(buffer[4:], ue.GetRoutingIndicatorInOctets())
+	routingInd, err := ue.GetRoutingIndicatorInOctets()
+	if err != nil {
+		return nasType.MobileIdentity5GS{}, fmt.Errorf("unable to get routing indicator: %v", err)
+	}
+	copy(buffer[4:], routingInd)
 	buffer[6] = buf6
 	buffer[7] = buf7
 	copy(buffer[8:], schemeOutput)
@@ -480,7 +489,7 @@ func (ue *UEContext) EncodeSuci() nasType.MobileIdentity5GS {
 		Len:    uint16(len(buffer)),
 	}
 
-	return suci
+	return suci, nil
 }
 
 func (ue *UEContext) GetAmfPointer() uint8 {
@@ -512,38 +521,43 @@ func (ue *UEContext) Get5gGuti() *nasType.GUTI5G {
 	return ue.UeSecurity.Guti
 }
 
+var (
+	ErrMACFailure = errors.New("milenage MAC failure")
+	ErrSQNFailure = errors.New("sequence number out of range")
+)
+
 func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription,
 	RAND []byte,
 	snNmae string,
 	AUTN []byte,
-) ([]byte, string) {
+) ([]byte, error) {
 	// Get OPC, K, SQN from USIM.
 	OPC, err := hex.DecodeString(authSubs.Opc.OpcValue)
 	if err != nil {
-		log.Fatal("[UE] OPC error: ", err, authSubs.Opc.OpcValue)
+		return nil, fmt.Errorf("could not decode OPC: %v", err)
 	}
 	K, err := hex.DecodeString(authSubs.PermanentKey.PermanentKeyValue)
 	if err != nil {
-		log.Fatal("[UE] K error: ", err, authSubs.PermanentKey.PermanentKeyValue)
+		return nil, fmt.Errorf("could not decode K: %v", err)
 	}
 	sqnUe, err := hex.DecodeString(authSubs.SequenceNumber)
 	if err != nil {
-		log.Fatal("[UE] sqn error: ", err, authSubs.SequenceNumber)
+		return nil, fmt.Errorf("could not decode SQN: %v", err)
 	}
 
 	sqnHn, AK, IK, CK, RES, err := milenage.GenerateKeysWithAUTN(OPC, K, RAND, AUTN)
 	if err != nil {
-		return nil, "MAC failure"
+		return nil, ErrMACFailure
 	}
 
 	// Verification of sequence number freshness.
 	if bytes.Compare(sqnUe, sqnHn) > 0 {
 		auts, err := milenage.GenerateAUTS(OPC, K, RAND, sqnUe)
 		if err != nil {
-			log.Fatal("[UE] AUTS generation error: ", err, authSubs.SequenceNumber)
+			return auts, fmt.Errorf("AUTS generation error: %v", err)
 		}
 
-		return auts, "SQN failure"
+		return auts, ErrSQNFailure
 	}
 
 	// updated sqn value.
@@ -556,15 +570,18 @@ func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscr
 	P1 := RAND
 	P2 := RES
 
-	ue.DerivateKamf(key, snNmae, sqnHn, AK)
+	err = ue.DerivateKamf(key, snNmae, sqnHn, AK)
+	if err != nil {
+		return nil, fmt.Errorf("error while deriving Kamf: %v", err)
+	}
 	kdfVal_for_resStar, err := ueauth.GetKDFValue(key, FC, P0, ueauth.KDFLen(P0), P1, ueauth.KDFLen(P1), P2, ueauth.KDFLen(P2))
 	if err != nil {
-		log.Fatal("[UE] Error while deriving KDF ", err)
+		return nil, fmt.Errorf("error while deriving KDF: %v", err)
 	}
-	return kdfVal_for_resStar[len(kdfVal_for_resStar)/2:], "successful"
+	return kdfVal_for_resStar[len(kdfVal_for_resStar)/2:], nil
 }
 
-func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) {
+func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) error {
 	FC := ueauth.FC_FOR_KAUSF_DERIVATION
 	P0 := []byte(snName)
 	SQNxorAK := make([]byte, 6)
@@ -574,12 +591,12 @@ func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) {
 	P1 := SQNxorAK
 	Kausf, err := ueauth.GetKDFValue(key, FC, P0, ueauth.KDFLen(P0), P1, ueauth.KDFLen(P1))
 	if err != nil {
-		log.Fatal("[UE] Error while deriving Kausf ", err)
+		return fmt.Errorf("error while deriving Kausf: %v", err)
 	}
 	P0 = []byte(snName)
 	Kseaf, err := ueauth.GetKDFValue(Kausf, ueauth.FC_FOR_KSEAF_DERIVATION, P0, ueauth.KDFLen(P0))
 	if err != nil {
-		log.Fatal("[UE] Error while deriving Kseaf ", err)
+		return fmt.Errorf("error while deriving Kseaf: %v", err)
 	}
 	supiRegexp, _ := regexp.Compile("(?:imsi|supi)-([0-9]{5,15})")
 	groups := supiRegexp.FindStringSubmatch(ue.UeSecurity.Supi)
@@ -591,19 +608,21 @@ func (ue *UEContext) DerivateKamf(key []byte, snName string, SQN, AK []byte) {
 
 	ue.UeSecurity.Kamf, err = ueauth.GetKDFValue(Kseaf, ueauth.FC_FOR_KAMF_DERIVATION, P0, L0, P1, L1)
 	if err != nil {
-		log.Fatal("[UE] Error while deriving Kamf ", err)
+		return fmt.Errorf("error while deriving Kamf: %v", err)
 	}
+	return nil
 }
 
-func (ue *UEContext) DerivateAlgKey() {
+func (ue *UEContext) DerivateAlgKey() error {
 	err := auth.AlgorithmKeyDerivation(ue.UeSecurity.CipheringAlg,
 		ue.UeSecurity.Kamf,
 		&ue.UeSecurity.KnasEnc,
 		ue.UeSecurity.IntegrityAlg,
 		&ue.UeSecurity.KnasInt)
 	if err != nil {
-		log.Errorf("[UE] Algorithm key derivation failed  %v", err)
+		return fmt.Errorf("algorithm key derivation failed: %v", err)
 	}
+	return nil
 }
 
 func (ue *UEContext) SetAuthSubscription(k, opc, op, amf, sqn string) {
@@ -666,7 +685,7 @@ func (ue *UEContext) Terminate() {
 	ue.Unlock()
 	close(ue.scenarioChan)
 
-	log.Info("[UE] UE Terminated")
+	logger.UELog.Info("ue terminated")
 }
 
 func reverse(s string) string {

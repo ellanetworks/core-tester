@@ -5,23 +5,24 @@
 package nas
 
 import (
+	"fmt"
 	"reflect"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/handler"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
-	log "github.com/sirupsen/logrus"
 )
 
-func DispatchNas(ue *context.UEContext, message []byte) {
+func DispatchNas(ue *context.UEContext, message []byte) error {
 	var cph bool
 
 	// check if message is null.
 	if message == nil {
-		log.Fatal("[UE][NAS] NAS message is nil")
+		return fmt.Errorf("nas message is nil")
 	}
 
 	// decode NAS message.
@@ -35,7 +36,7 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 
 	// check if NAS is security protected
 	if m.SecurityHeaderType != nas.SecurityHeaderTypePlainNas {
-		log.Info("[UE][NAS] Message with security header")
+		logger.UELog.Info("Message with security header")
 
 		// information to check integrity and ciphered.
 
@@ -52,19 +53,18 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 		cph = false
 		switch m.SecurityHeaderType {
 		case nas.SecurityHeaderTypeIntegrityProtected:
-			log.Info("[UE][NAS] Message with integrity")
+			logger.UELog.Info("Message with integrity")
 
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCiphered:
-			log.Info("[UE][NAS] Message with integrity and ciphered")
+			logger.UELog.Info("Message with integrity and ciphered")
 			cph = true
 
 		case nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext:
-			log.Info("[UE][NAS] Message with integrity and with NEW 5G NAS SECURITY CONTEXT")
+			logger.UELog.Info("Message with integrity and with NEW 5G NAS SECURITY CONTEXT")
 			newSecurityContext = true
 
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext:
-			log.Error("[UE][NAS] Received message with security header \"Integrity protected and ciphered with new 5G NAS security context\", this is reserved for a SECURITY MODE COMPLETE and UE should not receive this code")
-			return
+			return fmt.Errorf("received message with security header \"Integrity protected and ciphered with new 5G NAS security context\", this is reserved for a SECURITY MODE COMPLETE and UE should not receive this code")
 		}
 
 		// check security header(Downlink data).
@@ -77,17 +77,16 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 		if cph {
 			if err := security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.DLCount.Get(), security.Bearer3GPP,
 				security.DirectionDownlink, payload); err != nil {
-				log.Error("error in encrypt algorithm")
-				return
+				return fmt.Errorf("error in encrypt algorithm %v", err)
 			} else {
-				log.Info("[UE][NAS] successful NAS CIPHERING")
+				logger.UELog.Info("successful NAS CIPHERING")
 			}
 		}
 
 		// decode NAS message.
 		err := m.PlainNasDecode(&payload)
 		if err != nil {
-			log.Error("[UE][NAS] Decode NAS error", err)
+			logger.UELog.Error("decode NAS error", err)
 		}
 
 		if newSecurityContext {
@@ -95,10 +94,12 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 				ue.UeSecurity.DLCount.Set(0, 0)
 				ue.UeSecurity.CipheringAlg = m.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm()
 				ue.UeSecurity.IntegrityAlg = m.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm()
-				ue.DerivateAlgKey()
+				err := ue.DerivateAlgKey()
+				if err != nil {
+					return fmt.Errorf("error in DerivateAlgKey %v", err)
+				}
 			} else {
-				log.Error("[UE][NAS] Received message with security header \"Integrity protected with new 5G NAS security context\", but message type is not SECURITY MODE COMMAND")
-				return
+				return fmt.Errorf("received message with security header \"Integrity protected with new 5G NAS security context\", but message type is not SECURITY MODE COMMAND")
 			}
 		}
 
@@ -108,103 +109,120 @@ func DispatchNas(ue *context.UEContext, message []byte) {
 			security.Bearer3GPP,
 			security.DirectionDownlink, message[6:])
 		if err != nil {
-			log.Error("[UE][NAS] NAS MAC error", err)
-			return
+			return fmt.Errorf("error in MAC algorithm %v", err)
 		}
 
 		// check integrity
 		if !reflect.DeepEqual(mac32, macReceived) {
-			log.Error("[UE][NAS] NAS MAC verification failed(received:", macReceived, "expected:", mac32)
-			return
+			return fmt.Errorf("MAC verification failed")
 		} else {
-			log.Info("[UE][NAS] successful NAS MAC verification")
+			logger.UELog.Info("successful NAS MAC verification")
 		}
 	} else {
-		log.Info("[UE][NAS] Message without security header")
+		logger.UELog.Info("Message without security header")
 
 		// decode NAS message.
 		err := m.PlainNasDecode(&payload)
 		if err != nil {
-			log.Info("[UE][NAS] Decode NAS error", err)
+			logger.UELog.Info("Decode NAS error", err)
 		}
 	}
 
 	switch m.GmmHeader.GetMessageType() {
 	case nas.MsgTypeAuthenticationRequest:
 		// handler authentication request.
-		log.Info("[UE][NAS] Receive Authentication Request")
-		handler.HandlerAuthenticationRequest(ue, m)
+		logger.UELog.Info("Receive Authentication Request")
+		err := handler.HandlerAuthenticationRequest(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in Authentication Request %v", err)
+		}
 
 	case nas.MsgTypeAuthenticationReject:
 		// handler authentication reject.
-		log.Info("[UE][NAS] Receive Authentication Reject")
+		logger.UELog.Info("Receive Authentication Reject")
 		handler.HandlerAuthenticationReject(ue, m)
 
 	case nas.MsgTypeIdentityRequest:
-		log.Info("[UE][NAS] Receive Identify Request")
+		logger.UELog.Info("Receive Identify Request")
 		// handler identity request.
-		handler.HandlerIdentityRequest(ue, m)
+		err := handler.HandlerIdentityRequest(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in Identity Request %v", err)
+		}
 
 	case nas.MsgTypeSecurityModeCommand:
 		// handler security mode command.
-		log.Info("[UE][NAS] Receive Security Mode Command")
+		logger.UELog.Info("Receive Security Mode Command")
 		if !newSecurityContext {
-			log.Warn("Received Security Mode Command with security header different from \"Integrity protected with new 5G NAS security context\" ")
+			logger.UELog.Warn("Received Security Mode Command with security header different from \"Integrity protected with new 5G NAS security context\" ")
 		}
-		handler.HandlerSecurityModeCommand(ue, m)
+		err := handler.HandlerSecurityModeCommand(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in Security Mode Command %v", err)
+		}
 
 	case nas.MsgTypeRegistrationAccept:
 		// handler registration accept.
-		log.Info("[UE][NAS] Receive Registration Accept")
-		handler.HandlerRegistrationAccept(ue, m)
+		logger.UELog.Info("Receive Registration Accept")
+		err := handler.HandlerRegistrationAccept(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in Registration Accept %v", err)
+		}
 
 	case nas.MsgTypeConfigurationUpdateCommand:
-		log.Info("[UE][NAS] Receive Configuration Update Command")
-		handler.HandlerConfigurationUpdateCommand(ue, m)
+		logger.UELog.Info("Receive Configuration Update Command")
+		err := handler.HandlerConfigurationUpdateCommand(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in Configuration Update Command %v", err)
+		}
 
 	case nas.MsgTypeDLNASTransport:
 		// handler DL NAS Transport.
-		log.Info("[UE][NAS] Receive DL NAS Transport")
+		logger.UELog.Info("Receive DL NAS Transport")
 		handleCause5GMM(m.DLNASTransport.Cause5GMM)
-		handler.HandlerDlNasTransportPduaccept(ue, m)
+		err := handler.HandlerDlNasTransportPduaccept(ue, m)
+		if err != nil {
+			return fmt.Errorf("error in DL NAS Transport PDU accept %v", err)
+		}
 
 	case nas.MsgTypeServiceAccept:
 		// handler service reject
-		log.Info("[UE][NAS] Receive Service Accept")
+		logger.UELog.Info("Receive Service Accept")
 		handler.HandlerServiceAccept(ue, m)
 
 	case nas.MsgTypeServiceReject:
 		// handler service reject
-		log.Error("[UE][NAS] Receive Service Reject")
+		logger.UELog.Error("Receive Service Reject")
 		handleCause5GMM(&m.ServiceReject.Cause5GMM)
 
 	case nas.MsgTypeRegistrationReject:
 		// handler registration reject
-		log.Error("[UE][NAS] Receive Registration Reject")
+		logger.UELog.Error("Receive Registration Reject")
 		handleCause5GMM(&m.RegistrationReject.Cause5GMM)
 
 	case nas.MsgTypeStatus5GMM:
-		log.Error("[UE][NAS] Receive Status 5GMM")
+		logger.UELog.Error("Receive Status 5GMM")
 		handleCause5GMM(&m.Status5GMM.Cause5GMM)
 
 	case nas.MsgTypeStatus5GSM:
-		log.Error("[UE][NAS] Receive Status 5GSM")
+		logger.UELog.Error("Receive Status 5GSM")
 		handleCause5GSM(&m.Status5GSM.Cause5GSM)
 
 	default:
-		log.Warnf("[UE][NAS] Received unknown NAS message 0x%x", m.GmmHeader.GetMessageType())
+		logger.UELog.Warnf("Received unknown NAS message 0x%x", m.GmmHeader.GetMessageType())
 	}
+	return nil
 }
 
 func handleCause5GSM(cause5SMM *nasType.Cause5GSM) {
 	if cause5SMM != nil {
-		log.Error("[UE][NAS] UE received a 5GSM Failure, cause: ", cause5GMMToString(cause5SMM.Octet))
+		logger.UELog.Error("UE received a 5GSM Failure, cause: ", cause5GMMToString(cause5SMM.Octet))
 	}
 }
 
 func handleCause5GMM(cause5GMM *nasType.Cause5GMM) {
 	if cause5GMM != nil {
-		log.Error("[UE][NAS] UE received a 5GMM Failure, cause: ", cause5GMMToString(cause5GMM.Octet))
+		logger.UELog.Error("UE received a 5GMM Failure, cause: ", cause5GMMToString(cause5GMM.Octet))
 	}
 }
 

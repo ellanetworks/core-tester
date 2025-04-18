@@ -9,24 +9,21 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
 	"strconv"
 
 	"github.com/ellanetworks/core-tester/internal/common/sidf"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/goccy/go-yaml"
-	log "github.com/sirupsen/logrus"
 )
 
 var config *Config
 
 type Config struct {
-	GNodeB GNodeB `yaml:"gnodeb"`
-	Ue     Ue     `yaml:"ue"`
-	AMFs   []*AMF `yaml:"amfif"`
-	Logs   Logs   `yaml:"logs"`
+	GNodeB   GNodeB `yaml:"gnodeb"`
+	Ue       Ue     `yaml:"ue"`
+	AMFs     []*AMF `yaml:"amfif"`
+	LogLevel string `yaml:"log-level"`
 }
 
 type GNodeB struct {
@@ -89,75 +86,40 @@ type AMF struct {
 	IPv4Port
 }
 
-type Logs struct {
-	Level int `yaml:"level"`
-}
-
 func GetConfig() Config {
-	if config == nil {
-		LoadDefaultConfig()
+	return *config
+}
+
+func Load(configPath string) (Config, error) {
+	c, err := readConfig(configPath)
+	if err != nil {
+		return c, fmt.Errorf("failed to load config: %w", err)
 	}
-	return *config
-}
-
-func LoadDefaultConfig() Config {
-	return Load(getDefautlConfigPath())
-}
-
-func Load(configPath string) Config {
-	c := readConfig(configPath)
 	config = &c
-
-	setLogLevel(*config)
-	log.Info("Loaded config at: ", configPath)
-	return *config
+	return *config, nil
 }
 
-func readConfig(configPath string) Config {
+func readConfig(configPath string) (Config, error) {
 	cfg := Config{}
 	f, err := os.Open(configPath)
 	if err != nil {
-		log.Fatal("Could not open config at \"", configPath, "\". ", err.Error())
+		return cfg, fmt.Errorf("could not open config at \"%s\". %w", configPath, err)
 	}
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f, yaml.Strict())
 	err = decoder.Decode(&cfg)
 	if err != nil {
-		log.Fatal("Could not unmarshal yaml config at \"", configPath, "\". ", err.Error())
+		return cfg, fmt.Errorf("could not unmarshal yaml config at \"%s\". %w", configPath, err)
 	}
 
 	sqn, err := strconv.ParseInt(cfg.Ue.Sqn, 16, 64)
 	if err != nil {
-		log.Fatalf("sqn[%s] is invalid: %v", cfg.Ue.Sqn, err)
+		return cfg, fmt.Errorf("sqn[%s] is invalid: %w", cfg.Ue.Sqn, err)
 	}
 	cfg.Ue.Sqn = fmt.Sprintf("%012X", sqn)
 
-	return cfg
-}
-
-func getDefautlConfigPath() string {
-	b, err := os.Executable()
-	if err != nil {
-		log.Fatal("Failed to get executable path. ", err.Error())
-	}
-	dir := path.Dir(b)
-	configPath, err := filepath.Abs(dir + "/internal/config/config.yml")
-	if err != nil {
-		log.Fatal("Could not find defautl config at \"", configPath, "\". ", err.Error())
-	}
-	return configPath
-}
-
-func setLogLevel(cfg Config) {
-	// Output to stdout instead of the default stderr
-	log.SetOutput(os.Stdout)
-
-	if cfg.Logs.Level == 0 {
-		log.SetLevel(log.InfoLevel)
-	} else {
-		log.SetLevel(log.Level(cfg.Logs.Level))
-	}
+	return cfg, nil
 }
 
 func (config *Config) GetUESecurityCapability() *nasType.UESecurityCapability {
@@ -182,7 +144,7 @@ func (config *Config) GetUESecurityCapability() *nasType.UESecurityCapability {
 	return UESecurityCapability
 }
 
-func (config *Config) GetHomeNetworkPublicKey() sidf.HomeNetworkPublicKey {
+func (config *Config) GetHomeNetworkPublicKey() (sidf.HomeNetworkPublicKey, error) {
 	switch config.Ue.ProtectionScheme {
 	case 0:
 		config.Ue.HomeNetworkPublicKey = ""
@@ -190,44 +152,44 @@ func (config *Config) GetHomeNetworkPublicKey() sidf.HomeNetworkPublicKey {
 	case 1:
 		key, err := hex.DecodeString(config.Ue.HomeNetworkPublicKey)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile A: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
 		}
 
 		publicKey, err := ecdh.X25519().NewPublicKey(key)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile A: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
 		}
 
 		return sidf.HomeNetworkPublicKey{
 			ProtectionScheme: strconv.Itoa(config.Ue.ProtectionScheme),
 			PublicKey:        publicKey,
 			PublicKeyID:      strconv.Itoa(int(config.Ue.HomeNetworkPublicKeyID)),
-		}
+		}, nil
 	case 2:
 		key, err := hex.DecodeString(config.Ue.HomeNetworkPublicKey)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile B: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile B: %w", err)
 		}
 
 		publicKey, err := ecdh.P256().NewPublicKey(key)
 		if err != nil {
-			log.Fatalf("Invalid Home Network Public Key in configuration for Profile B: %v", err)
+			return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Home Network Public Key in configuration for Profile B: %w", err)
 		}
 
 		return sidf.HomeNetworkPublicKey{
 			ProtectionScheme: strconv.Itoa(config.Ue.ProtectionScheme),
 			PublicKey:        publicKey,
 			PublicKeyID:      strconv.Itoa(int(config.Ue.HomeNetworkPublicKeyID)),
-		}
+		}, nil
 	default:
-		log.Fatal("Invalid Protection Scheme for SUCI. Valid values are 0, 1 and 2")
+		return sidf.HomeNetworkPublicKey{}, fmt.Errorf("invalid Protection Scheme for SUCI. Valid values are 0, 1 and 2")
 	}
 
 	return sidf.HomeNetworkPublicKey{
 		ProtectionScheme: "0",
 		PublicKey:        nil,
 		PublicKeyID:      "0",
-	}
+	}, nil
 }
 
 func boolToUint8(boolean bool) uint8 {
