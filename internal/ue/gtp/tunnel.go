@@ -28,6 +28,33 @@ type TunnelOptions struct {
 	Rteid            uint32
 }
 
+// addRoute installs a /32 host route for upfIP via the specified interface
+func addRoute(upfIPStr, ifaceName string) error {
+	// Parse destination IP and build /32 network
+	ip := net.ParseIP(upfIPStr)
+	if ip == nil {
+		return fmt.Errorf("invalid UPF IP: %s", upfIPStr)
+	}
+	dst := &net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}
+
+	// Lookup link
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("LinkByName(%s): %w", ifaceName, err)
+	}
+
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+	}
+
+	// Replace any existing route
+	if err := netlink.RouteReplace(route); err != nil {
+		return fmt.Errorf("RouteReplace(%v): %w", route, err)
+	}
+	return nil
+}
+
 func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 	laddr := &net.UDPAddr{
 		IP:   net.ParseIP(opts.GnbIP),
@@ -70,6 +97,11 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 	err = netlink.LinkSetUp(eth)
 	if err != nil {
 		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
+	}
+
+	// Install host route for UPF through physical NIC 'ens5'
+	if err := addRoute(opts.UpfIP, "ens5"); err != nil {
+		return nil, fmt.Errorf("failed to add route to UPF: %w", err)
 	}
 
 	// go tunToGtp(conn, ifce, opts.Lteid)
