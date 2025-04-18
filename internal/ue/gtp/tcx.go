@@ -62,7 +62,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
-	logger.EBPFLog.Infof("Attached TCx program to EGRESS iface %q (index %d)", iface.Name, iface.Index)
+	logger.EBPFLog.Infof("Attached TCx program to tunnel iface %q (index %d)", iface.Name, iface.Index)
 	logger.EBPFLog.Infof("Press Ctrl-C to exit and remove the program")
 
 	// Print the contents of the counters maps.
@@ -89,5 +89,5 @@ func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%10v Egress", upstreamPacketCount), nil
+	return fmt.Sprintf("%10v Upstream", upstreamPacketCount), nil
 }
