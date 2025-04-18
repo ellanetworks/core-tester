@@ -2,12 +2,12 @@ package gtp
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf tcx/tcx.c
@@ -36,8 +36,8 @@ func AttachTCProgram(ifaceName string) error {
 	}
 	defer l2.Close()
 
-	log.Printf("Attached TCx program to EGRESS iface %q (index %d)", iface.Name, iface.Index)
-	log.Printf("Press Ctrl-C to exit and remove the program")
+	logger.EBPFLog.Infof("Attached TCx program to EGRESS iface %q (index %d)", iface.Name, iface.Index)
+	logger.EBPFLog.Infof("Press Ctrl-C to exit and remove the program")
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(1 * time.Second)
@@ -45,20 +45,18 @@ func AttachTCProgram(ifaceName string) error {
 	for range ticker.C {
 		s, err := formatCounters(objs.EgressPktCount)
 		if err != nil {
-			log.Printf("Error reading map: %s", err)
+			logger.EBPFLog.Warnf("Error reading map: %s", err)
 			continue
 		}
 
-		log.Printf("Packet Count: %s\n", s)
+		logger.EBPFLog.Infof("Packet Count: %s\n", s)
 	}
 
 	return nil
 }
 
 func formatCounters(egressVar *ebpf.Variable) (string, error) {
-	var (
-		egressPacketCount uint64
-	)
+	var egressPacketCount uint64
 
 	// retrieve value from the egress map
 	if err := egressVar.Get(&egressPacketCount); err != nil {

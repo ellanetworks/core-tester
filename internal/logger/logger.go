@@ -14,6 +14,7 @@ var (
 	EllaCoreTesterLog *zap.SugaredLogger
 	GnbLog            *zap.SugaredLogger
 	UELog             *zap.SugaredLogger
+	EBPFLog           *zap.SugaredLogger
 	atomicLevel       zap.AtomicLevel
 )
 
@@ -51,6 +52,7 @@ func init() {
 	// System logs for various components
 	GnbLog = log.Sugar().With("component", "Gnb")
 	UELog = log.Sugar().With("component", "UE")
+	EBPFLog = log.Sugar().With("component", "EBPF")
 	EllaCoreTesterLog = log.Sugar().With("component", "EllaCoreTester")
 }
 
@@ -94,6 +96,7 @@ func ConfigureLogging(level string) error {
 	log = newSysLogger
 	GnbLog = log.Sugar().With("component", "Gnb")
 	UELog = log.Sugar().With("component", "UE")
+	EBPFLog = log.Sugar().With("component", "EBPF")
 	EllaCoreTesterLog = log.Sugar().With("component", "EllaCoreTester")
 
 	return nil
