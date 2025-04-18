@@ -61,13 +61,15 @@ type bpfProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfMapSpecs struct {
+	GnbIpMap *ebpf.MapSpec `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.MapSpec `ebpf:"teid_map"`
+	UpfIpMap *ebpf.MapSpec `ebpf:"upf_ip_map"`
 }
 
 // bpfVariableSpecs contains global variables before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfVariableSpecs struct {
-	EgressPktCount *ebpf.VariableSpec `ebpf:"egress_pkt_count"`
 }
 
 // bpfObjects contains all objects after they have been loaded into the kernel.
@@ -90,17 +92,23 @@ func (o *bpfObjects) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfMaps struct {
+	GnbIpMap *ebpf.Map `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.Map `ebpf:"teid_map"`
+	UpfIpMap *ebpf.Map `ebpf:"upf_ip_map"`
 }
 
 func (m *bpfMaps) Close() error {
-	return _BpfClose()
+	return _BpfClose(
+		m.GnbIpMap,
+		m.TeidMap,
+		m.UpfIpMap,
+	)
 }
 
 // bpfVariables contains all global variables after they have been loaded into the kernel.
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfVariables struct {
-	EgressPktCount *ebpf.Variable `ebpf:"egress_pkt_count"`
 }
 
 // bpfPrograms contains all programs after they have been loaded into the kernel.

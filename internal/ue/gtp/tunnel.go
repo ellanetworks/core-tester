@@ -4,7 +4,6 @@
 package gtp
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -17,7 +16,6 @@ type Tunnel struct {
 	Name    string
 	gtpConn *net.UDPConn
 	tunIF   *water.Interface
-	lteid   uint32
 	rteid   uint32
 }
 
@@ -27,7 +25,6 @@ type TunnelOptions struct {
 	UpfIP            string
 	GTPUPort         int
 	TunInterfaceName string
-	Lteid            uint32
 	Rteid            uint32
 }
 
@@ -75,14 +72,13 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
 	}
 
-	go tunToGtp(conn, ifce, opts.Lteid)
+	// go tunToGtp(conn, ifce, opts.Lteid)
 	go gtpToTun(conn, ifce)
 
 	return &Tunnel{
 		Name:    ifce.Name(),
 		gtpConn: conn,
 		tunIF:   ifce,
-		lteid:   opts.Lteid,
 		rteid:   opts.Rteid,
 	}, nil
 }
@@ -100,30 +96,30 @@ func (t *Tunnel) Close() error {
 	return err
 }
 
-func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
-	packet := make([]byte, 2000)
-	packet[0] = 0x30                               // Version 1, Protocol type GTP
-	packet[1] = 0xFF                               // Message type T-PDU
-	binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
-	binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
-	for {
-		n, err := ifce.Read(packet[8:])
-		if err != nil {
-			log.Printf("error reading from tun interface: %v", err)
-			continue
-		}
-		if n == 0 {
-			log.Println("read 0 bytes")
-			continue
-		}
-		binary.BigEndian.PutUint16(packet[2:4], uint16(n))
-		_, err = conn.Write(packet[:n+8])
-		if err != nil {
-			log.Printf("error writing to GTP: %v", err)
-			continue
-		}
-	}
-}
+// func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
+// 	packet := make([]byte, 2000)
+// 	packet[0] = 0x30                               // Version 1, Protocol type GTP
+// 	packet[1] = 0xFF                               // Message type T-PDU
+// 	binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
+// 	binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
+// 	for {
+// 		n, err := ifce.Read(packet[8:])
+// 		if err != nil {
+// 			log.Printf("error reading from tun interface: %v", err)
+// 			continue
+// 		}
+// 		if n == 0 {
+// 			log.Println("read 0 bytes")
+// 			continue
+// 		}
+// 		binary.BigEndian.PutUint16(packet[2:4], uint16(n))
+// 		_, err = conn.Write(packet[:n+8])
+// 		if err != nil {
+// 			log.Printf("error writing to GTP: %v", err)
+// 			continue
+// 		}
+// 	}
+// }
 
 func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 	var payloadStart int

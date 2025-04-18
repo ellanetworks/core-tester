@@ -44,18 +44,18 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 		TunInterfaceName: nameInf,
 		GnbIP:            ueGnbIp.String(),
 		UpfIP:            upfIp,
-		Lteid:            gnbPduSession.GetTeidUplink(),
 		Rteid:            gnbPduSession.GetTeidDownlink(),
 	}
 	_, err = NewTunnel(tunOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
-	logger.UELog.Infof("created gtp-u tunnel for UE %s", ueIp)
-
-	err = AttachTCProgram(tcxInterfaceName)
+	logger.UELog.Infof("created tunnel interface for UE %s", ueIp)
+	lTEID := gnbPduSession.GetTeidUplink()
+	err = AttachTCProgram(tcxInterfaceName, ueGnbIp.String(), upfIp, lTEID)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)
 	}
+	logger.UELog.Infof("attached tc program for UE %s", ueIp)
 	return nil
 }
