@@ -69,19 +69,25 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		logger.EBPFLog.Infof("Hello")
+		s, err := formatCounters(objs.EgressPktCount)
+		if err != nil {
+			logger.EBPFLog.Warnf("Error reading map: %s", err)
+			continue
+		}
+
+		logger.EBPFLog.Infof("Packet Count: %s\n", s)
 	}
 
 	return nil
 }
 
-// func formatCounters(egressVar *ebpf.Variable) (string, error) {
-// 	var egressPacketCount uint64
+func formatCounters(egressVar *ebpf.Variable) (string, error) {
+	var egressPacketCount uint64
 
-// 	// retrieve value from the egress map
-// 	if err := egressVar.Get(&egressPacketCount); err != nil {
-// 		return "", err
-// 	}
+	// retrieve value from the egress map
+	if err := egressVar.Get(&egressPacketCount); err != nil {
+		return "", err
+	}
 
-// 	return fmt.Sprintf("%10v Egress", egressPacketCount), nil
-// }
+	return fmt.Sprintf("%10v Egress", egressPacketCount), nil
+}

@@ -11,6 +11,8 @@
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
+__u64 egress_pkt_count = 0;
+
 // BPF maps for IPs and TEID (network byte order)
 struct
 {
@@ -96,6 +98,7 @@ static __always_inline int build_gtp_header(struct __sk_buff *skb, void *data, v
 SEC("tc")
 int egress_prog_func(struct __sk_buff *skb)
 {
+    __sync_fetch_and_add(&egress_pkt_count, 1);
     LOG("egress_prog: pkt seen len=%d", skb->len);
     // 1) Reserve room for GTP header
     int hdr_size = GTP_HDR_LEN;

@@ -70,6 +70,7 @@ type bpfMapSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfVariableSpecs struct {
+	EgressPktCount *ebpf.VariableSpec `ebpf:"egress_pkt_count"`
 }
 
 // bpfObjects contains all objects after they have been loaded into the kernel.
@@ -109,6 +110,7 @@ func (m *bpfMaps) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfVariables struct {
+	EgressPktCount *ebpf.Variable `ebpf:"egress_pkt_count"`
 }
 
 // bpfPrograms contains all programs after they have been loaded into the kernel.
