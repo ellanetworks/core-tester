@@ -9,12 +9,12 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
-	log "github.com/sirupsen/logrus"
 )
 
 func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.RequestedNSSAI, uplinkDataStatus *nasType.UplinkDataStatus, capability bool, ue *context.UEContext) []byte {
@@ -89,7 +89,7 @@ func GetRegistrationRequest(registrationType uint8, requestedNSSAI *nasType.Requ
 	if pduFlag != 0 {
 		if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, nasPdu); err != nil {
-			log.Errorf("[UE][NAS] Error while encrypting NAS Message: %s", err)
+			logger.UELog.Errorf("Error while encrypting NAS Message: %s", err)
 			return nasPdu
 		}
 

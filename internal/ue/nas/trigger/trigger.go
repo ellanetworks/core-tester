@@ -11,17 +11,17 @@ package trigger
 
 import (
 	context2 "github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/message/nas_control"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/message/nas_control/mm_5gs"
 	"github.com/ellanetworks/core-tester/internal/ue/nas/message/sender"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
-	log "github.com/sirupsen/logrus"
 )
 
 func InitRegistration(ue *context.UEContext) {
-	log.Info("[UE] Initiating Registration")
+	logger.UELog.Info("Initiating Registration")
 
 	// registration procedure started.
 	registrationRequest := mm_5gs.GetRegistrationRequest(
@@ -35,7 +35,7 @@ func InitRegistration(ue *context.UEContext) {
 	if len(ue.UeSecurity.Kamf) != 0 {
 		registrationRequest, err = nas_control.EncodeNasPduWithSecurity(ue, registrationRequest, nas.SecurityHeaderTypeIntegrityProtected, true, false)
 		if err != nil {
-			log.Fatalf("[UE][NAS] Unable to encode with integrity protection Registration Request: %s", err)
+			logger.UELog.Fatalf("Unable to encode with integrity protection Registration Request: %s", err)
 		}
 	}
 	// send to GNB.
@@ -46,11 +46,11 @@ func InitRegistration(ue *context.UEContext) {
 }
 
 func InitPduSessionRequest(ue *context.UEContext) {
-	log.Info("[UE] Initiating New PDU Session")
+	logger.UELog.Info("Initiating New PDU Session")
 
 	pduSession, err := ue.CreatePDUSession()
 	if err != nil {
-		log.Fatal("[UE][NAS] ", err)
+		logger.UELog.Fatal("", err)
 		return
 	}
 
@@ -60,7 +60,7 @@ func InitPduSessionRequest(ue *context.UEContext) {
 func InitPduSessionRequestInner(ue *context.UEContext, pduSession *context.UEPDUSession) {
 	ulNasTransport, err := mm_5gs.Request_UlNasTransport(pduSession, ue)
 	if err != nil {
-		log.Fatal("[UE][NAS] Error sending ul nas transport and pdu session establishment request: ", err)
+		logger.UELog.Fatal("Error sending ul nas transport and pdu session establishment request: ", err)
 	}
 
 	// change the state of ue(SM).
@@ -71,16 +71,16 @@ func InitPduSessionRequestInner(ue *context.UEContext, pduSession *context.UEPDU
 }
 
 func InitPduSessionRelease(ue *context.UEContext, pduSession *context.UEPDUSession) {
-	log.Info("[UE] Initiating Release of PDU Session ", pduSession.Id)
+	logger.UELog.Info("Initiating Release of PDU Session ", pduSession.Id)
 
 	if pduSession.GetStateSM() != context.SM5G_PDU_SESSION_ACTIVE {
-		log.Warn("[UE][NAS] Skipping releasing the PDU Session ID ", pduSession.Id, " as it's not active")
+		logger.UELog.Warn("Skipping releasing the PDU Session ID ", pduSession.Id, " as it's not active")
 		return
 	}
 
 	ulNasTransport, err := mm_5gs.Release_UlNasTransport(pduSession, ue)
 	if err != nil {
-		log.Fatal("[UE][NAS] Error sending ul nas transport and pdu session establishment request: ", err)
+		logger.UELog.Fatal("Error sending ul nas transport and pdu session establishment request: ", err)
 	}
 
 	// change the state of ue(SM).
@@ -91,16 +91,16 @@ func InitPduSessionRelease(ue *context.UEContext, pduSession *context.UEPDUSessi
 }
 
 func InitPduSessionReleaseComplete(ue *context.UEContext, pduSession *context.UEPDUSession) {
-	log.Info("[UE] Initiating PDU Session Release Complete for PDU Session", pduSession.Id)
+	logger.UELog.Info("Initiating PDU Session Release Complete for PDU Session", pduSession.Id)
 
 	if pduSession.GetStateSM() != context.SM5G_PDU_SESSION_INACTIVE {
-		log.Warn("[UE][NAS] Unable to send PDU Session Release Complete for a PDU Session which is not inactive")
+		logger.UELog.Warn("Unable to send PDU Session Release Complete for a PDU Session which is not inactive")
 		return
 	}
 
 	ulNasTransport, err := mm_5gs.ReleasComplete_UlNasTransport(pduSession, ue)
 	if err != nil {
-		log.Fatal("[UE][NAS] Error sending ul nas transport and pdu session establishment request: ", err)
+		logger.UELog.Fatal("Error sending ul nas transport and pdu session establishment request: ", err)
 	}
 
 	// sending to GNB
@@ -108,12 +108,12 @@ func InitPduSessionReleaseComplete(ue *context.UEContext, pduSession *context.UE
 }
 
 func InitDeregistration(ue *context.UEContext) {
-	log.Info("[UE] Initiating Deregistration")
+	logger.UELog.Info("Initiating Deregistration")
 
 	// registration procedure started.
 	deregistrationRequest, err := mm_5gs.DeregistrationRequest(ue)
 	if err != nil {
-		log.Fatal("[UE][NAS] Error sending deregistration request: ", err)
+		logger.UELog.Fatal("Error sending deregistration request: ", err)
 	}
 
 	// send to GNB.
@@ -124,7 +124,7 @@ func InitDeregistration(ue *context.UEContext) {
 }
 
 func InitIdentifyResponse(ue *context.UEContext) {
-	log.Info("[UE] Initiating Identify Response")
+	logger.UELog.Info("Initiating Identify Response")
 
 	// trigger identity response.
 	identityResponse := mm_5gs.IdentityResponse(ue)
@@ -134,25 +134,25 @@ func InitIdentifyResponse(ue *context.UEContext) {
 }
 
 func InitConfigurationUpdateComplete(ue *context.UEContext) {
-	log.Info("[UE] Initiating Configuration Update Complete")
+	logger.UELog.Info("Initiating Configuration Update Complete")
 
 	// trigger Configuration Update Complete.
 	identityResponse, err := mm_5gs.ConfigurationUpdateComplete(ue)
 	if err != nil {
-		log.Fatal("[UE][NAS] Error sending Configuration Update Complete: ", err)
+		logger.UELog.Fatal("Error sending Configuration Update Complete: ", err)
 	}
 	// send to GNB.
 	sender.SendToGnb(ue, identityResponse)
 }
 
 func InitServiceRequest(ue *context.UEContext) {
-	log.Info("[UE] Initiating Service Request")
+	logger.UELog.Info("Initiating Service Request")
 
 	// trigger ServiceRequest.
 	serviceRequest := mm_5gs.ServiceRequest(ue)
 	pdu, err := nas_control.EncodeNasPduWithSecurity(ue, serviceRequest, nas.SecurityHeaderTypeIntegrityProtected, true, false)
 	if err != nil {
-		log.Fatalf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
+		logger.UELog.Fatalf("Error encoding %s IMSI UE PduSession Establishment Request Msg", ue.UeSecurity.Supi)
 	}
 
 	// send to GNB.
@@ -160,7 +160,7 @@ func InitServiceRequest(ue *context.UEContext) {
 }
 
 func SwitchToIdle(ue *context.UEContext) {
-	log.Info("[UE] Switching to 5GMM-IDLE")
+	logger.UELog.Info("Switching to 5GMM-IDLE")
 
 	// send to GNB.
 	sender.SendToGnbMsg(ue, context2.UEMessage{Idle: true})

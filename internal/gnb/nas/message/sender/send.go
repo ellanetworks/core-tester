@@ -6,14 +6,14 @@ package sender
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
-	log "github.com/sirupsen/logrus"
+	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
 func SendToUe(ue *context.GNBUe, message []byte) {
 	ue.Lock()
 	gnbTx := ue.GetGnbTx()
 	if gnbTx == nil {
-		log.Warn("[GNB] Do not send NAS messages to UE as channel is closed")
+		logger.GnbLog.Warnf("do not send NAS messages to UE as channel is closed")
 	} else {
 		gnbTx <- context.UEMessage{IsNas: true, Nas: message}
 	}
@@ -24,7 +24,7 @@ func SendMessageToUe(ue *context.GNBUe, message context.UEMessage) {
 	ue.Lock()
 	gnbTx := ue.GetGnbTx()
 	if gnbTx == nil {
-		log.Warn("[GNB] Do not send NAS messages to UE as channel is closed")
+		logger.GnbLog.Warnf("do not send NAS messages to UE as channel is closed")
 	} else {
 		gnbTx <- message
 	}

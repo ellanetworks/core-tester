@@ -13,6 +13,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/config"
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/procedures"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
@@ -20,7 +21,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/nas/trigger"
 	"github.com/ellanetworks/core-tester/internal/ue/scenario"
 	"github.com/ellanetworks/core-tester/internal/ue/state"
-	log "github.com/sirupsen/logrus"
 )
 
 func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMessage, gnbInboundChannel chan gnbContext.UEMessage, wg *sync.WaitGroup) chan scenario.ScenarioMessage {
@@ -60,17 +60,17 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 			select {
 			case msg, open := <-ue.GetGnbTx():
 				if !open {
-					log.Warn("[UE][", ue.GetMsin(), "] Stopping UE as communication with gNB was closed")
+					logger.UELog.Warn("[", ue.GetMsin(), "] Stopping UE as communication with gNB was closed")
 					ue.SetGnbTx(nil)
 					break
 				}
 				err := gnbMsgHandler(msg, ue)
 				if err != nil {
-					log.Error("[UE][", ue.GetMsin(), "] Error while handling message from gNB: ", err)
+					logger.UELog.Error("[", ue.GetMsin(), "] Error while handling message from gNB: ", err)
 				}
 			case msg, open := <-ueMgrChannel:
 				if !open {
-					log.Warn("[UE][", ue.GetMsin(), "] Stopping UE as communication with scenario was closed")
+					logger.UELog.Warn("[", ue.GetMsin(), "] Stopping UE as communication with scenario was closed")
 					loop = false
 					break
 				}
@@ -96,7 +96,7 @@ func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
 			return fmt.Errorf("could not setup GTP interface: %w", err)
 		}
 	} else if msg.GNBRx != nil && msg.GNBTx != nil && msg.GNBInboundChannel != nil {
-		log.Info("[UE] gNodeB is telling us to use another gNodeB")
+		logger.UELog.Info("gNodeB is telling us to use another gNodeB")
 		previousGnbRx := ue.GetGnbRx()
 		ue.SetGnbInboundChannel(msg.GNBInboundChannel)
 		ue.SetGnbRx(msg.GNBRx)
@@ -134,7 +134,7 @@ func ueMgrHandler(msg procedures.UeTesterMessage, ue *context.UEContext) bool {
 	case procedures.DestroyPDUSession:
 		pdu, err := ue.GetPduSession(msg.Param)
 		if err != nil {
-			log.Error("[UE] Cannot release unknown PDU Session ID ", msg.Param)
+			logger.UELog.Error("cannot release unknown PDU Session ID ", msg.Param)
 			return loop
 		}
 		trigger.InitPduSessionRelease(ue, pdu)
@@ -158,7 +158,7 @@ func ueMgrHandler(msg procedures.UeTesterMessage, ue *context.UEContext) bool {
 			}
 		}
 	case procedures.Terminate:
-		log.Info("[UE] Terminating UE as requested")
+		logger.UELog.Info("terminating UE as requested")
 		// If UE is registered
 		if ue.GetStateMM() == context.MM5G_REGISTERED {
 			// Release PDU Sessions

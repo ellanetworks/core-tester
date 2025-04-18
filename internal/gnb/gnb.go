@@ -14,7 +14,7 @@ import (
 	serviceNas "github.com/ellanetworks/core-tester/internal/gnb/nas/service"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
-	log "github.com/sirupsen/logrus"
+	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
 func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
@@ -40,9 +40,9 @@ func InitGnb(conf config.Config, wg *sync.WaitGroup) *context.GNBContext {
 
 		// start communication with AMF(SCTP).
 		if err := ngap.InitConn(amf, gnb); err != nil {
-			log.Fatal("Error in", err)
+			logger.GnbLog.Fatal("Error in", err)
 		} else {
-			log.Info("[GNB] SCTP/NGAP service is running")
+			logger.GnbLog.Info("[GNB] SCTP/NGAP service is running")
 			// wg.Add(1)
 		}
 

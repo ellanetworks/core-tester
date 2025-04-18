@@ -9,12 +9,12 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
-	log "github.com/sirupsen/logrus"
 )
 
 func ServiceRequest(ue *context.UEContext) []byte {
@@ -62,7 +62,7 @@ func ServiceRequest(ue *context.UEContext) []byte {
 	nasPdu := data.Bytes()
 	if err = security.NASEncrypt(ue.UeSecurity.CipheringAlg, ue.UeSecurity.KnasEnc, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP,
 		security.DirectionUplink, nasPdu); err != nil {
-		log.Errorf("[UE][NAS] Error while encrypting NAS Message: %s", err)
+		logger.UELog.Errorf("Error while encrypting NAS Message: %s", err)
 		return nil
 	}
 	serviceRequest.NASMessageContainer = nasType.NewNASMessageContainer(nasMessage.ServiceRequestNASMessageContainerType)

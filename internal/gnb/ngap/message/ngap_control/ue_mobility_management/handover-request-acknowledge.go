@@ -8,11 +8,11 @@ import (
 	"encoding/binary"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type HandoverRequestAcknowledgeBuilder struct {
@@ -101,7 +101,7 @@ func (builder *HandoverRequestAcknowledgeBuilder) SetPduSessionResourceAdmittedL
 	}
 
 	if len(pDUSessionResourceAdmittedList.List) == 0 {
-		log.Info("[GNB][NGAP] No admitted PDU Session")
+		logger.GnbLog.Info("No admitted PDU Session")
 		return builder
 	}
 
@@ -133,7 +133,7 @@ func GetHandoverRequestAcknowledgeTransfer(gnb *context.GNBContext, pduSession *
 	data := buildHandoverRequestAcknowledgeTransfer(gnb, pduSession)
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetHandoverRequestAcknowledgeTransfer: %+v", err)
+		logger.GnbLog.Fatalf("aper MarshalWithParams error in GetHandoverRequestAcknowledgeTransfer: %+v", err)
 	}
 	return encodeData
 }
@@ -164,7 +164,7 @@ func GetTargetToSourceTransparentTransfer() []byte {
 	data := buildTargetToSourceTransparentTransfer()
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetTargetToSourceTransparentTransfer: %+v", err)
+		logger.GnbLog.Fatalf("aper MarshalWithParams error in GetTargetToSourceTransparentTransfer: %+v", err)
 	}
 	return encodeData
 }

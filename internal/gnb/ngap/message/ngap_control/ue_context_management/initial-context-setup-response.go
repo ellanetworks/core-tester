@@ -8,9 +8,9 @@ package ue_context_management
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/message/ngap_control/pdu_session_management"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type InitialContextSetupResponseBuilder struct {
@@ -97,7 +97,7 @@ func (builder *InitialContextSetupResponseBuilder) SetPDUSessionResourceSetupLis
 	}
 
 	if len(PDUSessionResourceSetupListCxtRes.List) == 0 {
-		log.Info("[GNB][NGAP] No PDU Session to set up in InitialContextSetupResponse.")
+		logger.GnbLog.Info("no PDU Session to set up in InitialContextSetupResponse.")
 		return builder
 	}
 	builder.ies.List = append(builder.ies.List, ie)

@@ -10,7 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb/nas"
 	"github.com/ellanetworks/core-tester/internal/gnb/nas/message/sender"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
-	log "github.com/sirupsen/logrus"
+	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
 func InitServer(gnb *context.GNBContext) {
@@ -28,7 +28,7 @@ func gnbListen(gnb *context.GNBContext) {
 				message.GNBTx <- context.UEMessage{PagedUEs: gnb.GetPagedUEs()}
 				close(message.GNBTx)
 			} else {
-				log.Info("[GNB] Unable to give PagedUEs to UE, GNBTx is nill")
+				logger.GnbLog.Infof("unable to give PageUEs to UE, GNBTx is nil")
 			}
 			continue
 		}
@@ -56,19 +56,19 @@ func gnbListen(gnb *context.GNBContext) {
 			var err error
 			ue, err = gnb.NewGnBUe(message.GNBTx, message.GNBRx, message.PrUeId, message.Tmsi)
 			if ue == nil && err != nil {
-				log.Errorf("[GNB] UE was not created successfully: %s. Closing connection with UE.", err)
+				logger.GnbLog.Errorf("ue was not created successfully: %s. Closing connection with UE.", err)
 				close(message.GNBTx)
 				continue
 			}
 			if message.UEContext != nil && message.IsHandover {
 				// Xn Handover
-				log.Info("[GNB] Received incoming handover for UE from another gNodeB")
+				logger.GnbLog.Info("received incoming handover for UE from another gNodeB")
 				ue.SetStateReady()
 				ue.CopyFromPreviousContext(message.UEContext)
 				trigger.SendPathSwitchRequest(gnb, ue)
 			} else {
 				// Usual first UE connection to a gNodeB
-				log.Info("[GNB] Received incoming connection from new UE")
+				logger.GnbLog.Info("received incoming connection from new UE")
 				mcc, mnc := gnb.GetMccAndMnc()
 				message.GNBTx <- context.UEMessage{Mcc: mcc, Mnc: mnc}
 				ue.SetPduSessions(message.GNBPduSessions)
@@ -76,7 +76,7 @@ func gnbListen(gnb *context.GNBContext) {
 		}
 
 		if ue == nil {
-			log.Errorf("[GNB] UE has not been created")
+			logger.GnbLog.Errorf("ue has not been created")
 			continue
 		}
 
@@ -91,7 +91,7 @@ func processingConn(ue *context.GNBUe, gnb *context.GNBContext) {
 		message, done := <-rx
 		gnbUeContext, err := gnb.GetGnbUe(ue.GetRanUeId())
 		if (gnbUeContext == nil || err != nil) && done {
-			log.Error("[GNB][NAS] Ignoring message from UE ", ue.GetRanUeId(), " as UE Context was cleaned as requested by AMF.")
+			logger.GnbLog.Errorf("ignoring message from UE ", ue.GetRanUeId(), " as UE Context was cleaned as requested by AMF.")
 			break
 		}
 		if !done {
@@ -103,7 +103,7 @@ func processingConn(ue *context.GNBUe, gnb *context.GNBContext) {
 
 		// send to dispatch.
 		if message.ConnectionClosed {
-			log.Info("[GNB] Cleaning up context on current gNb")
+			logger.GnbLog.Info("cleaning up context on current gNb")
 			gnbUeContext.SetStateDown()
 			if gnbUeContext.GetHandoverGnodeB() == nil {
 				// We do not clean the context if it's a NGAP Handover, as AMF will request the context clean-up
@@ -115,7 +115,7 @@ func processingConn(ue *context.GNBUe, gnb *context.GNBContext) {
 		} else if message.Idle {
 			trigger.SendUeContextReleaseRequest(ue)
 		} else {
-			log.Error("[GNB] Received unknown message from UE")
+			logger.GnbLog.Error("received unknown message from UE")
 		}
 	}
 }

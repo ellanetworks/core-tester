@@ -14,10 +14,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	gnbCxt "github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/procedures"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	ueCtx "github.com/ellanetworks/core-tester/internal/ue/context"
-	log "github.com/sirupsen/logrus"
 )
 
 func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gnbCxt.GNBContext {
@@ -41,7 +41,7 @@ func CreateGnbs(count int, cfg config.Config, wg *sync.WaitGroup) map[string]*gn
 func gnbIdGenerator(i int, gnbId string) string {
 	gnbId_int, err := strconv.ParseInt(gnbId, 16, 0)
 	if err != nil {
-		log.Fatal("[UE][CONFIG] Given gnbId is invalid")
+		logger.UELog.Fatal("given gnbId is invalid")
 	}
 	base := int(gnbId_int) + i
 
@@ -69,7 +69,7 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 	numGnb := len(simConfig.Gnbs)
 	ueCfg := simConfig.Cfg
 	ueCfg.Ue.Msin = IncrementMsin(simConfig.UeId, simConfig.Cfg.Ue.Msin)
-	log.Info("[TESTER] TESTING REGISTRATION USING IMSI ", ueCfg.Ue.Msin, " UE")
+	logger.EllaCoreTesterLog.Info("testing registration using IMSI ", ueCfg.Ue.Msin, " UE")
 
 	gnbIdGen := func(index int) string {
 		return gnbIdGenerator((simConfig.UeId+index)%numGnb, ueCfg.GNodeB.PlmnList.GnbId)
@@ -148,7 +148,7 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 						}
 					}
 				case msg := <-ueTx:
-					log.Info("[UE] Switched from state ", state, " to state ", msg.StateChange)
+					logger.UELog.Info("switched from state ", state, " to state ", msg.StateChange)
 					switch msg.StateChange {
 					case ueCtx.MM5G_REGISTERED:
 						if !registered {
@@ -177,7 +177,7 @@ func SimulateSingleUE(simConfig UESimulationConfig, wg *sync.WaitGroup) {
 func IncrementMsin(i int, msin string) string {
 	msin_int, err := strconv.Atoi(msin)
 	if err != nil {
-		log.Fatal("[UE][CONFIG] Given MSIN is invalid")
+		logger.UELog.Fatal("given msin is invalid")
 	}
 	base := msin_int + (i - 1)
 

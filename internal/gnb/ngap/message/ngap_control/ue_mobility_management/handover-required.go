@@ -6,10 +6,10 @@ package ue_mobility_management
 
 import (
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	log "github.com/sirupsen/logrus"
 )
 
 type HandoverRequiredBuilder struct {
@@ -178,7 +178,7 @@ func (builder *HandoverRequiredBuilder) SetPduSessionResourceList(pduSessions [1
 	}
 
 	if len(pDUSessionResourceListHORqd.List) == 0 {
-		log.Error("[GNB][NGAP] No PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
+		logger.GnbLog.Error("no PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
 		return builder
 	}
 
@@ -206,7 +206,7 @@ func GetSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targetG
 	data := buildSourceToTargetTransparentTransfer(sourceGnb, targetGnb, pduSessions, prUeId)
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
-		log.Fatalf("aper MarshalWithParams error in GetSourceToTargetTransparentTransfer: %+v", err)
+		logger.GnbLog.Fatalf("aper MarshalWithParams error in GetSourceToTargetTransparentTransfer: %+v", err)
 	}
 	return encodeData
 }
@@ -231,7 +231,7 @@ func buildSourceToTargetTransparentTransfer(sourceGnb *context.GNBContext, targe
 		data.PDUSessionResourceInformationList.List = append(data.PDUSessionResourceInformationList.List, infoItem)
 	}
 	if len(data.PDUSessionResourceInformationList.List) == 0 {
-		log.Error("[GNB][NGAP] No PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
+		logger.GnbLog.Error("no PDU Session to set up in InitialContextSetupResponse. NGAP Handover requires at least a PDU Session.")
 		data.PDUSessionResourceInformationList = nil
 	}
 

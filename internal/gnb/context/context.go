@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
 	"github.com/ishidawataru/sctp"
-	log "github.com/sirupsen/logrus"
 )
 
 type GNBContext struct {
@@ -379,17 +379,16 @@ func (gnb *GNBContext) GetMccAndMncInOctets() []byte {
 }
 
 func (gnb *GNBContext) Terminate() {
-	// close all connections
 	close(gnb.GetInboundChannel())
-	log.Info("[GNB][UE] NAS channel Terminated")
+	logger.GnbLog.Infof("nas channel terminated")
 
 	n2 := gnb.GetN2()
 	if n2 != nil {
-		log.Info("[GNB][AMF] N2/TNLA Terminated")
+		logger.GnbLog.Infof("N2/TNLA terminated")
 		n2.Close()
 	}
 
-	log.Info("GNB Terminated")
+	logger.GnbLog.Infof("GNB terminated")
 }
 
 func reverse(s string) string {

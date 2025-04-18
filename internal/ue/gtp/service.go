@@ -9,8 +9,8 @@ import (
 	"time"
 
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
-	log "github.com/sirupsen/logrus"
 )
 
 func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
@@ -51,11 +51,11 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
-	log.Infof("Created tunnel with options: %+v", tunOpts)
+	logger.UELog.Infof("created tunnel with options: %+v", tunOpts)
 
-	log.Info(fmt.Sprintf("[UE][GTP] Interface %s has successfully been configured for UE %s", nameInf, ueIp))
-	log.Info(fmt.Sprintf("[UE][GTP] You can do traffic for this UE by binding to IP %s, eg:", ueIp))
-	log.Info(fmt.Sprintf("[UE][GTP] iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp))
+	logger.UELog.Info(fmt.Sprintf("Interface %s has successfully been configured for UE %s", nameInf, ueIp))
+	logger.UELog.Info(fmt.Sprintf("You can do traffic for this UE by binding to IP %s, eg:", ueIp))
+	logger.UELog.Info(fmt.Sprintf("iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp))
 	time.Sleep(time.Second * 120)
 	return nil
 }

@@ -8,8 +8,8 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb/context"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ishidawataru/sctp"
-	log "github.com/sirupsen/logrus"
 )
 
 var ConnCount int
@@ -50,7 +50,7 @@ func InitConn(amf *context.GNBAmf, gnb *context.GNBContext) error {
 
 	err = conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
 	if err != nil {
-		log.Error("[GNB][SCTP] Error in subscribing SCTP events")
+		logger.GnbLog.Error("error in subscribing SCTP events")
 	}
 
 	go GnbListen(amf, gnb)
@@ -68,7 +68,7 @@ func GnbListen(amf *context.GNBAmf, gnb *context.GNBContext) {
 			break
 		}
 
-		log.Info("[GNB][SCTP] Receive message in ", info.Stream, " stream\n")
+		logger.GnbLog.Info("receive message in ", info.Stream, " stream\n")
 
 		forwardData := make([]byte, n)
 		copy(forwardData, buf[:n])
