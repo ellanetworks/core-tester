@@ -51,5 +51,10 @@ ue:
 amfif:
   - ip: "127.0.0.1"
     port: 38412
+
+xdp:
+  attachmode: native
+  n3Interface: "n3"
+
 logs:
   level: 4

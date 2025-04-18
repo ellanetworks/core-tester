@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
+	github.com/cilium/ebpf v0.18.0
 	github.com/free5gc/aper v1.0.6-0.20250102035630-3ddc831eed6a
 	github.com/free5gc/nas v1.1.3
 	github.com/free5gc/ngap v1.0.9

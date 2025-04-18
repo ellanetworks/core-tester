@@ -27,6 +27,12 @@ type Config struct {
 	Ue     Ue     `yaml:"ue"`
 	AMFs   []*AMF `yaml:"amfif"`
 	Logs   Logs   `yaml:"logs"`
+	XDP    XDP    `yaml:"xdp"`
+}
+
+type XDP struct {
+	N3Interface string `yaml:"n3interface"`
+	AttachMode  string `yaml:"attachmode"`
 }
 
 type GNodeB struct {

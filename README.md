@@ -13,7 +13,22 @@ Contrary to most 5G core simulators, Ella Core tester does not try to be a gener
 
 ## Usage
 
+
+Install pre-requisites:
+
+```shell
+sudo apt install clang llvm gcc-multilib libbpf-dev
+sudo snap install go --channel=1.24/stable --classic
+```
+
+Generate the eBPF Go bindings:
+
+```shell
+go generate ./...
+```
+
 Build the project:
+
 ```shell
 go build cmd/core-tester/main.go
 ```
