@@ -96,6 +96,7 @@ static __always_inline int build_gtp_header(struct __sk_buff *skb, void *data, v
 SEC("tc")
 int egress_prog_func(struct __sk_buff *skb)
 {
+    LOG("egress_prog: pkt seen len=%d", skb->len);
     // 1) Reserve room for GTP header
     int hdr_size = GTP_HDR_LEN;
     if (bpf_skb_adjust_room(skb, hdr_size, BPF_ADJ_ROOM_MAC, 0) < 0)
