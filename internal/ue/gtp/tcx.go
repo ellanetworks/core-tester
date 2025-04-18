@@ -9,11 +9,15 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/vishvananda/netlink"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf tcx/tcx.c
 
 func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string, teid uint32) error {
+	if err := ensureClsactQdisc(ifaceName); err != nil {
+		return fmt.Errorf("could not install clsact qdisc: %w", err)
+	}
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %q: %w", ifaceName, err)
@@ -79,6 +83,25 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	}
 
 	return nil
+}
+
+// ensureClsactQdisc makes sure there’s a clsact qdisc on the interface
+func ensureClsactQdisc(ifaceName string) error {
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("LinkByName(%s): %w", ifaceName, err)
+	}
+	// Try to replace any existing clsact—if something else is there it will be replaced
+	q := &netlink.GenericQdisc{
+		QdiscAttrs: netlink.QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    netlink.MakeHandle(0xffff, 0),
+			Parent:    netlink.HANDLE_CLSACT,
+		},
+		QdiscType: "clsact",
+	}
+	// Replace will delete and re-create if needed
+	return netlink.QdiscReplace(q)
 }
 
 func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
