@@ -114,6 +114,9 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 	logrus.Infof("[UE][GTP] Interface %s configured for UE %s", nameInf, ueIp)
 	logrus.Infof("[UE][GTP] Send traffic: iperf3 -B %s -c IPERF_SERVER -p PORT -t 9000", ueIp)
 
+	// sleep for 5 min
+	time.Sleep(5 * time.Minute)
+
 	return nil
 }
 
