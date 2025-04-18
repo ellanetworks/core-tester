@@ -13,7 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 )
 
-func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
+func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInterfaceName string) error {
 	gnbPduSession := msg.GNBPduSessions[0]
 	pduSession, err := ue.GetPduSession(uint8(gnbPduSession.GetPduSessionId()))
 	if err != nil {
@@ -52,5 +52,10 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 		return fmt.Errorf("failed to create tunnel: %w", err)
 	}
 	logger.UELog.Infof("created gtp-u tunnel for UE %s", ueIp)
+
+	err = AttachTCProgram(tcxInterfaceName)
+	if err != nil {
+		return fmt.Errorf("failed to attach tc program: %w", err)
+	}
 	return nil
 }

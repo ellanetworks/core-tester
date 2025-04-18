@@ -20,10 +20,11 @@ import (
 var config *Config
 
 type Config struct {
-	GNodeB   GNodeB `yaml:"gnodeb"`
-	Ue       Ue     `yaml:"ue"`
-	AMFs     []*AMF `yaml:"amfif"`
-	LogLevel string `yaml:"log-level"`
+	GNodeB           GNodeB `yaml:"gnodeb"`
+	Ue               Ue     `yaml:"ue"`
+	AMFs             []*AMF `yaml:"amfif"`
+	LogLevel         string `yaml:"log-level"`
+	TcxInterfaceName string `yaml:"tcx-interface-name"`
 }
 
 type GNodeB struct {

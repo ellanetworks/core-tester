@@ -71,7 +71,7 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 					ue.SetGnbTx(nil)
 					break
 				}
-				err := gnbMsgHandler(msg, ue)
+				err := gnbMsgHandler(msg, ue, conf.TcxInterfaceName)
 				if err != nil {
 					logger.UELog.Error("[", ue.GetMsin(), "] Error while handling message from gNB: ", err)
 				}
@@ -93,7 +93,7 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 	return scenarioChan, nil
 }
 
-func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
+func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext, tcxInterfaceName string) error {
 	if msg.IsNas {
 		err := nas.DispatchNas(ue, msg.Nas)
 		if err != nil {
@@ -101,7 +101,7 @@ func gnbMsgHandler(msg gnbContext.UEMessage, ue *context.UEContext) error {
 		}
 	} else if msg.GNBPduSessions[0] != nil {
 		// Setup PDU Session
-		err := gtp.SetupGtpInterface(ue, msg)
+		err := gtp.SetupGtpInterface(ue, msg, tcxInterfaceName)
 		if err != nil {
 			return fmt.Errorf("could not setup GTP interface: %w", err)
 		}
