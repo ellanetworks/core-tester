@@ -38,8 +38,11 @@ struct
     __uint(value_size, sizeof(__u32));
 } teid_map SEC(".maps");
 
-#define LOG(fmt, ...) \
-    bpf_trace_printk(fmt "\n", sizeof(fmt), ##__VA_ARGS__)
+#define LOG(fmt, ...)                                              \
+    ({                                                             \
+        char ____fmt[] = fmt "\n";                                 \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
+    })
 
 // Stub: build the outer IP (and Ethernet) header
 static __always_inline int build_ip_header(struct __sk_buff *skb)
