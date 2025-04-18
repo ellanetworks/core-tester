@@ -52,6 +52,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 	}
 	logger.UELog.Infof("created tunnel interface for UE %s", ueIp)
 	lTEID := gnbPduSession.GetTeidUplink()
+
 	err = AttachTCProgram(tcxInterfaceName, ueGnbIp.String(), upfIp, lTEID)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)

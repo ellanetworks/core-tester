@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -64,18 +65,12 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	logger.EBPFLog.Infof("Attached TCx program to EGRESS iface %q (index %d)", iface.Name, iface.Index)
 	logger.EBPFLog.Infof("Press Ctrl-C to exit and remove the program")
 
-	// // Print the contents of the counters maps.
-	// ticker := time.NewTicker(1 * time.Second)
-	// defer ticker.Stop()
-	// for range ticker.C {
-	// 	s, err := formatCounters(objs.EgressPktCount)
-	// 	if err != nil {
-	// 		logger.EBPFLog.Warnf("Error reading map: %s", err)
-	// 		continue
-	// 	}
-
-	// 	logger.EBPFLog.Infof("Packet Count: %s\n", s)
-	// }
+	// Print the contents of the counters maps.
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		logger.EBPFLog.Infof("Hello")
+	}
 
 	return nil
 }
