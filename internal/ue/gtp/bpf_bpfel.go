@@ -54,7 +54,7 @@ type bpfSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfProgramSpecs struct {
-	EgressProgFunc *ebpf.ProgramSpec `ebpf:"egress_prog_func"`
+	UpstreamProgFunc *ebpf.ProgramSpec `ebpf:"upstream_prog_func"`
 }
 
 // bpfMapSpecs contains maps before they are loaded into the kernel.
@@ -70,7 +70,7 @@ type bpfMapSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfVariableSpecs struct {
-	EgressPktCount *ebpf.VariableSpec `ebpf:"egress_pkt_count"`
+	UpstreamPktCount *ebpf.VariableSpec `ebpf:"upstream_pkt_count"`
 }
 
 // bpfObjects contains all objects after they have been loaded into the kernel.
@@ -110,19 +110,19 @@ func (m *bpfMaps) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfVariables struct {
-	EgressPktCount *ebpf.Variable `ebpf:"egress_pkt_count"`
+	UpstreamPktCount *ebpf.Variable `ebpf:"upstream_pkt_count"`
 }
 
 // bpfPrograms contains all programs after they have been loaded into the kernel.
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfPrograms struct {
-	EgressProgFunc *ebpf.Program `ebpf:"egress_prog_func"`
+	UpstreamProgFunc *ebpf.Program `ebpf:"upstream_prog_func"`
 }
 
 func (p *bpfPrograms) Close() error {
 	return _BpfClose(
-		p.EgressProgFunc,
+		p.UpstreamProgFunc,
 	)
 }
 

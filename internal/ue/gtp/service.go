@@ -13,6 +13,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/context"
 )
 
+const (
+	TunInterfaceName = "ellatester0"
+)
+
 func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInterfaceName string) error {
 	gnbPduSession := msg.GNBPduSessions[0]
 	pduSession, err := ue.GetPduSession(uint8(gnbPduSession.GetPduSessionId()))
@@ -34,14 +38,13 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 	ueGnbIp := pduSession.GetGnbIp()
 	upfIp := pduSession.GnbPduSession.GetUpfIp()
 	ueIp := pduSession.GetIp()
-	nameInf := "ellatester0"
 
 	time.Sleep(time.Second)
 
 	tunOpts := &TunnelOptions{
 		UEIP:             ueIp + "/16",
 		GTPUPort:         2152,
-		TunInterfaceName: nameInf,
+		TunInterfaceName: TunInterfaceName,
 		GnbIP:            ueGnbIp.String(),
 		UpfIP:            upfIp,
 		Rteid:            gnbPduSession.GetTeidDownlink(),
@@ -53,7 +56,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 	logger.UELog.Infof("created tunnel interface for UE %s", ueIp)
 	lTEID := gnbPduSession.GetTeidUplink()
 
-	err = AttachTCProgram(tcxInterfaceName, ueGnbIp.String(), upfIp, lTEID)
+	err = AttachTCProgram(TunInterfaceName, ueGnbIp.String(), upfIp, lTEID)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)
 	}

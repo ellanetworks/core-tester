@@ -26,11 +26,11 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	}
 	defer objs.Close()
 
-	// Attach the program to Egress TC.
+	// Attach the program to Ingress TC.
 	l2, err := link.AttachTCX(link.TCXOptions{
 		Interface: iface.Index,
-		Program:   objs.EgressProgFunc,
-		Attach:    ebpf.AttachTCXEgress,
+		Program:   objs.UpstreamProgFunc,
+		Attach:    ebpf.AttachTCXIngress,
 	})
 	if err != nil {
 		return fmt.Errorf("could not attach TCx program: %w", err)
@@ -69,7 +69,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		s, err := formatCounters(objs.EgressPktCount)
+		s, err := formatCounters(objs.UpstreamPktCount)
 		if err != nil {
 			logger.EBPFLog.Warnf("Error reading map: %s", err)
 			continue
@@ -81,13 +81,13 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	return nil
 }
 
-func formatCounters(egressVar *ebpf.Variable) (string, error) {
-	var egressPacketCount uint64
+func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
+	var upstreamPacketCount uint64
 
-	// retrieve value from the egress map
-	if err := egressVar.Get(&egressPacketCount); err != nil {
+	// retrieve value from the ebpf map
+	if err := upstreamVar.Get(&upstreamPacketCount); err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%10v Egress", egressPacketCount), nil
+	return fmt.Sprintf("%10v Egress", upstreamPacketCount), nil
 }

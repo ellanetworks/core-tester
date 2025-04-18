@@ -11,7 +11,7 @@
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-__u64 egress_pkt_count = 0;
+__u64 upstream_pkt_count = 0;
 
 // BPF maps for IPs and TEID (network byte order)
 struct
@@ -98,15 +98,15 @@ static __always_inline int build_gtp_header(struct __sk_buff *skb, void *data, v
 }
 
 SEC("tc")
-int egress_prog_func(struct __sk_buff *skb)
+int upstream_prog_func(struct __sk_buff *skb)
 {
-    __sync_fetch_and_add(&egress_pkt_count, 1);
-    LOG("egress_prog: pkt seen len=%d", skb->len);
+    __sync_fetch_and_add(&upstream_pkt_count, 1);
+    LOG("upstream_prog: pkt seen len=%d", skb->len);
     // 1) Reserve room for GTP header
     int hdr_size = GTP_HDR_LEN;
     if (bpf_skb_adjust_room(skb, hdr_size, BPF_ADJ_ROOM_MAC, 0) < 0)
     {
-        LOG("egress_prog: adjust_room failed");
+        LOG("upstream_prog: adjust_room failed");
         return TC_ACT_SHOT;
     }
 
@@ -117,21 +117,21 @@ int egress_prog_func(struct __sk_buff *skb)
     // 3) Call stubs/builders
     if (build_ip_header(skb) < 0)
     {
-        LOG("egress_prog: build_ip_header failed");
+        LOG("upstream_prog: build_ip_header failed");
         return TC_ACT_SHOT;
     }
     if (build_udp_header(skb) < 0)
     {
-        LOG("egress_prog: build_udp_header failed");
+        LOG("upstream_prog: build_udp_header failed");
         return TC_ACT_SHOT;
     }
     if (build_gtp_header(skb, data, data_end) < 0)
     {
-        LOG("egress_prog: build_gtp_header failed");
+        LOG("upstream_prog: build_gtp_header failed");
         return TC_ACT_SHOT;
     }
 
-    LOG("egress_prog: success");
+    LOG("upstream_prog: success");
     return TC_ACT_OK;
 }
 
