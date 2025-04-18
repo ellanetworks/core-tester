@@ -60,6 +60,9 @@ type GTPProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type GTPMapSpecs struct {
+	GnbIpMap *ebpf.MapSpec `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.MapSpec `ebpf:"teid_map"`
+	UpfIpMap *ebpf.MapSpec `ebpf:"upf_ip_map"`
 }
 
 // GTPVariableSpecs contains global variables before they are loaded into the kernel.
@@ -88,10 +91,17 @@ func (o *GTPObjects) Close() error {
 //
 // It can be passed to LoadGTPObjects or ebpf.CollectionSpec.LoadAndAssign.
 type GTPMaps struct {
+	GnbIpMap *ebpf.Map `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.Map `ebpf:"teid_map"`
+	UpfIpMap *ebpf.Map `ebpf:"upf_ip_map"`
 }
 
 func (m *GTPMaps) Close() error {
-	return _GTPClose()
+	return _GTPClose(
+		m.GnbIpMap,
+		m.TeidMap,
+		m.UpfIpMap,
+	)
 }
 
 // GTPVariables contains all global variables after they have been loaded into the kernel.
