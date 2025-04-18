@@ -24,7 +24,7 @@ type Config struct {
 	GNodeB   GNodeB `yaml:"gnodeb"`
 	Ue       Ue     `yaml:"ue"`
 	AMFs     []*AMF `yaml:"amfif"`
-	LogLevel string `yaml:"loglevel"`
+	LogLevel string `yaml:"log-level"`
 }
 
 type GNodeB struct {
