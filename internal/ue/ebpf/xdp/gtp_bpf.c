@@ -16,7 +16,7 @@ struct
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u32));
-} gnb_ip_map SEC("maps");
+} gnb_ip_map SEC(".maps");
 
 struct
 {
@@ -24,15 +24,16 @@ struct
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u32));
-} upf_ip_map SEC("maps");
+} upf_ip_map SEC(".maps");
 
+// BPF map to hold TEID value
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u32));
-} teid_map SEC("maps");
+} teid_map SEC(".maps");
 
 // Builds the outer Ethernet + IPv4 header
 static __always_inline int build_ip_header(void *data, void *data_end)
