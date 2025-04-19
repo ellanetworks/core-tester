@@ -53,10 +53,16 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		Rteid:           gnbPduSession.GetTeidDownlink(),
 	}
 
-	err = NewVethPair(opts)
+	vethPair, err := NewVethPair(opts)
 	if err != nil {
 		return fmt.Errorf("failed to create veth pair: %w", err)
 	}
+	// Close the veth pair when the function returns
+	defer func() {
+		if err := vethPair.Close(); err != nil {
+			logger.UELog.Errorf("failed to close veth pair: %v", err)
+		}
+	}()
 
 	logger.UELog.Infof("created veth pair %s", ueIp)
 

@@ -18,7 +18,12 @@ type VethPairOptions struct {
 	Rteid           uint32
 }
 
-func NewVethPair(opts *VethPairOptions) error {
+type VethPair struct {
+	Veth0Link netlink.Link
+	Veth1Link netlink.Link
+}
+
+func NewVethPair(opts *VethPairOptions) (*VethPair, error) {
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  opts.Interface0Name,
@@ -29,45 +34,58 @@ func NewVethPair(opts *VethPairOptions) error {
 	}
 
 	if err := netlink.LinkAdd(veth); err != nil {
-		return fmt.Errorf("could not create veth pair: %v", err)
+		return nil, fmt.Errorf("could not create veth pair: %v", err)
 	}
 
 	link0, err := netlink.LinkByName(opts.Interface0Name)
 	if err != nil {
-		return fmt.Errorf("cannot read TUN interface: %v", err)
+		return nil, fmt.Errorf("cannot read TUN interface: %v", err)
 	}
 
 	if err := netlink.LinkSetUp(link0); err != nil {
-		return fmt.Errorf("could not set TUN interface up: %v", err)
+		return nil, fmt.Errorf("could not set TUN interface up: %v", err)
 	}
 
 	link1, err := netlink.LinkByName(opts.Interface1Name)
 	if err != nil {
-		return fmt.Errorf("cannot read TUN interface: %v", err)
+		return nil, fmt.Errorf("cannot read TUN interface: %v", err)
 	}
 
 	if err := netlink.LinkSetUp(link1); err != nil {
-		return fmt.Errorf("could not set TUN interface up: %v", err)
+		return nil, fmt.Errorf("could not set TUN interface up: %v", err)
 	}
 
 	addr, err := netlink.ParseAddr(opts.UEIP)
 	if err != nil {
-		return fmt.Errorf("could not parse UE address: %v", err)
+		return nil, fmt.Errorf("could not parse UE address: %v", err)
 	}
 
 	err = netlink.AddrAdd(link0, addr)
 	if err != nil {
-		return fmt.Errorf("could not assign UE address to TUN interface: %v", err)
+		return nil, fmt.Errorf("could not assign UE address to TUN interface: %v", err)
 	}
 
 	err = addRoute(opts.UpfIP, opts.N3InterfaceName)
 	if err != nil {
-		return fmt.Errorf("could not add route to UPF: %v", err)
+		return nil, fmt.Errorf("could not add route to UPF: %v", err)
 	}
 
 	// go tunToGtp(conn, ifce, opts.Lteid)
 	// go gtpToTun(conn, ifce)
 
+	return &VethPair{
+		Veth0Link: link0,
+		Veth1Link: link1,
+	}, nil
+}
+
+func (v *VethPair) Close() error {
+	if err := netlink.LinkDel(v.Veth0Link); err != nil {
+		return fmt.Errorf("could not delete veth pair link 0: %v", err)
+	}
+	if err := netlink.LinkDel(v.Veth1Link); err != nil {
+		return fmt.Errorf("could not delete veth pair link 1: %v", err)
+	}
 	return nil
 }
 
