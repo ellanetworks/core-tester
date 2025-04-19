@@ -61,7 +61,10 @@ struct
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
 
-// Build Ethernet header: dst=same as incoming, src=placeholder
+// Build Ethernet header: outer frame for GTP-U tunnel
+//  - h_source: the MAC of this (middle) host on the physical/veth interface
+//  - h_dest:   the MAC of the next hop in the tunnel (gNB on uplink or UPF on downlink)
+//    These values should be programmed via BPF maps (ue_mac_map, gnb_mac_map) from user space.
 static __always_inline int build_eth_header(void *data, void *data_end)
 {
     struct ethhdr *eth = data;
@@ -79,6 +82,7 @@ static __always_inline int build_eth_header(void *data, void *data_end)
     __builtin_memcpy(eth->h_source, src_mac, ETH_ALEN);
     __builtin_memcpy(eth->h_dest, dst_mac, ETH_ALEN);
     eth->h_proto = bpf_htons(ETH_P_IP);
+
     return 0;
 }
 

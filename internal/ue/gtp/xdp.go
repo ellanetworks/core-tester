@@ -45,6 +45,8 @@ func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
 	}
 	defer l.Close()
 
+	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to ingress of iface %q (index %d)", iface.Name, iface.Index)
+
 	gnbIP := net.ParseIP(opts.GnbIPAddress).To4()
 	if gnbIP == nil {
 		return fmt.Errorf("invalid GNB IP: %s", opts.GnbIPAddress)
@@ -61,23 +63,32 @@ func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
 	if err := objs.GnbIpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update gnb_ip_map: %w", err)
 	}
+
+	logger.EBPFLog.Infof("Added GNB IP %s to gnb_ip_map", gnbIP)
+
 	if err := objs.UpfIpMap.Update(&key, &upfIPVal, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update upf_ip_map: %w", err)
 	}
+
+	logger.EBPFLog.Infof("Added UPF IP %s to upf_ip_map", upfIP)
 
 	if err := objs.TeidMap.Update(&key, &opts.Teid, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
+	logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
+
 	if err := objs.GnbMacMap.Update(&key, &opts.GnbMacAddress, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update gnb_mac_map: %w", err)
 	}
+
+	logger.EBPFLog.Infof("Added GNB MAC %s to gnb_mac_map", net.HardwareAddr(opts.GnbMacAddress))
 
 	if err := objs.UeMacMap.Update(&key, &opts.UeMacAddress, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update ue_mac_map: %w", err)
 	}
 
-	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to ingress of iface %q (index %d)", iface.Name, iface.Index)
+	logger.EBPFLog.Infof("Added UE MAC %s to gnb_mac_map", net.HardwareAddr(opts.UeMacAddress))
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)
