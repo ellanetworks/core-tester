@@ -56,8 +56,8 @@ func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
 		return fmt.Errorf("invalid UPF IP: %s", opts.UpfIPAddress)
 	}
 
-	gnbIPVal := binary.BigEndian.Uint32(gnbIP)
-	upfIPVal := binary.BigEndian.Uint32(upfIP)
+	gnbIPVal := binary.LittleEndian.Uint32(gnbIP)
+	upfIPVal := binary.LittleEndian.Uint32(upfIP)
 
 	var key uint32 = 0
 	if err := objs.GnbIpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
