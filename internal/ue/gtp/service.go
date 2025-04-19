@@ -85,7 +85,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 
 	err = AttachebpfProgram(ebpfOpts)
 	if err != nil {
-		return fmt.Errorf("failed to attach tc program: %w", err)
+		return fmt.Errorf("failed to attach ebpf program: %w", err)
 	}
 
 	logger.UELog.Infof("attached tc program for UE %s", ueIp)
