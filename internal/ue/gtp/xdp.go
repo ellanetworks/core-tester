@@ -35,15 +35,15 @@ func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
 	}
 	defer objs.Close()
 
-	l, err := link.AttachXDP(link.XDPOptions{
-		Program:   objs.XdpGtpEncap,
+	tcLink, err := link.AttachTCX(link.TCXOptions{
 		Interface: iface.Index,
-		Flags:     link.XDPGenericMode,
+		Program:   objs.UpstreamProgFunc,
+		Attach:    ebpf.AttachTCXIngress,
 	})
 	if err != nil {
-		return fmt.Errorf("could not attach XDP program: %w", err)
+		return fmt.Errorf("could not attach TC program: %w", err)
 	}
-	defer l.Close()
+	defer tcLink.Close()
 
 	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to ingress of iface %q (index %d)", iface.Name, iface.Index)
 

@@ -5,17 +5,22 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
-#include <linux/in.h> // for IPPROTO_UDP
+#include <linux/in.h>      // for IPPROTO_UDP
+#include <linux/pkt_cls.h> // for TC action codes
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+
+#ifndef BPF_ADJ_ROOM_HEAD
+#define BPF_ADJ_ROOM_HEAD 1
+#endif
 
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-/* Counter */
+// packet counter
 __u64 upstream_pkt_count = 0;
 
-/* IP & TEID maps */
+// IP & TEID maps
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -26,7 +31,7 @@ struct
     upf_ip_map SEC(".maps"),
     teid_map SEC(".maps");
 
-/* MAC maps */
+// MAC maps
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -36,13 +41,12 @@ struct
 } ue_mac_map SEC(".maps"),
     gnb_mac_map SEC(".maps");
 
-/* Simple logger */
+// simple tracer
 #define LOG(fmt, ...) \
-    ({ char ____fmt[] = fmt "\n";                 \
-       bpf_trace_printk(____fmt, sizeof(____fmt), \
-                        ##__VA_ARGS__); })
+    ({ char ____fmt[] = fmt "\n";                             \
+       bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); })
 
-/* 1) Ethernet header */
+// 1) Ethernet header
 static __always_inline int build_eth(void *data, void *data_end)
 {
     struct ethhdr *eth = data;
@@ -61,7 +65,7 @@ static __always_inline int build_eth(void *data, void *data_end)
     return 0;
 }
 
-/* 2) IPv4 header + checksum */
+// 2) IPv4 header + checksum
 static __always_inline int build_ip(void *data, void *data_end)
 {
     struct iphdr *iph = data + sizeof(struct ethhdr);
@@ -93,8 +97,8 @@ static __always_inline int build_ip(void *data, void *data_end)
     return 0;
 }
 
-/* 3) UDP header + checksum via XDP helper */
-static __always_inline int build_udp(struct xdp_md *ctx,
+// 3) UDP header + checksum via helper
+static __always_inline int build_udp(struct __sk_buff *skb,
                                      void *data, void *data_end)
 {
     struct udphdr *udph =
@@ -106,20 +110,12 @@ static __always_inline int build_udp(struct xdp_md *ctx,
     udph->dest = bpf_htons(GTPU_PORT);
     __u16 ulen = (__u16)(data_end - (void *)udph);
     udph->len = bpf_htons(ulen);
-
     udph->check = 0;
-    /* offset of UDP checksum field in the packet */
-    __u32 csum_off = sizeof(struct ethhdr) + offsetof(struct udphdr, check);
 
-    /*
-     * bpf_l4_csum_replace works in XDP context as well:
-     * - ctx:      pointer from XDP prog
-     * - csum_off: offset to checksum
-     * - from = 0 (old)
-     * - to   = ulen network order
-     * - flags = BPF_F_PSEUDO_HDR to include IP pseudo-header
-     */
-    if (bpf_l4_csum_replace(ctx,
+    // compute UDP checksum (pseudo-header + UDP header+payload)
+    __u32 csum_off = sizeof(struct ethhdr) + sizeof(struct iphdr) + offsetof(struct udphdr, check);
+
+    if (bpf_l4_csum_replace(skb,
                             csum_off,
                             /*from=*/0,
                             /*to=*/bpf_htons(ulen),
@@ -130,15 +126,15 @@ static __always_inline int build_udp(struct xdp_md *ctx,
     return 0;
 }
 
-/* 4) GTP‑U header */
+// 4) GTP‑U header
 static __always_inline int build_gtp(void *data, void *data_end)
 {
     __u8 *gtph = data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr);
     if ((void *)(gtph + GTP_HDR_LEN) > data_end)
         return -1;
 
-    gtph[0] = 0x30;
-    gtph[1] = 0xFF;
+    gtph[0] = 0x30; // version=1, PT=1
+    gtph[1] = 0xFF; // T‑PDU
     *(__u16 *)(gtph + 2) = bpf_htons(
         (__u16)((__u8 *)data_end - (gtph + GTP_HDR_LEN)));
 
@@ -147,50 +143,51 @@ static __always_inline int build_gtp(void *data, void *data_end)
     if (!teid)
         return -1;
     *(__u32 *)(gtph + 4) = bpf_htonl(*teid);
-
     return 0;
 }
 
-/* XDP entry point */
-SEC("xdp/gtp")
-int xdp_gtp_encap(struct xdp_md *ctx)
+// TC entry point
+SEC("tc")
+int upstream_prog_func(struct __sk_buff *skb)
 {
     __sync_fetch_and_add(&upstream_pkt_count, 1);
-    LOG("xdp_gtp: pkt seen");
+    LOG("upstream_prog: pkt seen len=%d", skb->len);
 
-    int push = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
-    if (bpf_xdp_adjust_head(ctx, -push))
+    int hdrs = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
+
+    // reserve headroom
+    if (bpf_skb_adjust_room(skb, hdrs, BPF_ADJ_ROOM_HEAD, 0) < 0)
     {
-        LOG("xdp_gtp: adjust_head failed");
-        return XDP_ABORTED;
+        LOG("upstream_prog: adjust_room failed");
+        return TC_ACT_SHOT;
     }
 
-    void *data = (void *)(long)ctx->data;
-    void *data_end = (void *)(long)ctx->data_end;
+    void *data = (void *)(long)skb->data;
+    void *data_end = (void *)(long)skb->data_end;
 
     if (build_eth(data, data_end) < 0)
     {
         LOG("eth failed");
-        return XDP_ABORTED;
+        return TC_ACT_SHOT;
     }
     if (build_ip(data, data_end) < 0)
     {
         LOG("ip failed");
-        return XDP_ABORTED;
+        return TC_ACT_SHOT;
     }
-    if (build_udp(ctx, data, data_end) < 0)
+    if (build_udp(skb, data, data_end) < 0)
     {
         LOG("udp failed");
-        return XDP_ABORTED;
+        return TC_ACT_SHOT;
     }
     if (build_gtp(data, data_end) < 0)
     {
         LOG("gtp failed");
-        return XDP_ABORTED;
+        return TC_ACT_SHOT;
     }
 
-    LOG("xdp_gtp: success");
-    return XDP_PASS;
+    LOG("upstream_prog: success");
+    return TC_ACT_OK;
 }
 
 char _license[] SEC("license") = "GPL";
