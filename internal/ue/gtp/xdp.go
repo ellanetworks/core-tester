@@ -11,9 +11,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/logger"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf tcx/tcx.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
 
-func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string, teid uint32) error {
+func AttachebpfProgram(ifaceName string, gnbIPAddress string, upfIPAddress string, teid uint32) error {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %q: %w", ifaceName, err)
@@ -26,16 +26,15 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	}
 	defer objs.Close()
 
-	// Attach the program to Ingress TC.
-	l2, err := link.AttachTCX(link.TCXOptions{
+	l, err := link.AttachXDP(link.XDPOptions{
+		Program:   objs.XdpGtpEncap,
 		Interface: iface.Index,
-		Program:   objs.UpstreamProgFunc,
-		Attach:    ebpf.AttachTCXIngress,
+		Flags:     link.XDPGenericMode,
 	})
 	if err != nil {
-		return fmt.Errorf("could not attach TCx program: %w", err)
+		return fmt.Errorf("could not attach XDP program: %w", err)
 	}
-	defer l2.Close()
+	defer l.Close()
 
 	gnbIP := net.ParseIP(gnbIPAddress).To4()
 	if gnbIP == nil {
@@ -62,7 +61,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
-	logger.EBPFLog.Infof("Attached GTP-U encapsulation TC program to ingress of veth iface %q (index %d)", iface.Name, iface.Index)
+	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to ingress of iface %q (index %d)", iface.Name, iface.Index)
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)

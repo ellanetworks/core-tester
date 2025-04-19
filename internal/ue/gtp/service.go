@@ -68,7 +68,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 
 	lTEID := gnbPduSession.GetTeidUplink()
 
-	err = AttachTCProgram(Veth1InterfaceName, ueGnbIp.String(), upfIp, lTEID)
+	err = AttachebpfProgram(Veth1InterfaceName, ueGnbIp.String(), upfIp, lTEID)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)
 	}
