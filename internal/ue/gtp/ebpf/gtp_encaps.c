@@ -39,6 +39,22 @@ struct
     __uint(value_size, sizeof(__u32));
 } teid_map SEC(".maps");
 
+struct
+{
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(__u8) * ETH_ALEN);
+} gnb_mac_map SEC(".maps");
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(__u8) * ETH_ALEN);
+} ue_mac_map SEC(".maps");
+
 #define LOG(fmt, ...)                                              \
     ({                                                             \
         char ____fmt[] = fmt "\n";                                 \
@@ -51,13 +67,17 @@ static __always_inline int build_eth_header(void *data, void *data_end)
     struct ethhdr *eth = data;
     if ((void *)(eth + 1) > data_end)
         return -1;
-    // Swap MACs: take original dest as new src, and fill new dest with gNB MAC (placeholder)
-    __u8 orig_dst[ETH_ALEN];
-    __builtin_memcpy(orig_dst, eth->h_dest, ETH_ALEN);
-    // placeholder gNB MAC: 02:00:00:00:00:01
-    __u8 gnb_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x01};
-    __builtin_memcpy(eth->h_dest, gnb_mac, ETH_ALEN);
-    __builtin_memcpy(eth->h_source, orig_dst, ETH_ALEN);
+
+    __u32 key = 0;
+    // Lookup source (this host) MAC and destination (gNB) MAC from maps
+    __u8 *src_mac = bpf_map_lookup_elem(&ue_mac_map, &key);
+    __u8 *dst_mac = bpf_map_lookup_elem(&gnb_mac_map, &key);
+    if (!src_mac || !dst_mac)
+        return -1;
+
+    // Copy into Ethernet header
+    __builtin_memcpy(eth->h_source, src_mac, ETH_ALEN);
+    __builtin_memcpy(eth->h_dest, dst_mac, ETH_ALEN);
     eth->h_proto = bpf_htons(ETH_P_IP);
     return 0;
 }

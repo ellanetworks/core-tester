@@ -11,6 +11,7 @@ import (
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
+	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -68,7 +69,21 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 
 	lTEID := gnbPduSession.GetTeidUplink()
 
-	err = AttachebpfProgram(Veth1InterfaceName, ueGnbIp.String(), upfIp, lTEID)
+	gnbLink, err := netlink.LinkByName(n3InterfaceName)
+	if err != nil {
+		return fmt.Errorf("cannot read gnb link: %v", err)
+	}
+
+	ebpfOpts := &AttachebpfProgramOptions{
+		IfaceName:     Veth1InterfaceName,
+		GnbIPAddress:  ueGnbIp.String(),
+		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
+		UeMacAddress:  vethPair.Veth1Link.Attrs().HardwareAddr,
+		UpfIPAddress:  upfIp,
+		Teid:          lTEID,
+	}
+
+	err = AttachebpfProgram(ebpfOpts)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)
 	}

@@ -13,10 +13,19 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
 
-func AttachebpfProgram(ifaceName string, gnbIPAddress string, upfIPAddress string, teid uint32) error {
-	iface, err := net.InterfaceByName(ifaceName)
+type AttachebpfProgramOptions struct {
+	IfaceName     string
+	GnbIPAddress  string
+	GnbMacAddress []byte
+	UeMacAddress  []byte
+	UpfIPAddress  string
+	Teid          uint32
+}
+
+func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
+	iface, err := net.InterfaceByName(opts.IfaceName)
 	if err != nil {
-		return fmt.Errorf("could not find interface %q: %w", ifaceName, err)
+		return fmt.Errorf("could not find interface %q: %w", opts.IfaceName, err)
 	}
 
 	// Load pre-compiled programs into the kernel.
@@ -36,20 +45,19 @@ func AttachebpfProgram(ifaceName string, gnbIPAddress string, upfIPAddress strin
 	}
 	defer l.Close()
 
-	gnbIP := net.ParseIP(gnbIPAddress).To4()
+	gnbIP := net.ParseIP(opts.GnbIPAddress).To4()
 	if gnbIP == nil {
-		return fmt.Errorf("invalid GNB IP: %s", gnbIPAddress)
+		return fmt.Errorf("invalid GNB IP: %s", opts.GnbIPAddress)
 	}
-	upfIP := net.ParseIP(upfIPAddress).To4()
+	upfIP := net.ParseIP(opts.UpfIPAddress).To4()
 	if upfIP == nil {
-		return fmt.Errorf("invalid UPF IP: %s", upfIPAddress)
+		return fmt.Errorf("invalid UPF IP: %s", opts.UpfIPAddress)
 	}
 
 	gnbIPVal := binary.BigEndian.Uint32(gnbIP)
 	upfIPVal := binary.BigEndian.Uint32(upfIP)
 
 	var key uint32 = 0
-	// Populate gnb_ip_map
 	if err := objs.GnbIpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update gnb_ip_map: %w", err)
 	}
@@ -57,8 +65,16 @@ func AttachebpfProgram(ifaceName string, gnbIPAddress string, upfIPAddress strin
 		return fmt.Errorf("failed to update upf_ip_map: %w", err)
 	}
 
-	if err := objs.TeidMap.Update(&key, &teid, ebpf.UpdateAny); err != nil {
+	if err := objs.TeidMap.Update(&key, &opts.Teid, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update teid_map: %w", err)
+	}
+
+	if err := objs.GnbMacMap.Update(&key, &opts.GnbMacAddress, ebpf.UpdateAny); err != nil {
+		return fmt.Errorf("failed to update gnb_mac_map: %w", err)
+	}
+
+	if err := objs.UeMacMap.Update(&key, &opts.UeMacAddress, ebpf.UpdateAny); err != nil {
+		return fmt.Errorf("failed to update ue_mac_map: %w", err)
 	}
 
 	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to ingress of iface %q (index %d)", iface.Name, iface.Index)
