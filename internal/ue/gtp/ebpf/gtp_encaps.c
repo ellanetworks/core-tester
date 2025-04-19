@@ -5,6 +5,7 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <bpf/bpf_helpers.h>
+#include <linux/in.h> // for IPPROTO_UDP
 #include <bpf/bpf_endian.h>
 
 #define GTPU_PORT 2152
@@ -38,75 +39,98 @@ struct
     __uint(value_size, sizeof(__u32));
 } teid_map SEC(".maps");
 
-// Logging
 #define LOG(fmt, ...)                                              \
     ({                                                             \
         char ____fmt[] = fmt "\n";                                 \
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
 
-// Stub: build IPv4 header at given data pointer
-static __always_inline int build_ip_header(void *data, void *data_end)
+// Build Ethernet header: dst=same as incoming, src=placeholder
+static __always_inline int build_eth_header(void *data, void *data_end)
 {
     struct ethhdr *eth = data;
     if ((void *)(eth + 1) > data_end)
         return -1;
+    // Swap MACs: take original dest as new src, and fill new dest with gNB MAC (placeholder)
+    __u8 orig_dst[ETH_ALEN];
+    __builtin_memcpy(orig_dst, eth->h_dest, ETH_ALEN);
+    // placeholder gNB MAC: 02:00:00:00:00:01
+    __u8 gnb_mac[ETH_ALEN] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x01};
+    __builtin_memcpy(eth->h_dest, gnb_mac, ETH_ALEN);
+    __builtin_memcpy(eth->h_source, orig_dst, ETH_ALEN);
     eth->h_proto = bpf_htons(ETH_P_IP);
-
-    struct iphdr *iph = data + sizeof(*eth);
-    if ((void *)(iph + 1) > data_end)
-        return -1;
-
-    // TODO: lookup saddr/daddr maps and populate
-    LOG("build_ip_header: stub");
     return 0;
 }
 
-// Stub: build UDP header after IP
+// Build IPv4 header after Ethernet
+static __always_inline int build_ip_header(void *data, void *data_end)
+{
+    struct iphdr *iph = data + sizeof(struct ethhdr);
+    if ((void *)(iph + 1) > data_end)
+        return -1;
+
+    __u32 key = 0;
+    __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
+    __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
+    if (!saddr || !daddr)
+        return -1;
+
+    iph->version = 4;
+    iph->ihl = sizeof(*iph) >> 2;
+    iph->tos = 0;
+    __u16 total_len = bpf_ntohs(iph->tot_len);
+    // reconstruct total length: IP + UDP + GTP + payload
+    __u16 payload_len = (__u16)(data_end - (data + sizeof(struct ethhdr) + sizeof(*iph)));
+    iph->tot_len = bpf_htons(sizeof(*iph) + payload_len);
+    iph->id = 0;
+    iph->frag_off = 0;
+    iph->ttl = 64;
+    iph->protocol = IPPROTO_UDP;
+    iph->saddr = *saddr;
+    iph->daddr = *daddr;
+    iph->check = 0;
+    iph->check = bpf_csum_diff(0, 0, (void *)iph, sizeof(*iph), 0);
+    return 0;
+}
+
+// Build UDP header after IP
 static __always_inline int build_udp_header(void *data, void *data_end)
 {
-    void *udp_start = data + sizeof(struct ethhdr) + sizeof(struct iphdr);
-    struct udphdr *udph = udp_start;
+    struct udphdr *udph = data + sizeof(struct ethhdr) + sizeof(struct iphdr);
     if ((void *)(udph + 1) > data_end)
         return -1;
-    // TODO: populate source/dest ports, length, checksum
-    LOG("build_udp_header: stub");
+    udph->source = bpf_htons(GTPU_PORT);
+    udph->dest = bpf_htons(GTPU_PORT);
+    __u16 udp_len = (__u16)(data_end - (data + sizeof(struct ethhdr) + sizeof(struct iphdr)));
+    udph->len = bpf_htons(udp_len);
+    udph->check = 0;
     return 0;
 }
 
 // Build GTP-U header in-place
 static __always_inline int build_gtp_header(void *data, void *data_end)
 {
-    if ((void *)(data + GTP_HDR_LEN) > data_end)
+    __u8 *gtp = data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr);
+    if ((void *)(gtp + GTP_HDR_LEN) > data_end)
         return -1;
-
-    __u8 *gtp = data;
-    gtp[0] = 0x30; // version=1, PT=1
-    gtp[1] = 0xFF; // T-PDU
-
-    __u16 payload_len = (__u16)(data_end - (data + GTP_HDR_LEN));
+    gtp[0] = 0x30;
+    gtp[1] = 0xFF;
+    __u16 payload_len = (__u16)((__u8 *)data_end - (gtp + GTP_HDR_LEN));
     *(__u16 *)(gtp + 2) = bpf_htons(payload_len);
-
     __u32 key = 0;
     __u32 *teid_p = bpf_map_lookup_elem(&teid_map, &key);
     if (!teid_p)
-    {
-        LOG("build_gtp_header: teid lookup");
         return -1;
-    }
     *(__u32 *)(gtp + 4) = bpf_htonl(*teid_p);
-
     return 0;
 }
 
 SEC("xdp/gtp")
 int xdp_gtp_encap(struct xdp_md *ctx)
 {
-    // Increment counter
     __sync_fetch_and_add(&upstream_pkt_count, 1);
     LOG("xdp_gtp: pkt seen");
 
-    // Reserve headroom for headers: Eth+IP+UDP+GTP
     int hdr_size = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
     if (bpf_xdp_adjust_head(ctx, -hdr_size))
     {
@@ -114,11 +138,14 @@ int xdp_gtp_encap(struct xdp_md *ctx)
         return XDP_ABORTED;
     }
 
-    // Reload pointers
     void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;
 
-    // Build headers in order
+    if (build_eth_header(data, data_end) < 0)
+    {
+        LOG("xdp_gtp: eth_header failed");
+        return XDP_ABORTED;
+    }
     if (build_ip_header(data, data_end) < 0)
     {
         LOG("xdp_gtp: ip_header failed");
@@ -129,8 +156,7 @@ int xdp_gtp_encap(struct xdp_md *ctx)
         LOG("xdp_gtp: udp_header failed");
         return XDP_ABORTED;
     }
-    void *gtp_pos = data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr);
-    if (build_gtp_header(gtp_pos, data_end) < 0)
+    if (build_gtp_header(data, data_end) < 0)
     {
         LOG("xdp_gtp: gtp_header failed");
         return XDP_ABORTED;
