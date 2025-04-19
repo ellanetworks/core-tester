@@ -1,6 +1,3 @@
-// Copyright 2025 Ghislain Bourgeois
-// SPDX-License-Identifier: GPL-3.0-or-later
-
 package gtp
 
 import (
@@ -11,13 +8,14 @@ import (
 )
 
 type VethPairOptions struct {
-	Interface0Name string
-	Interface1Name string
-	UEIP           string
-	GnbIP          string
-	UpfIP          string
-	GTPUPort       int
-	Rteid          uint32
+	Interface0Name  string
+	Interface1Name  string
+	N3InterfaceName string
+	UEIP            string
+	GnbIP           string
+	UpfIP           string
+	GTPUPort        int
+	Rteid           uint32
 }
 
 func NewVethPair(opts *VethPairOptions) error {
@@ -62,9 +60,43 @@ func NewVethPair(opts *VethPairOptions) error {
 		return fmt.Errorf("could not assign UE address to TUN interface: %v", err)
 	}
 
+	err = addRoute(opts.UpfIP, opts.N3InterfaceName)
+	if err != nil {
+		return fmt.Errorf("could not add route to UPF: %v", err)
+	}
+
 	// go tunToGtp(conn, ifce, opts.Lteid)
 	// go gtpToTun(conn, ifce)
 
+	return nil
+}
+
+func addRoute(upfIP string, ifaceName string) error {
+	// 1) Parse the destination IP
+	dst := net.ParseIP(upfIP)
+	if dst == nil {
+		return fmt.Errorf("invalid UPF IP: %s", upfIP)
+	}
+	// We want a /32 route to that single host:
+	dstNet := &net.IPNet{IP: dst, Mask: net.CIDRMask(32, 32)}
+
+	// 2) Find the link by name
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("LinkByName(%s): %w", ifaceName, err)
+	}
+
+	// 3) Construct the route
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dstNet,
+		// No explicit Gateway means “send directly to dst via this interface”
+	}
+
+	// 4) Add (or replace) it
+	if err := netlink.RouteReplace(route); err != nil {
+		return fmt.Errorf("RouteReplace %v: %w", route, err)
+	}
 	return nil
 }
 

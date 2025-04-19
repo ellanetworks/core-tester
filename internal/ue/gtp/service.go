@@ -18,7 +18,7 @@ const (
 	Veth1InterfaceName = "veth1"
 )
 
-func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInterfaceName string) error {
+func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3InterfaceName string) error {
 	gnbPduSession := msg.GNBPduSessions[0]
 	pduSession, err := ue.GetPduSession(uint8(gnbPduSession.GetPduSessionId()))
 	if err != nil {
@@ -43,13 +43,14 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 	time.Sleep(time.Second)
 
 	opts := &VethPairOptions{
-		Interface0Name: Veth0InterfaceName,
-		Interface1Name: Veth1InterfaceName,
-		UEIP:           ueIp + "/16",
-		GTPUPort:       2152,
-		GnbIP:          ueGnbIp.String(),
-		UpfIP:          upfIp,
-		Rteid:          gnbPduSession.GetTeidDownlink(),
+		N3InterfaceName: n3InterfaceName,
+		Interface0Name:  Veth0InterfaceName,
+		Interface1Name:  Veth1InterfaceName,
+		UEIP:            ueIp + "/16",
+		GTPUPort:        2152,
+		GnbIP:           ueGnbIp.String(),
+		UpfIP:           upfIp,
+		Rteid:           gnbPduSession.GetTeidDownlink(),
 	}
 
 	err = NewVethPair(opts)
