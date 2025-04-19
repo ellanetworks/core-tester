@@ -11,9 +11,15 @@ import (
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/context"
+	"github.com/vishvananda/netlink"
 )
 
-func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
+const (
+	Veth0InterfaceName = "veth0"
+	Veth1InterfaceName = "veth1"
+)
+
+func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3InterfaceName string) error {
 	gnbPduSession := msg.GNBPduSessions[0]
 	pduSession, err := ue.GetPduSession(uint8(gnbPduSession.GetPduSessionId()))
 	if err != nil {
@@ -34,23 +40,54 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage) error {
 	ueGnbIp := pduSession.GetGnbIp()
 	upfIp := pduSession.GnbPduSession.GetUpfIp()
 	ueIp := pduSession.GetIp()
-	nameInf := "ellatester0"
 
 	time.Sleep(time.Second)
 
-	tunOpts := &TunnelOptions{
-		UEIP:             ueIp + "/16",
-		GTPUPort:         2152,
-		TunInterfaceName: nameInf,
-		GnbIP:            ueGnbIp.String(),
-		UpfIP:            upfIp,
-		Lteid:            gnbPduSession.GetTeidUplink(),
-		Rteid:            gnbPduSession.GetTeidDownlink(),
+	opts := &VethPairOptions{
+		N3InterfaceName: n3InterfaceName,
+		Interface0Name:  Veth0InterfaceName,
+		Interface1Name:  Veth1InterfaceName,
+		UEIP:            ueIp + "/16",
+		GTPUPort:        2152,
+		GnbIP:           ueGnbIp.String(),
+		UpfIP:           upfIp,
+		Rteid:           gnbPduSession.GetTeidDownlink(),
 	}
-	_, err = NewTunnel(tunOpts)
+
+	vethPair, err := NewVethPair(opts)
 	if err != nil {
-		return fmt.Errorf("failed to create tunnel: %w", err)
+		return fmt.Errorf("failed to create veth pair: %w", err)
 	}
-	logger.UELog.Infof("created gtp-u tunnel for UE %s", ueIp)
+	// Close the veth pair when the function returns
+	defer func() {
+		if err := vethPair.Close(); err != nil {
+			logger.UELog.Errorf("failed to close veth pair: %v", err)
+		}
+	}()
+
+	logger.UELog.Infof("created veth pair %v and %v", opts.Interface0Name, opts.Interface1Name)
+
+	lTEID := gnbPduSession.GetTeidUplink()
+
+	gnbLink, err := netlink.LinkByName(n3InterfaceName)
+	if err != nil {
+		return fmt.Errorf("cannot read gnb link: %v", err)
+	}
+
+	ebpfOpts := &AttachebpfProgramOptions{
+		IfaceName:     Veth1InterfaceName,
+		GnbIPAddress:  ueGnbIp.String(),
+		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
+		UeMacAddress:  vethPair.Veth1Link.Attrs().HardwareAddr,
+		UpfIPAddress:  upfIp,
+		Teid:          lTEID,
+	}
+
+	err = AttachebpfProgram(ebpfOpts)
+	if err != nil {
+		return fmt.Errorf("failed to attach ebpf program: %w", err)
+	}
+
+	logger.UELog.Infof("attached tc program for UE %s", ueIp)
 	return nil
 }
