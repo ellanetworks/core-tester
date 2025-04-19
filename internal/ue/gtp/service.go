@@ -64,7 +64,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		}
 	}()
 
-	logger.UELog.Infof("created veth pair %s", ueIp)
+	logger.UELog.Infof("created veth pair %v and %v", opts.Interface0Name, opts.Interface1Name)
 
 	lTEID := gnbPduSession.GetTeidUplink()
 
