@@ -13,7 +13,6 @@ require (
 	github.com/free5gc/util v1.0.7-0.20250305152753-9b83de3c2612
 	github.com/goccy/go-yaml v1.17.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
-	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/vishvananda/netlink v1.3.0
 	go.uber.org/zap v1.27.0
 )

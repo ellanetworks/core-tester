@@ -70,7 +70,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 	logger.EBPFLog.Infof("Press Ctrl-C to exit and remove the program")
 
 	// Print the contents of the counters maps.
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
 		s, err := formatCounters(objs.UpstreamPktCount)

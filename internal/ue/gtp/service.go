@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	TunInterfaceName = "ellatester0"
+	Veth0InterfaceName = "veth0"
+	Veth1InterfaceName = "veth1"
 )
 
 func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInterfaceName string) error {
@@ -41,25 +42,30 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, tcxInter
 
 	time.Sleep(time.Second)
 
-	tunOpts := &TunnelOptions{
-		UEIP:             ueIp + "/16",
-		GTPUPort:         2152,
-		TunInterfaceName: TunInterfaceName,
-		GnbIP:            ueGnbIp.String(),
-		UpfIP:            upfIp,
-		Rteid:            gnbPduSession.GetTeidDownlink(),
+	opts := &VethPairOptions{
+		Interface0Name: Veth0InterfaceName,
+		Interface1Name: Veth1InterfaceName,
+		UEIP:           ueIp + "/16",
+		GTPUPort:       2152,
+		GnbIP:          ueGnbIp.String(),
+		UpfIP:          upfIp,
+		Rteid:          gnbPduSession.GetTeidDownlink(),
 	}
-	_, err = NewTunnel(tunOpts)
+
+	err = NewVethPair(opts)
 	if err != nil {
-		return fmt.Errorf("failed to create tunnel: %w", err)
+		return fmt.Errorf("failed to create veth pair: %w", err)
 	}
-	logger.UELog.Infof("created tunnel interface for UE %s", ueIp)
+
+	logger.UELog.Infof("created veth pair %s", ueIp)
+
 	lTEID := gnbPduSession.GetTeidUplink()
 
-	err = AttachTCProgram(TunInterfaceName, ueGnbIp.String(), upfIp, lTEID)
+	err = AttachTCProgram(Veth1InterfaceName, ueGnbIp.String(), upfIp, lTEID)
 	if err != nil {
 		return fmt.Errorf("failed to attach tc program: %w", err)
 	}
+
 	logger.UELog.Infof("attached tc program for UE %s", ueIp)
 	return nil
 }
