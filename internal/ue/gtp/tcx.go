@@ -66,8 +66,7 @@ func AttachTCProgram(ifaceName string, gnbIPAddress string, upfIPAddress string,
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
-	logger.EBPFLog.Infof("Attached TCx program to tunnel iface %q (index %d)", iface.Name, iface.Index)
-	logger.EBPFLog.Infof("Press Ctrl-C to exit and remove the program")
+	logger.EBPFLog.Infof("Attached GTP-U encapsulation TC program to ingress of veth iface %q (index %d)", iface.Name, iface.Index)
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)
