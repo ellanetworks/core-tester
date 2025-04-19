@@ -82,7 +82,7 @@ type UEPDUSession struct {
 	tun           netlink.Link
 	rule          *netlink.Rule
 	routeTun      *netlink.Route
-	vrf           *netlink.Vrf
+	vethPairLink0 netlink.Link
 	stopSignal    chan bool
 	Wait          chan bool
 	T3580Retries  int
@@ -359,12 +359,12 @@ func (pduSession *UEPDUSession) GetTunRoute() *netlink.Route {
 	return pduSession.routeTun
 }
 
-func (pduSession *UEPDUSession) SetVrfDevice(vrf *netlink.Vrf) {
-	pduSession.vrf = vrf
+func (pduSession *UEPDUSession) SetVeth(vethPairLink0 netlink.Link) {
+	pduSession.vethPairLink0 = vethPairLink0
 }
 
-func (pduSession *UEPDUSession) GetVrfDevice() *netlink.Vrf {
-	return pduSession.vrf
+func (pduSession *UEPDUSession) GetVeth() netlink.Link {
+	return pduSession.vethPairLink0
 }
 
 func (pdu *UEPDUSession) SetStateSM_PDU_SESSION_INACTIVE() {
@@ -649,10 +649,15 @@ func (ue *UEContext) Terminate() {
 	// clean all context of tun interface
 	for _, pduSession := range ue.PduSession {
 		if pduSession != nil {
+			veth := pduSession.GetVeth()
 			ueTun := pduSession.GetTunInterface()
 			ueRule := pduSession.GetTunRule()
 			ueRoute := pduSession.GetTunRoute()
-			ueVrf := pduSession.GetVrfDevice()
+
+			err := netlink.LinkDel(veth)
+			if err != nil {
+				logger.UELog.Errorf("failed to delete veth pair: %v", err)
+			}
 
 			if ueTun != nil {
 				_ = netlink.LinkSetDown(ueTun)
@@ -665,11 +670,6 @@ func (ue *UEContext) Terminate() {
 
 			if ueRoute != nil {
 				_ = netlink.RouteDel(ueRoute)
-			}
-
-			if ueVrf != nil {
-				_ = netlink.LinkSetDown(ueVrf)
-				_ = netlink.LinkDel(ueVrf)
 			}
 		}
 	}
