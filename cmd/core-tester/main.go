@@ -33,17 +33,11 @@ func main() {
 	}
 	testOpts := &TestOptions{
 		NumUEs:                   1,
-		DedicatedGnb:             false,
-		Loop:                     false,
-		LoopCount:                0,
 		TimeBeforeReregistration: 200,
 		TimeBetweenRegistration:  500,
 		TimeBeforeDeregistration: 0,
-		TimeBeforeNgapHandover:   0,
-		TimeBeforeXnHandover:     0,
 		TimeBeforeIdle:           0,
 		TimeBeforeReconnecting:   1000,
-		NumPduSessions:           1,
 	}
 	err = TestMultiUesInQueue(testOpts)
 	if err != nil {
@@ -55,38 +49,19 @@ func main() {
 
 type TestOptions struct {
 	NumUEs                   int
-	DedicatedGnb             bool
-	Loop                     bool
-	LoopCount                int
 	TimeBeforeReregistration int
 	TimeBetweenRegistration  int
 	TimeBeforeDeregistration int
-	TimeBeforeNgapHandover   int
-	TimeBeforeXnHandover     int
 	TimeBeforeIdle           int
 	TimeBeforeReconnecting   int
-	NumPduSessions           int
 }
 
 func TestMultiUesInQueue(opts *TestOptions) error {
-	if opts.NumPduSessions > 16 {
-		return fmt.Errorf("you can't have more than 16 PDU Sessions per UE as per spec")
-	}
-
 	wg := sync.WaitGroup{}
 
 	cfg := config.GetConfig()
 
-	var numGnb int
-	if opts.DedicatedGnb {
-		numGnb = opts.NumUEs
-	} else {
-		numGnb = 1
-	}
-	if numGnb <= 1 && (opts.TimeBeforeXnHandover != 0 || opts.TimeBeforeNgapHandover != 0) {
-		logger.EllaCoreTesterLog.Warn("We are increasing the number of gNodeB to two for handover test cases. Make you sure you fill the requirements for having two gNodeBs.")
-		numGnb++
-	}
+	numGnb := 1
 	gnbs, err := tools.CreateGnbs(numGnb, cfg, &wg)
 	if err != nil {
 		return fmt.Errorf("error creating gNBs: %v", err)
@@ -104,13 +79,8 @@ func TestMultiUesInQueue(opts *TestOptions) error {
 		Gnbs:                     gnbs,
 		Cfg:                      cfg,
 		TimeBeforeDeregistration: opts.TimeBeforeDeregistration,
-		TimeBeforeNgapHandover:   opts.TimeBeforeNgapHandover,
-		TimeBeforeXnHandover:     opts.TimeBeforeXnHandover,
 		TimeBeforeIdle:           opts.TimeBeforeIdle,
 		TimeBeforeReconnecting:   opts.TimeBeforeReconnecting,
-		NumPduSessions:           opts.NumPduSessions,
-		RegistrationLoop:         opts.Loop,
-		LoopCount:                opts.LoopCount,
 		TimeBeforeReregistration: opts.TimeBeforeReregistration,
 	}
 
