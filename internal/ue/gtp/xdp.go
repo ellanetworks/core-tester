@@ -78,17 +78,17 @@ func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
 
 	logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
 
-	if err := objs.GnbMacMap.Update(&key, &opts.GnbMacAddress, ebpf.UpdateAny); err != nil {
-		return fmt.Errorf("failed to update gnb_mac_map: %w", err)
-	}
+	// if err := objs.GnbMacMap.Update(&key, &opts.GnbMacAddress, ebpf.UpdateAny); err != nil {
+	// 	return fmt.Errorf("failed to update gnb_mac_map: %w", err)
+	// }
 
-	logger.EBPFLog.Infof("Added GNB MAC %s to gnb_mac_map", net.HardwareAddr(opts.GnbMacAddress))
+	// logger.EBPFLog.Infof("Added GNB MAC %s to gnb_mac_map", net.HardwareAddr(opts.GnbMacAddress))
 
-	if err := objs.UeMacMap.Update(&key, &opts.UeMacAddress, ebpf.UpdateAny); err != nil {
-		return fmt.Errorf("failed to update ue_mac_map: %w", err)
-	}
+	// if err := objs.UeMacMap.Update(&key, &opts.UeMacAddress, ebpf.UpdateAny); err != nil {
+	// 	return fmt.Errorf("failed to update ue_mac_map: %w", err)
+	// }
 
-	logger.EBPFLog.Infof("Added UE MAC %s to gnb_mac_map", net.HardwareAddr(opts.UeMacAddress))
+	// logger.EBPFLog.Infof("Added UE MAC %s to gnb_mac_map", net.HardwareAddr(opts.UeMacAddress))
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)

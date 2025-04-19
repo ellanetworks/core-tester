@@ -5,22 +5,17 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
-#include <linux/in.h>      // for IPPROTO_UDP
-#include <linux/pkt_cls.h> // for TC action codes
+#include <linux/in.h>      // IPPROTO_UDP
+#include <linux/pkt_cls.h> // TC action codes
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-
-#ifndef BPF_ADJ_ROOM_HEAD
-#define BPF_ADJ_ROOM_HEAD 1
-#endif
 
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-// packet counter
 __u64 upstream_pkt_count = 0;
 
-// IP & TEID maps
+// BPF maps for IPs and TEID (network byte order)
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -31,158 +26,133 @@ struct
     upf_ip_map SEC(".maps"),
     teid_map SEC(".maps");
 
-// MAC maps
-struct
-{
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, 1);
-    __uint(key_size, sizeof(__u32));
-    __uint(value_size, ETH_ALEN);
-} ue_mac_map SEC(".maps"),
-    gnb_mac_map SEC(".maps");
-
 // simple tracer
 #define LOG(fmt, ...) \
-    ({ char ____fmt[] = fmt "\n";                             \
+    ({ char ____fmt[] = fmt "\n";                                \
        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); })
 
-// 1) Ethernet header
-static __always_inline int build_eth(void *data, void *data_end)
+// 1) Adjust IP total length and IP checksum
+static __always_inline int build_ip_header(struct __sk_buff *skb)
 {
-    struct ethhdr *eth = data;
-    if ((void *)(eth + 1) > data_end)
+    // offset of iphdr->tot_len from skb->data
+    int off = ETH_HLEN + offsetof(struct iphdr, tot_len);
+    __u16 old_len, new_len;
+
+    // load old total_len
+    if (bpf_skb_load_bytes(skb, off, &old_len, sizeof(old_len)) < 0)
         return -1;
 
-    __u32 key = 0;
-    __u8 *src = bpf_map_lookup_elem(&ue_mac_map, &key);
-    __u8 *dst = bpf_map_lookup_elem(&gnb_mac_map, &key);
-    if (!src || !dst)
+    // new total_len = old + GTP header
+    new_len = bpf_htons(bpf_ntohs(old_len) + GTP_HDR_LEN);
+
+    // incremental IP checksum update
+    if (bpf_l3_csum_replace(skb, off,
+                            old_len, new_len,
+                            0 /* no flags */) < 0)
         return -1;
 
-    __builtin_memcpy(eth->h_source, src, ETH_ALEN);
-    __builtin_memcpy(eth->h_dest, dst, ETH_ALEN);
-    eth->h_proto = bpf_htons(ETH_P_IP);
+    // write new tot_len
+    if (bpf_skb_store_bytes(skb, off,
+                            &new_len, sizeof(new_len), 0) < 0)
+        return -1;
+
     return 0;
 }
 
-// 2) IPv4 header + checksum
-static __always_inline int build_ip(void *data, void *data_end)
+// 2) Adjust UDP length and UDP checksum (pseudo‑header)
+static __always_inline int build_udp_header(struct __sk_buff *skb)
 {
-    struct iphdr *iph = data + sizeof(struct ethhdr);
-    if ((void *)(iph + 1) > data_end)
+    // offset of udphdr->len from skb->data
+    int off = ETH_HLEN + sizeof(struct iphdr) + offsetof(struct udphdr, len);
+    __u16 old_len, new_len;
+
+    // load old udp length
+    if (bpf_skb_load_bytes(skb, off, &old_len, sizeof(old_len)) < 0)
         return -1;
 
-    __u32 key = 0;
-    __u32 *s = bpf_map_lookup_elem(&gnb_ip_map, &key);
-    __u32 *d = bpf_map_lookup_elem(&upf_ip_map, &key);
-    if (!s || !d)
-        return -1;
+    // new udp length = old + GTP header
+    new_len = bpf_htons(bpf_ntohs(old_len) + GTP_HDR_LEN);
 
-    iph->version = 4;
-    iph->ihl = sizeof(*iph) >> 2;
-    iph->tos = 0;
-    iph->tot_len = bpf_htons((__u16)(data_end - (void *)iph));
-    iph->id = 0;
-    iph->frag_off = 0;
-    iph->ttl = 64;
-    iph->protocol = IPPROTO_UDP;
-    iph->saddr = *s;
-    iph->daddr = *d;
-
-    iph->check = 0;
-    iph->check = bpf_csum_diff(
-        /*from=*/NULL, /*from_size=*/0,
-        /*to=*/(__be32 *)iph, /*to_size=*/sizeof(*iph),
-        /*seed=*/0);
-    return 0;
-}
-
-// 3) UDP header + checksum via helper
-static __always_inline int build_udp(struct __sk_buff *skb,
-                                     void *data, void *data_end)
-{
-    struct udphdr *udph =
-        data + sizeof(struct ethhdr) + sizeof(struct iphdr);
-    if ((void *)(udph + 1) > data_end)
-        return -1;
-
-    udph->source = bpf_htons(GTPU_PORT);
-    udph->dest = bpf_htons(GTPU_PORT);
-    __u16 ulen = (__u16)(data_end - (void *)udph);
-    udph->len = bpf_htons(ulen);
-    udph->check = 0;
-
-    // compute UDP checksum (pseudo-header + UDP header+payload)
-    __u32 csum_off = sizeof(struct ethhdr) + sizeof(struct iphdr) + offsetof(struct udphdr, check);
-
-    if (bpf_l4_csum_replace(skb,
-                            csum_off,
-                            /*from=*/0,
-                            /*to=*/bpf_htons(ulen),
+    // incremental UDP checksum (includes pseudo‑header)
+    if (bpf_l4_csum_replace(skb, off,
+                            old_len, new_len,
                             BPF_F_PSEUDO_HDR) < 0)
-    {
         return -1;
-    }
+
+    // write new udp length
+    if (bpf_skb_store_bytes(skb, off,
+                            &new_len, sizeof(new_len), 0) < 0)
+        return -1;
+
     return 0;
 }
 
-// 4) GTP‑U header
-static __always_inline int build_gtp(void *data, void *data_end)
+// 3) Inject the 8‑byte GTP‑U header after the UDP header
+static __always_inline int build_gtp_header(struct __sk_buff *skb,
+                                            void *data, void *data_end)
 {
-    __u8 *gtph = data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr);
-    if ((void *)(gtph + GTP_HDR_LEN) > data_end)
+    int offset = ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr);
+
+    // bounds check
+    if (data + offset + GTP_HDR_LEN > data_end)
         return -1;
 
-    gtph[0] = 0x30; // version=1, PT=1
-    gtph[1] = 0xFF; // T‑PDU
-    *(__u16 *)(gtph + 2) = bpf_htons(
-        (__u16)((__u8 *)data_end - (gtph + GTP_HDR_LEN)));
+    __u8 hdr[GTP_HDR_LEN];
+    hdr[0] = 0x30; // version=1, PT=1
+    hdr[1] = 0xFF; // T-PDU
+    __u16 payload_len = (__u16)(skb->len - offset - GTP_HDR_LEN);
+    *(__u16 *)(hdr + 2) = bpf_htons(payload_len);
 
     __u32 key = 0;
     __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
     if (!teid)
         return -1;
-    *(__u32 *)(gtph + 4) = bpf_htonl(*teid);
+    *(__u32 *)(hdr + 4) = bpf_htonl(*teid);
+
+    if (bpf_skb_store_bytes(skb,
+                            offset,
+                            hdr, GTP_HDR_LEN, 0) < 0)
+        return -1;
+
     return 0;
 }
 
-// TC entry point
 SEC("tc")
 int upstream_prog_func(struct __sk_buff *skb)
 {
     __sync_fetch_and_add(&upstream_pkt_count, 1);
     LOG("upstream_prog: pkt seen len=%d", skb->len);
 
-    int hdrs = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
-
-    // reserve headroom
-    if (bpf_skb_adjust_room(skb, hdrs, BPF_ADJ_ROOM_HEAD, 0) < 0)
+    // 1) Reserve room for GTP header just after UDP
+    if (bpf_skb_adjust_room(skb,
+                            GTP_HDR_LEN,
+                            BPF_ADJ_ROOM_MAC,
+                            0) < 0)
     {
-        LOG("upstream_prog: adjust_room failed");
+        LOG("adjust_room failed");
         return TC_ACT_SHOT;
     }
 
+    // 2) Update IP length + checksum
+    if (build_ip_header(skb) < 0)
+    {
+        LOG("build_ip_header failed");
+        return TC_ACT_SHOT;
+    }
+
+    // 3) Update UDP length + checksum
+    if (build_udp_header(skb) < 0)
+    {
+        LOG("build_udp_header failed");
+        return TC_ACT_SHOT;
+    }
+
+    // 4) Insert GTP header
     void *data = (void *)(long)skb->data;
     void *data_end = (void *)(long)skb->data_end;
-
-    if (build_eth(data, data_end) < 0)
+    if (build_gtp_header(skb, data, data_end) < 0)
     {
-        LOG("eth failed");
-        return TC_ACT_SHOT;
-    }
-    if (build_ip(data, data_end) < 0)
-    {
-        LOG("ip failed");
-        return TC_ACT_SHOT;
-    }
-    if (build_udp(skb, data, data_end) < 0)
-    {
-        LOG("udp failed");
-        return TC_ACT_SHOT;
-    }
-    if (build_gtp(data, data_end) < 0)
-    {
-        LOG("gtp failed");
+        LOG("build_gtp_header failed");
         return TC_ACT_SHOT;
     }
 
@@ -190,4 +160,4 @@ int upstream_prog_func(struct __sk_buff *skb)
     return TC_ACT_OK;
 }
 
-char _license[] SEC("license") = "GPL";
+char __license[] SEC("license") = "Dual MIT/GPL";

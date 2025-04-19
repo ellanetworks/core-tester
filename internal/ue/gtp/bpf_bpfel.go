@@ -61,11 +61,9 @@ type bpfProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfMapSpecs struct {
-	GnbIpMap  *ebpf.MapSpec `ebpf:"gnb_ip_map"`
-	GnbMacMap *ebpf.MapSpec `ebpf:"gnb_mac_map"`
-	TeidMap   *ebpf.MapSpec `ebpf:"teid_map"`
-	UeMacMap  *ebpf.MapSpec `ebpf:"ue_mac_map"`
-	UpfIpMap  *ebpf.MapSpec `ebpf:"upf_ip_map"`
+	GnbIpMap *ebpf.MapSpec `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.MapSpec `ebpf:"teid_map"`
+	UpfIpMap *ebpf.MapSpec `ebpf:"upf_ip_map"`
 }
 
 // bpfVariableSpecs contains global variables before they are loaded into the kernel.
@@ -95,19 +93,15 @@ func (o *bpfObjects) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfMaps struct {
-	GnbIpMap  *ebpf.Map `ebpf:"gnb_ip_map"`
-	GnbMacMap *ebpf.Map `ebpf:"gnb_mac_map"`
-	TeidMap   *ebpf.Map `ebpf:"teid_map"`
-	UeMacMap  *ebpf.Map `ebpf:"ue_mac_map"`
-	UpfIpMap  *ebpf.Map `ebpf:"upf_ip_map"`
+	GnbIpMap *ebpf.Map `ebpf:"gnb_ip_map"`
+	TeidMap  *ebpf.Map `ebpf:"teid_map"`
+	UpfIpMap *ebpf.Map `ebpf:"upf_ip_map"`
 }
 
 func (m *bpfMaps) Close() error {
 	return _BpfClose(
 		m.GnbIpMap,
-		m.GnbMacMap,
 		m.TeidMap,
-		m.UeMacMap,
 		m.UpfIpMap,
 	)
 }
