@@ -62,6 +62,7 @@ static __always_inline int rewrite_eth(struct __sk_buff *skb)
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
 {
+    LOG("new packet");
     // look up your map values
     __u32 key = 0;
     __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
