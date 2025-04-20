@@ -4,30 +4,33 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
-#include <linux/pkt_cls.h> // TC_ACT_*
 #include <linux/in.h>      // IPPROTO_UDP
+#include <linux/pkt_cls.h> // TC_ACT_* & BPF_ADJ_ROOM_MAC
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-// single‑entry maps
+// single‑entry maps for MACs
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, ETH_ALEN);
-} ue_mac_map SEC(".maps"), upf_mac_map SEC(".maps");
+} ue_mac_map SEC(".maps"),
+    upf_mac_map SEC(".maps");
 
+// single‑entry maps for GNB/IPs and TEID
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u32));
-} gnb_ip_map SEC(".maps"), upf_ip_map SEC(".maps"),
+} gnb_ip_map SEC(".maps"),
+    upf_ip_map SEC(".maps"),
     teid_map SEC(".maps");
 
 SEC("tc")
@@ -42,8 +45,8 @@ int gtp_encap(struct __sk_buff *skb)
     if (!ue_mac || !upf_mac || !saddr || !daddr || !teid)
         return TC_ACT_SHOT;
 
-    // reserve room for ETH + IP + UDP + GTP‑U
-    int hdrs = ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
+    // 1) Reserve room: ETH (14) + IPv4 (20) + UDP (8) + GTP‑U (8)
+    const int hdrs = ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
     if (bpf_skb_adjust_room(skb, hdrs,
                             BPF_ADJ_ROOM_MAC, 0) < 0)
         return TC_ACT_SHOT;
@@ -53,7 +56,7 @@ int gtp_encap(struct __sk_buff *skb)
     if (data + hdrs > data_end)
         return TC_ACT_SHOT;
 
-    // 1) Rewrite Ethernet header
+    // 2) Rewrite Ethernet header for UE → UPF
     {
         struct ethhdr eth = {};
         __builtin_memcpy(eth.h_source, ue_mac, ETH_ALEN);
@@ -64,7 +67,7 @@ int gtp_encap(struct __sk_buff *skb)
             return TC_ACT_SHOT;
     }
 
-    // 2) Build & insert outer IPv4 header
+    // 3) Build & insert outer IPv4 header
     {
         __u16 inner = skb->len - ETH_HLEN - hdrs;
         struct iphdr iph = {
@@ -78,76 +81,42 @@ int gtp_encap(struct __sk_buff *skb)
             .protocol = IPPROTO_UDP,
             .saddr = *saddr,
             .daddr = *daddr,
-            .check = 0,
+            .check = 0, // we’ll fix this next
         };
-        // IP checksum = csum_diff(NULL,0, &iph, sizeof(iph), 0)
-        iph.check = bpf_csum_diff(
-            (__be32 *)0, /*from*/ 0,
-            (__be32 *)&iph, /*to*/ sizeof(iph),
-            0 /*seed*/);
         if (bpf_skb_store_bytes(skb,
                                 ETH_HLEN,
                                 &iph, sizeof(iph), 0) < 0)
             return TC_ACT_SHOT;
+        // incremental compute IP checksum (old=0 → new=correct)
+        if (bpf_l3_csum_replace(skb,
+                                ETH_HLEN + offsetof(struct iphdr, check),
+                                0, iph.check, 0) < 0)
+            return TC_ACT_SHOT;
     }
 
-    // 3) Build & insert UDP header + full checksum
+    // 4) Build & insert outer UDP header + full pseudo‐header checksum
     {
         __u16 inner = skb->len - ETH_HLEN - hdrs;
         struct udphdr udph = {
             .source = bpf_htons(GTPU_PORT),
             .dest = bpf_htons(GTPU_PORT),
             .len = bpf_htons(sizeof(udph) + GTP_HDR_LEN + inner),
-            .check = 0,
+            .check = 0, // will be fixed by helper
         };
-        // write UDP header
         if (bpf_skb_store_bytes(skb,
                                 ETH_HLEN + sizeof(struct iphdr),
                                 &udph, sizeof(udph), 0) < 0)
             return TC_ACT_SHOT;
-
-        // compute UDP checksum in three parts
-        __u64 csum = 0;
-        // (a) UDP header
-        csum = bpf_csum_diff(
-            (__be32 *)0, 0,
-            (__be32 *)(data + ETH_HLEN),
-            sizeof(udph),
-            csum);
-        // (b) UDP payload
-        csum = bpf_csum_diff(
-            (__be32 *)0, 0,
-            (__be32 *)(data + ETH_HLEN + sizeof(udph)),
-            inner,
-            csum);
-        // (c) pseudo‑header
-        struct
-        {
-            __be32 src, dst;
-            __u8 zero;
-            __u8 proto;
-            __be16 len;
-        } psh = {
-            .src = bpf_htonl(*saddr),
-            .dst = bpf_htonl(*daddr),
-            .zero = 0,
-            .proto = IPPROTO_UDP,
-            .len = udph.len,
-        };
-        csum = bpf_csum_diff(
-            (__be32 *)&psh, sizeof(psh),
-            (__be32 *)0, 0,
-            csum);
-        __u16 final = ~csum;
-        if (bpf_skb_store_bytes(skb,
+        // adjust UDP checksum (old=0 → new covers pseudo‐hdr+udp+payload)
+        if (bpf_l4_csum_replace(skb,
                                 ETH_HLEN + sizeof(struct iphdr) + offsetof(struct udphdr, check),
-                                &final, sizeof(final), 0) < 0)
-        {
+                                0,
+                                udph.len,
+                                BPF_F_PSEUDO_HDR) < 0)
             return TC_ACT_SHOT;
-        }
     }
 
-    // 4) Build & insert GTP‑U header
+    // 5) Build & insert GTP‑U header
     {
         __u16 inner = skb->len - ETH_HLEN - hdrs;
         __u8 gtph[GTP_HDR_LEN];
@@ -158,9 +127,7 @@ int gtp_encap(struct __sk_buff *skb)
         if (bpf_skb_store_bytes(skb,
                                 ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr),
                                 gtph, GTP_HDR_LEN, 0) < 0)
-        {
             return TC_ACT_SHOT;
-        }
     }
 
     return TC_ACT_OK;
