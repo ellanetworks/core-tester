@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
@@ -51,15 +52,20 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	// 	return fmt.Errorf("install clsact qdisc: %w", err)
 	// }
 
-	tcLink, err := link.AttachTCX(link.TCXOptions{
-		Interface: iface.Index,
-		Program:   objs.UpstreamProgFunc,
-		Attach:    ebpf.AttachTCXIngress,
-	})
+	// tcLink, err := link.AttachTCX(link.TCXOptions{
+	// 	Interface: iface.Index,
+	// 	Program:   objs.UpstreamProgFunc,
+	// 	Attach:    ebpf.AttachTCXIngress,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("could not attach TC program: %w", err)
+	// }
+	// defer tcLink.Close()
+
+	err = attachTCProg(iface.Name, objs.UpstreamProgFunc)
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
 	}
-	defer tcLink.Close()
 
 	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to egress of iface %q (index %d)", iface.Name, iface.Index)
 
@@ -131,4 +137,49 @@ func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
 	}
 
 	return fmt.Sprintf("%10v Upstream", upstreamPacketCount), nil
+}
+
+func attachTCProg(ifaceName string, prog *ebpf.Program) error {
+	link, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return err
+	}
+	l, err := netlink.LinkByName(link.Name)
+	if err != nil {
+		return err
+	}
+
+	// 1) ensure clsact is installed
+	cls := &netlink.GenericQdisc{
+		QdiscAttrs: netlink.QdiscAttrs{
+			LinkIndex: l.Attrs().Index,
+			Handle:    netlink.MakeHandle(0xffff, 0),
+			Parent:    netlink.HANDLE_CLSACT,
+		},
+		QdiscType: "clsact",
+	}
+	if err := netlink.QdiscReplace(cls); err != nil {
+		return err
+	}
+
+	// 2) build your ingress filter
+	//    parent=ffff:fff1 for ingress, handle must be non‑zero
+	parent := netlink.MakeHandle(0xffff, 0xfff1)
+	filter := &netlink.BpfFilter{
+		FilterAttrs: netlink.FilterAttrs{
+			LinkIndex: l.Attrs().Index,
+			Parent:    parent,
+			Handle:    1, // ← must be non‑zero
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Fd:           prog.FD(),
+		Name:         "upstream_prog_func",
+		DirectAction: false, // standard TC
+	}
+
+	if err := netlink.FilterAdd(filter); err != nil {
+		return fmt.Errorf("could not attach TC filter: %w", err)
+	}
+	return nil
 }
