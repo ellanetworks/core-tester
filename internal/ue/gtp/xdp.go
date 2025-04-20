@@ -35,7 +35,12 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 	defer objs.Close()
 
-	err = attachTCProg(iface.Name, objs.UpstreamProgFunc)
+	l, err := netlink.LinkByName(iface.Name)
+	if err != nil {
+		return fmt.Errorf("could not find link %q: %w", iface.Name, err)
+	}
+
+	err = attachTCProg(l, "upstream_prog_func", objs.UpstreamProgFunc)
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
 	}
@@ -112,26 +117,26 @@ func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
 	return fmt.Sprintf("%10v Upstream", upstreamPacketCount), nil
 }
 
-func attachTCProg(ifaceName string, prog *ebpf.Program) error {
-	link, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return err
-	}
-	l, err := netlink.LinkByName(link.Name)
-	if err != nil {
-		return err
-	}
+func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) error {
+	// link, err := net.InterfaceByName(ifaceName)
+	// if err != nil {
+	// 	return err
+	// }
+	// l, err := netlink.LinkByName(link.Name)
+	// if err != nil {
+	// 	return err
+	// }
 
 	f := &netlink.BpfFilter{
 		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: l.Attrs().Index,
+			LinkIndex: device.Attrs().Index,
 			Parent:    netlink.HANDLE_MIN_INGRESS,
 			Handle:    1, // must be non‑zero
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
 		Fd:           prog.FD(),
-		Name:         "upstream_prog_func",
+		Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
 		DirectAction: true,
 	}
 
