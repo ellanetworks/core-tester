@@ -105,7 +105,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 	}
 
 	ebpfOpts := &AttachEbpfProgramOptions{
-		IfaceName:     VethHostInterfaceName,
+		IfaceName:     "ens5",
 		GnbIPAddress:  ueGnbIp.String(),
 		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
 		UpfIPAddress:  upfIp,
