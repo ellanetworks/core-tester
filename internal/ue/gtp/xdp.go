@@ -41,7 +41,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("could not find link %q: %w", iface.Name, err)
 	}
 
-	err = attachTCProg(l, "upstream_prog_func", objs.GtpEncap)
+	err = attachTCProg(l, "gtp_encap", objs.GtpEncap)
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
 	}
