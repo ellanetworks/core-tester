@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -68,24 +69,33 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("set ns %s: %w", opts.NSName, err)
 	}
 
+	logger.UELog.Infof("moved %s to ns %s", ueLink.Attrs().Name, opts.NSName)
+
 	err = netns.Set(ueNS)
 	if err != nil {
 		return fmt.Errorf("enter ns %s: %w", opts.NSName, err)
 	}
+
+	logger.UELog.Infof("entered ns %s", opts.NSName)
 
 	err = netlink.LinkSetUp(ueLink)
 	if err != nil {
 		return fmt.Errorf("ue: up %s: %w", opts.VethUE, err)
 	}
 
+	logger.UELog.Infof("up %s", opts.VethUE)
+
 	ueAddr, err := netlink.ParseAddr(opts.UECIDR)
 	if err != nil {
 		return fmt.Errorf("ue: parse addr %s: %w", opts.UECIDR, err)
 	}
+
 	err = netlink.AddrAdd(ueLink, ueAddr)
 	if err != nil {
 		return fmt.Errorf("ue: addr add %s: %w", opts.UECIDR, err)
 	}
+
+	logger.UELog.Infof("addr add %s", opts.UECIDR)
 
 	// default route
 	gw := net.ParseIP(opts.HostCIDR)
