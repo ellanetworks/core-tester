@@ -35,33 +35,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 	defer objs.Close()
 
-	// make sure clsact is in place on veth0
-	// l, err := netlink.LinkByName(opts.IfaceName)
-	// if err != nil {
-	// 	return fmt.Errorf("lookup %s: %w", opts.IfaceName, err)
-	// }
-	// q := &netlink.GenericQdisc{
-	// 	QdiscAttrs: netlink.QdiscAttrs{
-	// 		LinkIndex: l.Attrs().Index,
-	// 		Handle:    netlink.MakeHandle(0xffff, 0),
-	// 		Parent:    netlink.HANDLE_CLSACT,
-	// 	},
-	// 	QdiscType: "clsact",
-	// }
-	// if err := netlink.QdiscReplace(q); err != nil {
-	// 	return fmt.Errorf("install clsact qdisc: %w", err)
-	// }
-
-	// tcLink, err := link.AttachTCX(link.TCXOptions{
-	// 	Interface: iface.Index,
-	// 	Program:   objs.UpstreamProgFunc,
-	// 	Attach:    ebpf.AttachTCXIngress,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not attach TC program: %w", err)
-	// }
-	// defer tcLink.Close()
-
 	err = attachTCProg(iface.Name, objs.UpstreamProgFunc)
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
@@ -147,19 +120,6 @@ func attachTCProg(ifaceName string, prog *ebpf.Program) error {
 	l, err := netlink.LinkByName(link.Name)
 	if err != nil {
 		return err
-	}
-
-	// 1) ensure clsact is installed
-	cls := &netlink.GenericQdisc{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: l.Attrs().Index,
-			Handle:    netlink.HANDLE_CLSACT, // 0xffff:0000
-			Parent:    netlink.HANDLE_CLSACT, // same
-		},
-		QdiscType: "clsact",
-	}
-	if err := netlink.QdiscReplace(cls); err != nil {
-		return fmt.Errorf("install clsact qdisc: %w", err)
 	}
 
 	// then pick your hook point (here, ingress):
