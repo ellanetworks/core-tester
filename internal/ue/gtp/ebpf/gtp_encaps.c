@@ -11,6 +11,7 @@
 
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
+#define BPF_ADJ_ROOM_HEAD 1
 
 __u64 upstream_pkt_count = 0;
 
@@ -125,7 +126,7 @@ int upstream_prog_func(struct __sk_buff *skb)
     // 1) Reserve room for GTP header just after UDP
     if (bpf_skb_adjust_room(skb,
                             GTP_HDR_LEN,
-                            BPF_ADJ_ROOM_MAC,
+                            BPF_ADJ_ROOM_HEAD,
                             0) < 0)
     {
         LOG("upstream_prog: adjust_room failed");
