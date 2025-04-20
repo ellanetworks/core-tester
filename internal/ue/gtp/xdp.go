@@ -55,7 +55,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	tcLink, err := link.AttachTCX(link.TCXOptions{
 		Interface: iface.Index,
 		Program:   objs.UpstreamProgFunc,
-		Attach:    ebpf.AttachTCXEgress,
+		Attach:    ebpf.AttachTCXIngress,
 	})
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
