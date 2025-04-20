@@ -6,6 +6,7 @@ package gtp
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	gnbContext "github.com/ellanetworks/core-tester/internal/gnb/context"
@@ -82,7 +83,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		UECIDR:          ueIp + "/16",
 		HostN3Interface: n3InterfaceName,
 	}
-	err = SetupUEVethPair(opts)
+	vethPair, err := SetupUEVethPair(opts)
 	if err != nil {
 		return fmt.Errorf("failed to setup veth pair: %w", err)
 	}
@@ -96,12 +97,21 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		return fmt.Errorf("cannot read gnb link: %v", err)
 	}
 
+	upfMacStr := "52:54:00:53:75:fd"
+
+	upfHw, err := net.ParseMAC(upfMacStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse UPF MAC address: %w", err)
+	}
+
 	ebpfOpts := &AttachEbpfProgramOptions{
 		IfaceName:     VethHostInterfaceName,
 		GnbIPAddress:  ueGnbIp.String(),
 		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
 		UpfIPAddress:  upfIp,
 		Teid:          lTEID,
+		UEMacAddress:  vethPair.UELink.Attrs().HardwareAddr,
+		UpfMacAddress: upfHw,
 	}
 
 	err = AttachEbpfProgram(ebpfOpts)

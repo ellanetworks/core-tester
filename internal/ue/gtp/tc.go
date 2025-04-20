@@ -20,30 +20,31 @@ type AttachEbpfProgramOptions struct {
 	GnbIPAddress  string
 	GnbMacAddress []byte
 	UpfIPAddress  string
+	UpfMacAddress []byte
 	UEMacAddress  []byte
 	Teid          uint32
 }
 
-func getNeighborMAC(ifaceName string, upfIP string) (net.HardwareAddr, error) {
-	link, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		return nil, err
-	}
-	neighbors, err := netlink.NeighList(
-		link.Attrs().Index,
-		netlink.FAMILY_V4,
-	)
-	if err != nil {
-		return nil, err
-	}
-	ip := net.ParseIP(upfIP)
-	for _, n := range neighbors {
-		if n.IP.Equal(ip) && n.State == netlink.NUD_REACHABLE {
-			return n.HardwareAddr, nil
-		}
-	}
-	return nil, fmt.Errorf("no neighbor entry for %s on %s", upfIP, ifaceName)
-}
+// func getNeighborMAC(ifaceName string, upfIP string) (net.HardwareAddr, error) {
+// 	link, err := netlink.LinkByName(ifaceName)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	neighbors, err := netlink.NeighList(
+// 		link.Attrs().Index,
+// 		netlink.FAMILY_V4,
+// 	)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	ip := net.ParseIP(upfIP)
+// 	for _, n := range neighbors {
+// 		if n.IP.Equal(ip) && n.State == netlink.NUD_REACHABLE {
+// 			return n.HardwareAddr, nil
+// 		}
+// 	}
+// 	return nil, fmt.Errorf("no neighbor entry for %s on %s", upfIP, ifaceName)
+// }
 
 func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	iface, err := net.InterfaceByName(opts.IfaceName)
@@ -99,18 +100,12 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
-	upfMac, err := getNeighborMAC("ens5", opts.UpfIPAddress)
-	if err != nil {
-		// you can also call: `ip neigh add 33.33.33.2 lladdr aa:bb:cc:dd:ee:ff dev ens5 nud permanent`
-		return err
-	}
-
 	logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
 
 	if err := objs.UeMacMap.Update(&key, &opts.UEMacAddress, ebpf.UpdateAny); err != nil {
 		return err
 	}
-	if err := objs.UpfMacMap.Update(&key, upfMac, ebpf.UpdateAny); err != nil {
+	if err := objs.UpfMacMap.Update(&key, &opts.UpfMacAddress, ebpf.UpdateAny); err != nil {
 		return err
 	}
 
