@@ -56,15 +56,23 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("new ns %s: %w", opts.NSName, err)
 	}
 	defer ueNS.Close()
-	if err := netns.Set(ueNS); err != nil {
-		return fmt.Errorf("enter ns %s: %w", opts.NSName, err)
-	}
 
-	// now in UE ns: bring up veth-ue, assign UECIDR (ex. 10.45.0.1/16), set default via hostCIDR (ex. 10.45.0.2)
+	// Move Ue link to UE namespace, change to ue ns, bring up veth-ue, assign UECIDR (ex. 10.45.0.1/16), set default via hostCIDR (ex. 10.45.0.2)
 	ueLink, err := netlink.LinkByName(opts.VethUE)
 	if err != nil {
 		return fmt.Errorf("get %s: %w", opts.VethUE, err)
 	}
+
+	err = netlink.LinkSetNsFd(ueLink, int(ueNS))
+	if err != nil {
+		return fmt.Errorf("set ns %s: %w", opts.NSName, err)
+	}
+
+	err = netns.Set(ueNS)
+	if err != nil {
+		return fmt.Errorf("enter ns %s: %w", opts.NSName, err)
+	}
+
 	err = netlink.LinkSetUp(ueLink)
 	if err != nil {
 		return fmt.Errorf("ue: up %s: %w", opts.VethUE, err)
