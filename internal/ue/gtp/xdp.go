@@ -14,6 +14,10 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
 
+const (
+	tcDirectAction = 1 << 2 // BPF_TC_F_DIRECT_ACTION
+)
+
 type AttachEbpfProgramOptions struct {
 	IfaceName     string
 	GnbIPAddress  string
@@ -56,6 +60,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		Interface: iface.Index,
 		Program:   objs.UpstreamProgFunc,
 		Attach:    ebpf.AttachTCXEgress,
+		Flags:     tcDirectAction,
 	})
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
