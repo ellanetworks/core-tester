@@ -8,12 +8,12 @@
 #include <linux/pkt_cls.h> // TC_ACT_*
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-#include <stddef.h>
+#include <stddef.h> // offsetof()
 
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-// single‐entry maps:
+// single‑entry maps
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -31,7 +31,7 @@ struct
 } gnb_ip_map SEC(".maps"), upf_ip_map SEC(".maps"), teid_map SEC(".maps");
 
 #define LOG(fmt, ...) \
-    ({ char ____fmt[] = fmt "\n";                                            \
+    ({ char ____fmt[] = fmt "\n";                                  \
      bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); })
 
 static __always_inline int lookup_params(__u32 *saddr,
@@ -44,48 +44,45 @@ static __always_inline int lookup_params(__u32 *saddr,
     __u32 *ti = bpf_map_lookup_elem(&teid_map, &key);
     if (!sa || !da || !ti)
     {
-        LOG("lookup_params: missing map entry");
+        LOG("lookup_params failed");
         return -1;
     }
     *saddr = *sa;
     *daddr = *da;
     *teid = *ti;
-    LOG("lookup: s=0x%x, d=0x%x, teid=0x%x", *saddr, *daddr, *teid);
     return 0;
 }
 
-static __always_inline int reserve_room(struct __sk_buff *skb,
-                                        int amt)
+static __always_inline int reserve_room(struct __sk_buff *skb, int amt)
 {
-    if (bpf_skb_adjust_room(skb, amt,
-                            BPF_ADJ_ROOM_MAC, 0) < 0)
+    if (bpf_skb_adjust_room(skb, amt, BPF_ADJ_ROOM_MAC, 0) < 0)
     {
         LOG("reserve_room failed");
         return -1;
     }
-    LOG("reserved=%d, new_len=%d", amt, skb->len);
     return 0;
 }
 
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
 {
-    LOG("=== start, orig len=%d", skb->len);
+    LOG("gtp_encap start, orig len=%d", skb->len);
 
     __u32 saddr, daddr, teid;
     if (lookup_params(&saddr, &daddr, &teid) < 0)
         return TC_ACT_SHOT;
 
-    /* reserve IP+UDP+GTP after the MAC */
+    /* reserve space for IP+UDP+GTP after the MAC header */
     int l3l4gtp = sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
     if (reserve_room(skb, l3l4gtp) < 0)
         return TC_ACT_SHOT;
 
     void *data = (void *)(long)skb->data;
     void *data_end = (void *)(long)skb->data_end;
-    LOG("post-reserve len=%d", skb->len);
+    if (data + ETH_HLEN + l3l4gtp > data_end)
+        return TC_ACT_SHOT;
 
-    /* rewrite Ethernet */
+    /* 1) rewrite Ethernet */
     {
         __u8 src[ETH_ALEN], dst[ETH_ALEN];
         void *m;
@@ -107,16 +104,11 @@ int gtp_encap(struct __sk_buff *skb)
         if (bpf_skb_store_bytes(skb, 0,
                                 &eth, sizeof(eth), 0) < 0)
             return TC_ACT_SHOT;
-        LOG("eth rewritten");
     }
 
-    /* outer IP */
+    /* 2) outer IP */
     {
-        if (data + ETH_HLEN + sizeof(struct iphdr) > data_end)
-            return TC_ACT_SHOT;
-
         __u16 inner = skb->len - ETH_HLEN - l3l4gtp;
-
         struct iphdr iph = {
             .version = 4,
             .ihl = sizeof(iph) >> 2,
@@ -131,25 +123,23 @@ int gtp_encap(struct __sk_buff *skb)
             .daddr = daddr,
             .check = 0,
         };
+        /* fixed: cast first arg to (void*)0 so the verifier sees a pointer */
         iph.check = bpf_csum_diff(
-            /*from=*/NULL, /*from_size=*/0,
-            /*to=*/(__be32 *)&iph, /*to_size=*/sizeof(iph),
-            /*seed=*/0);
+            (void *)0,      /* from ptr */
+            0,              /* from len */
+            (__be32 *)&iph, /* to ptr */
+            sizeof(iph),    /* to len */
+            0               /* seed */
+        );
         if (bpf_skb_store_bytes(skb,
                                 ETH_HLEN,
                                 &iph, sizeof(iph), 0) < 0)
             return TC_ACT_SHOT;
-        LOG("inserted IP: tot_len=%d", bpf_ntohs(iph.tot_len));
     }
 
-    /* outer UDP + full checksum over header+payload+pseudo */
+    /* 3) outer UDP + full checksum */
     {
-        if (data + ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr) > data_end)
-            return TC_ACT_SHOT;
-
         __u16 inner = skb->len - ETH_HLEN - l3l4gtp;
-
-        /* build UDP header with zero checksum */
         struct udphdr udph = {
             .source = bpf_htons(GTPU_PORT),
             .dest = bpf_htons(GTPU_PORT),
@@ -162,18 +152,24 @@ int gtp_encap(struct __sk_buff *skb)
                                 &udph, sizeof(udph), 0) < 0)
             return TC_ACT_SHOT;
 
-        /* compute full checksum */
+        /* compute the checksum over UDP hdr + payload + pseudo‑header */
         __u64 csum = 0;
+
+        /* udp hdr */
         csum = bpf_csum_diff(
-            /*from=*/NULL, /*from_size=*/0,
-            /*to=*/(__be32 *)(data + ETH_HLEN),
-            /*to_size=*/sizeof(udph),
-            /*seed=*/csum);
-        csum = bpf_csum_diff(
-            NULL, 0,
-            (__be32 *)(data + ETH_HLEN + sizeof(udph)),
-            /*inner payload*/ inner,
+            (void *)0, 0,
+            (__be32 *)(data + ETH_HLEN),
+            sizeof(udph),
             csum);
+
+        /* payload */
+        csum = bpf_csum_diff(
+            (void *)0, 0,
+            (__be32 *)(data + ETH_HLEN + sizeof(udph)),
+            inner,
+            csum);
+
+        /* pseudo‑header */
         struct
         {
             __be32 src, dst;
@@ -188,32 +184,26 @@ int gtp_encap(struct __sk_buff *skb)
             .len = udph.len,
         };
         csum = bpf_csum_diff(
-            NULL, 0,
-            (__be32 *)&psh, sizeof(psh),
+            (void *)&psh, sizeof(psh),
+            (void *)0, 0,
             csum);
-        udph.check = ~csum;
 
-        /* write back UDP checksum */
+        udph.check = ~csum;
         if (bpf_skb_store_bytes(skb,
                                 ETH_HLEN + sizeof(struct iphdr) + offsetof(struct udphdr, check),
                                 &udph.check,
                                 sizeof(udph.check),
                                 0) < 0)
             return TC_ACT_SHOT;
-        LOG("inserted UDP: len=%d csum=0x%x",
-            bpf_ntohs(udph.len), udph.check);
     }
 
-    /* GTP‑U header */
+    /* 4) GTP‑U header */
     {
-        if (data + ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN > data_end)
-            return TC_ACT_SHOT;
-
         __u16 inner = skb->len - ETH_HLEN - l3l4gtp;
-
         __u8 gtph[GTP_HDR_LEN];
-        gtph[0] = 0x30; // ver=1, PT=1
-        gtph[1] = 0xFF; // T‑PDU
+
+        gtph[0] = 0x30; /* flags/version/PT */
+        gtph[1] = 0xFF; /* message type = T‑PDU */
         *(__be16 *)(gtph + 2) = bpf_htons(inner);
         *(__be32 *)(gtph + 4) = bpf_htonl(teid);
 
@@ -221,10 +211,9 @@ int gtp_encap(struct __sk_buff *skb)
                                 ETH_HLEN + sizeof(struct iphdr) + sizeof(struct udphdr),
                                 gtph, GTP_HDR_LEN, 0) < 0)
             return TC_ACT_SHOT;
-        LOG("inserted GTP: inner=%d", inner);
     }
 
-    LOG("=== done, final len=%d", skb->len);
+    LOG("gtp_encap done, new len=%d", skb->len);
     return TC_ACT_OK;
 }
 
