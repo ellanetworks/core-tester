@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -22,25 +21,29 @@ type SetupUEVethPairOpts struct {
 }
 
 func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
-	// Make sure all ns‐switches happen on one OS thread:
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	// 0) Save root namespace so we can come back at the end
+	// 0) grab & save the root namespace
 	rootNS, err := netns.Get()
 	if err != nil {
 		return fmt.Errorf("getting original netns: %w", err)
 	}
 	defer rootNS.Close()
 
-	// 1) Create the UE namespace (if it doesn’t already exist)
+	// 1) create the UE namespace (this also ENTERS it)
 	ueNS, err := netns.NewNamed(opts.NSName)
 	if err != nil {
 		return fmt.Errorf("creating namespace %q: %w", opts.NSName, err)
 	}
 	defer ueNS.Close()
 
-	// 2) Create the veth pair in the root ns
+	// — we are now in UE ns!  we need to go back to root before doing any veth work —
+	if err := netns.Set(rootNS); err != nil {
+		return fmt.Errorf("restoring root ns after NewNamed: %w", err)
+	}
+
+	// 2) in root ns: make the veth pair
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: opts.VethHost},
 		PeerName:  opts.VethUE,
@@ -49,7 +52,7 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("creating veth‐pair: %w", err)
 	}
 
-	// 3) Configure the host‐side end (still in root ns)
+	// 3) still in root ns: bring up & IP the host side
 	hostLink, err := netlink.LinkByName(opts.VethHost)
 	if err != nil {
 		return fmt.Errorf("lookup %s in root ns: %w", opts.VethHost, err)
@@ -62,7 +65,7 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("assign %s to %s: %w", opts.HostCIDR, opts.VethHost, err)
 	}
 
-	// 4) Move the peer into the UE namespace BEFORE trying to configure it
+	// 4) move the peer into UE ns
 	ueLink, err := netlink.LinkByName(opts.VethUE)
 	if err != nil {
 		return fmt.Errorf("lookup %s in root ns: %w", opts.VethUE, err)
@@ -71,11 +74,10 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("moving %s to ns %s: %w", opts.VethUE, opts.NSName, err)
 	}
 
-	// 5) Switch this thread into the UE ns and set up the UE side
+	// 5) now switch into the UE ns to finish the UE‐side config
 	if err := netns.Set(ueNS); err != nil {
 		return fmt.Errorf("entering ns %s: %w", opts.NSName, err)
 	}
-	// Now we are in the UE namespace:
 	ueIf, err := netlink.LinkByName(opts.VethUE)
 	if err != nil {
 		return fmt.Errorf("lookup %s in UE ns: %w", opts.VethUE, err)
@@ -87,7 +89,6 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	if err := netlink.AddrAdd(ueIf, ueAddr); err != nil {
 		return fmt.Errorf("assign %s to %s: %w", opts.UECIDR, opts.VethUE, err)
 	}
-	// Add default route in UE ns via the host‐side IP
 	gw, _, _ := net.ParseCIDR(opts.HostCIDR)
 	if err := netlink.RouteAdd(&netlink.Route{
 		LinkIndex: ueIf.Attrs().Index,
@@ -95,28 +96,27 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	}); err != nil {
 		return fmt.Errorf("default route via %s in UE ns: %w", gw, err)
 	}
-	// disable rp_filter in UE ns so ARP/IPv4 work
 	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.all.rp_filter=0").Run()
 
-	// 6) Switch back to the root namespace
+	// 6) switch back to root and finish up
 	if err := netns.Set(rootNS); err != nil {
 		return fmt.Errorf("restoring original netns: %w", err)
 	}
-
-	// 7) On the host: enable forwarding & route to the UPF
 	_ = exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run()
-	upfDst, _ := netlink.ParseIPNet(opts.UpfIP + "/32")
+	upfDst, err := netlink.ParseIPNet(opts.UpfIP + "/32")
+	if err != nil {
+		return fmt.Errorf("parsing UPF IP %s: %w", opts.UpfIP, err)
+	}
 	n3If, err := netlink.LinkByName(opts.HostN3Interface)
 	if err != nil {
-		return fmt.Errorf("lookup host N3 iface %q: %w", opts.HostN3Interface, err)
+		return fmt.Errorf("lookup %s in root ns: %w", opts.HostN3Interface, err)
 	}
-	if err := netlink.RouteReplace(&netlink.Route{
+	err = netlink.RouteReplace(&netlink.Route{
 		LinkIndex: n3If.Attrs().Index,
 		Dst:       upfDst,
-	}); err != nil {
-		return fmt.Errorf("route to UPF %q: %w", opts.UpfIP, err)
+	})
+	if err != nil {
+		return fmt.Errorf("adding route to UPF %s: %w", opts.UpfIP, err)
 	}
-
-	logger.UELog.Infof("UE veth %s<->%s in ns %q set up OK", opts.VethHost, opts.VethUE, opts.NSName)
 	return nil
 }
