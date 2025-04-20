@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
@@ -40,32 +40,97 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	defer objs.Close()
 
 	// make sure clsact is in place on veth0
-	l, err := netlink.LinkByName(opts.IfaceName)
+	// l, err := netlink.LinkByName(opts.IfaceName)
+	// if err != nil {
+	// 	return fmt.Errorf("lookup %s: %w", opts.IfaceName, err)
+	// }
+	// q := &netlink.GenericQdisc{
+	// 	QdiscAttrs: netlink.QdiscAttrs{
+	// 		LinkIndex: l.Attrs().Index,
+	// 		Handle:    netlink.MakeHandle(0xffff, 0),
+	// 		Parent:    netlink.HANDLE_CLSACT,
+	// 	},
+	// 	QdiscType: "clsact",
+	// }
+	// if err := netlink.QdiscReplace(q); err != nil {
+	// 	return fmt.Errorf("install clsact qdisc: %w", err)
+	// }
+
+	// filter := &netlink.BpfFilter{
+	// 	FilterAttrs: netlink.FilterAttrs{
+	// 		LinkIndex: device.Attrs().Index,
+	// 		Parent:    parent,
+	// 		Handle:    1,
+	// 		Protocol:  unix.ETH_P_ALL,
+	// 		Priority:  prio,
+	// 	},
+	// 	Fd:           prog.FD(),
+	// 	Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
+	// 	DirectAction: true,
+	// }
+
+	// tcLink, err := link.AttachTCX(link.TCXOptions{
+	// 	Interface: iface.Index,
+	// 	Program:   objs.UpstreamProgFunc,
+	// 	Attach:    ebpf.AttachTCXEgress,
+	// 	Flags:     tcDirectAction,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("could not attach TC program: %w", err)
+	// }
+	// defer tcLink.Close()
+
+	iface, err = net.InterfaceByName(opts.IfaceName)
 	if err != nil {
-		return fmt.Errorf("lookup %s: %w", opts.IfaceName, err)
+		return fmt.Errorf("could not find interface %q: %w", opts.IfaceName, err)
 	}
-	q := &netlink.GenericQdisc{
+
+	// 1) Make sure clsact is there
+	link, err := netlink.LinkByName(iface.Name)
+	if err != nil {
+		return fmt.Errorf("lookup %s: %w", iface.Name, err)
+	}
+	cls := &netlink.GenericQdisc{
 		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: l.Attrs().Index,
+			LinkIndex: link.Attrs().Index,
 			Handle:    netlink.MakeHandle(0xffff, 0),
 			Parent:    netlink.HANDLE_CLSACT,
 		},
 		QdiscType: "clsact",
 	}
-	if err := netlink.QdiscReplace(q); err != nil {
+	if err := netlink.QdiscReplace(cls); err != nil {
 		return fmt.Errorf("install clsact qdisc: %w", err)
 	}
 
-	tcLink, err := link.AttachTCX(link.TCXOptions{
-		Interface: iface.Index,
-		Program:   objs.UpstreamProgFunc,
-		Attach:    ebpf.AttachTCXEgress,
-		Flags:     tcDirectAction,
-	})
-	if err != nil {
-		return fmt.Errorf("could not attach TC program: %w", err)
+	// 2) Load your object
+	// objs := bpfObjects{}
+	// if err := loadBpfObjects(&objs, nil); err != nil {
+	// 	return fmt.Errorf("could not load BPF objects: %w", err)
+	// }
+	// defer objs.Close()
+
+	prog := objs.UpstreamProgFunc
+
+	//  3. Prepare the TC filter
+	//     For egress, clsact's egress hook is parent=ffff:fff2 (minor=2)
+	parent := netlink.MakeHandle(0xffff, 2) // 0xFFFF:0x0002
+
+	filter := &netlink.BpfFilter{
+		FilterAttrs: netlink.FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    parent,
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Fd:           prog.FD(),
+		Name:         "upstream_prog_func",
+		DirectAction: true,
 	}
-	defer tcLink.Close()
+
+	// 4) Install it
+	if err := netlink.FilterAdd(filter); err != nil {
+		return fmt.Errorf("could not attach TC filter: %w", err)
+	}
 
 	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to egress of iface %q (index %d)", iface.Name, iface.Index)
 
