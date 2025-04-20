@@ -17,7 +17,6 @@ type AttachebpfProgramOptions struct {
 	IfaceName     string
 	GnbIPAddress  string
 	GnbMacAddress []byte
-	UeMacAddress  []byte
 	UpfIPAddress  string
 	Teid          uint32
 }
