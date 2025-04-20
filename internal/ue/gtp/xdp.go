@@ -102,13 +102,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("install clsact qdisc: %w", err)
 	}
 
-	// 2) Load your object
-	// objs := bpfObjects{}
-	// if err := loadBpfObjects(&objs, nil); err != nil {
-	// 	return fmt.Errorf("could not load BPF objects: %w", err)
-	// }
-	// defer objs.Close()
-
 	prog := objs.UpstreamProgFunc
 
 	//  3. Prepare the TC filter
@@ -119,6 +112,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: link.Attrs().Index,
 			Parent:    parent,
+			Handle:    1,
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
@@ -164,18 +158,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 
 	logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
-
-	// if err := objs.GnbMacMap.Update(&key, &opts.GnbMacAddress, ebpf.UpdateAny); err != nil {
-	// 	return fmt.Errorf("failed to update gnb_mac_map: %w", err)
-	// }
-
-	// logger.EBPFLog.Infof("Added GNB MAC %s to gnb_mac_map", net.HardwareAddr(opts.GnbMacAddress))
-
-	// if err := objs.UeMacMap.Update(&key, &opts.UeMacAddress, ebpf.UpdateAny); err != nil {
-	// 	return fmt.Errorf("failed to update ue_mac_map: %w", err)
-	// }
-
-	// logger.EBPFLog.Infof("Added UE MAC %s to gnb_mac_map", net.HardwareAddr(opts.UeMacAddress))
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)
