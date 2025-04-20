@@ -14,6 +14,7 @@ require (
 	github.com/goccy/go-yaml v1.17.1
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/vishvananda/netlink v1.3.0
+	github.com/vishvananda/netns v0.0.5
 	go.uber.org/zap v1.27.0
 )
 
@@ -24,7 +25,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
-	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 )

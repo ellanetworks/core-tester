@@ -9,7 +9,6 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/vishvananda/netlink"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
@@ -36,27 +35,26 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	defer objs.Close()
 
 	// make sure clsact is in place on veth0
-	l, err := netlink.LinkByName(opts.IfaceName)
-	if err != nil {
-		return fmt.Errorf("lookup %s: %w", opts.IfaceName, err)
-	}
-	q := &netlink.GenericQdisc{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: l.Attrs().Index,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_CLSACT,
-		},
-		QdiscType: "clsact",
-	}
-	if err := netlink.QdiscReplace(q); err != nil {
-		return fmt.Errorf("install clsact qdisc: %w", err)
-	}
+	// l, err := netlink.LinkByName(opts.IfaceName)
+	// if err != nil {
+	// 	return fmt.Errorf("lookup %s: %w", opts.IfaceName, err)
+	// }
+	// q := &netlink.GenericQdisc{
+	// 	QdiscAttrs: netlink.QdiscAttrs{
+	// 		LinkIndex: l.Attrs().Index,
+	// 		Handle:    netlink.MakeHandle(0xffff, 0),
+	// 		Parent:    netlink.HANDLE_CLSACT,
+	// 	},
+	// 	QdiscType: "clsact",
+	// }
+	// if err := netlink.QdiscReplace(q); err != nil {
+	// 	return fmt.Errorf("install clsact qdisc: %w", err)
+	// }
 
 	tcLink, err := link.AttachTCX(link.TCXOptions{
 		Interface: iface.Index,
 		Program:   objs.UpstreamProgFunc,
 		Attach:    ebpf.AttachTCXEgress,
-		Anchor:    link.Tail(),
 	})
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
