@@ -30,6 +30,7 @@ struct
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
 {
+    LOG("Received packet");
     __u32 key = 0;
     __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
