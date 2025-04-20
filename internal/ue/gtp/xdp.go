@@ -13,7 +13,7 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
 
-type AttachebpfProgramOptions struct {
+type AttachEbpfProgramOptions struct {
 	IfaceName     string
 	GnbIPAddress  string
 	GnbMacAddress []byte
@@ -21,7 +21,7 @@ type AttachebpfProgramOptions struct {
 	Teid          uint32
 }
 
-func AttachebpfProgram(opts *AttachebpfProgramOptions) error {
+func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	iface, err := net.InterfaceByName(opts.IfaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %q: %w", opts.IfaceName, err)

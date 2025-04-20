@@ -96,15 +96,15 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		return fmt.Errorf("cannot read gnb link: %v", err)
 	}
 
-	ebpfOpts := &AttachebpfProgramOptions{
-		IfaceName:     VethUEInterfaceName,
+	ebpfOpts := &AttachEbpfProgramOptions{
+		IfaceName:     VethHostInterfaceName,
 		GnbIPAddress:  ueGnbIp.String(),
 		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
 		UpfIPAddress:  upfIp,
 		Teid:          lTEID,
 	}
 
-	err = AttachebpfProgram(ebpfOpts)
+	err = AttachEbpfProgram(ebpfOpts)
 	if err != nil {
 		return fmt.Errorf("failed to attach ebpf program: %w", err)
 	}
