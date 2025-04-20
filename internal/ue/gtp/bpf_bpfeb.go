@@ -54,7 +54,7 @@ type bpfSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfProgramSpecs struct {
-	UpstreamProgFunc *ebpf.ProgramSpec `ebpf:"upstream_prog_func"`
+	GtpEncap *ebpf.ProgramSpec `ebpf:"gtp_encap"`
 }
 
 // bpfMapSpecs contains maps before they are loaded into the kernel.
@@ -70,7 +70,6 @@ type bpfMapSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfVariableSpecs struct {
-	UpstreamPktCount *ebpf.VariableSpec `ebpf:"upstream_pkt_count"`
 }
 
 // bpfObjects contains all objects after they have been loaded into the kernel.
@@ -110,19 +109,18 @@ func (m *bpfMaps) Close() error {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfVariables struct {
-	UpstreamPktCount *ebpf.Variable `ebpf:"upstream_pkt_count"`
 }
 
 // bpfPrograms contains all programs after they have been loaded into the kernel.
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfPrograms struct {
-	UpstreamProgFunc *ebpf.Program `ebpf:"upstream_prog_func"`
+	GtpEncap *ebpf.Program `ebpf:"gtp_encap"`
 }
 
 func (p *bpfPrograms) Close() error {
 	return _BpfClose(
-		p.UpstreamProgFunc,
+		p.GtpEncap,
 	)
 }
 

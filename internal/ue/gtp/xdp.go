@@ -41,7 +41,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("could not find link %q: %w", iface.Name, err)
 	}
 
-	err = attachTCProg(l, "upstream_prog_func", objs.UpstreamProgFunc)
+	err = attachTCProg(l, "upstream_prog_func", objs.GtpEncap)
 	if err != nil {
 		return fmt.Errorf("could not attach TC program: %w", err)
 	}
@@ -95,13 +95,13 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		s, err := formatCounters(objs.UpstreamPktCount)
-		if err != nil {
-			logger.EBPFLog.Warnf("Error reading map: %s", err)
-			continue
-		}
+		// s, err := formatCounters(objs.UpstreamPktCount)
+		// if err != nil {
+		// 	logger.EBPFLog.Warnf("Error reading map: %s", err)
+		// 	continue
+		// }
 
-		logger.EBPFLog.Infof("Packet Count: %s\n", s)
+		logger.EBPFLog.Infof("Waiting: \n")
 	}
 
 	return nil
