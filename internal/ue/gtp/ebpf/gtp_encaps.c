@@ -37,6 +37,8 @@ int gtp_encap(struct __sk_buff *skb)
         return TC_ACT_SHOT;
     }
 
+    LOG("adjusted room: %d", push);
+
     // 2) reload data pointers
     void *raw = (void *)(long)skb->data;
     void *data_end = (void *)(long)skb->data_end;
@@ -75,17 +77,23 @@ int gtp_encap(struct __sk_buff *skb)
         return TC_ACT_SHOT;
     *(__u32 *)(gtph + 4) = bpf_htonl(*teid);
 
+    LOG("Wrote GTP header");
+
     // --- write UDP header ---
     new_udph->source = bpf_htons(GTPU_PORT);
     new_udph->dest = bpf_htons(GTPU_PORT);
     new_udph->len = bpf_htons(sizeof(*new_udph) + GTP_HDR_LEN + inner);
     new_udph->check = 0; // skip checksum
 
+    LOG("Wrote UDP header");
+
     // --- write IP header ---
     __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
     if (!saddr || !daddr)
         return TC_ACT_SHOT;
+
+    LOG("Wrote IP header");
 
     new_iph->version = 4;
     new_iph->ihl = sizeof(*new_iph) >> 2;
@@ -102,6 +110,8 @@ int gtp_encap(struct __sk_buff *skb)
                                    (__be32 *)new_iph,
                                    sizeof(*new_iph),
                                    0);
+
+    LOG("IP checksum: %x", new_iph->check);
 
     return TC_ACT_OK;
 }
