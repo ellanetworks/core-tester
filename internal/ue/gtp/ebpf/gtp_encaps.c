@@ -12,20 +12,46 @@
 #define GTPU_PORT 2152
 #define GTP_HDR_LEN 8
 
-// maps for GNB↔UPF IPs and TEID
+// 1‑entry maps for MACs, IPs, TEID:
+struct
+{
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, ETH_ALEN);
+} ue_mac_map SEC(".maps"),
+    upf_mac_map SEC(".maps");
+
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
     __uint(value_size, sizeof(__u32));
-} gnb_ip_map SEC(".maps"), upf_ip_map SEC(".maps"), teid_map SEC(".maps");
+} gnb_ip_map SEC(".maps"),
+    upf_ip_map SEC(".maps"),
+    teid_map SEC(".maps");
 
-#define LOG(fmt, ...)                                              \
-    ({                                                             \
-        char ____fmt[] = fmt "\n";                                 \
-        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
-    })
+static __always_inline int rewrite_eth(struct __sk_buff *skb)
+{
+    __u32 key = 0;
+    __u8 *src = bpf_map_lookup_elem(&ue_mac_map, &key);
+    __u8 *dst = bpf_map_lookup_elem(&upf_mac_map, &key);
+    if (!src || !dst)
+        return -1;
+
+    struct ethhdr eth = {};
+    __builtin_memcpy(eth.h_source, src, ETH_ALEN);
+    __builtin_memcpy(eth.h_dest, dst, ETH_ALEN);
+    eth.h_proto = bpf_htons(ETH_P_IP);
+
+    // overwrite old EthHdr at offset 0
+    if (bpf_skb_store_bytes(skb,
+                            /*off=*/0,
+                            &eth, sizeof(eth), 0) < 0)
+        return -1;
+    return 0;
+}
 
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
@@ -35,26 +61,25 @@ int gtp_encap(struct __sk_buff *skb)
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
     __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
     if (!saddr || !daddr || !teid)
-    {
-        LOG("missing map entries");
         return TC_ACT_SHOT;
-    }
 
-    // 1) reserve headroom for IP + UDP + GTP
+    // — first, expand room _after_ the 14‑byte Eth header
     int hdrs = sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
-    if (bpf_skb_adjust_room(skb, hdrs,
-                            BPF_ADJ_ROOM_MAC, 0) < 0)
-    {
-        LOG("adjust_room failed");
+    if (bpf_skb_adjust_room(skb,
+                            hdrs,
+                            BPF_ADJ_ROOM_MAC,
+                            0) < 0)
         return TC_ACT_SHOT;
-    }
 
-    // 2) figure out inner payload length (L2 stripped by TC)
-    //    skb->len is now old_len + hdrs
+    // — rewrite the MAC header so we can actually transmit
+    if (rewrite_eth(skb) < 0)
+        return TC_ACT_SHOT;
+
+    // calculate lengths
     __u16 new_len = skb->len;
     __u16 inner_len = new_len - hdrs;
 
-    // 3) write outer IP header at offset = 0
+    // — build & insert outer IP
     struct iphdr iph = {
         .version = 4,
         .ihl = sizeof(iph) >> 2,
@@ -66,52 +91,40 @@ int gtp_encap(struct __sk_buff *skb)
         .protocol = IPPROTO_UDP,
         .saddr = *saddr,
         .daddr = *daddr,
-        .check = 0, // will be filled next
+        .check = 0,
     };
     iph.check = bpf_csum_diff(0, 0,
-                              (__be32 *)&iph, sizeof(iph),
-                              0);
-    if (bpf_skb_store_bytes(skb,
-                            /*off=*/0,
-                            &iph, sizeof(iph),
-                            0) < 0)
-    {
-        LOG("write IP hdr failed");
-        return TC_ACT_SHOT;
-    }
+                              (__be32 *)&iph, sizeof(iph), 0);
 
-    // 4) write outer UDP header immediately after IP
+    if (bpf_skb_store_bytes(skb,
+                            /*14 = ETH_HLEN*/
+                            ETH_HLEN,
+                            &iph, sizeof(iph), 0) < 0)
+        return TC_ACT_SHOT;
+
+    // — build & insert outer UDP
     struct udphdr udph = {
         .source = bpf_htons(GTPU_PORT),
         .dest = bpf_htons(GTPU_PORT),
         .len = bpf_htons(sizeof(udph) + GTP_HDR_LEN + inner_len),
-        .check = 0, // skip checksum
+        .check = 0, // skipped
     };
     if (bpf_skb_store_bytes(skb,
-                            /*off=*/sizeof(iph),
-                            &udph, sizeof(udph),
-                            0) < 0)
-    {
-        LOG("write UDP hdr failed");
+                            ETH_HLEN + sizeof(iph),
+                            &udph, sizeof(udph), 0) < 0)
         return TC_ACT_SHOT;
-    }
 
-    // 5) write GTP header immediately after UDP
+    // — build & insert GTP‑U header
     __u8 gtph[GTP_HDR_LEN];
-    gtph[0] = 0x30; // version=1, PT=1
-    gtph[1] = 0xFF; // T‑PDU
+    gtph[0] = 0x30;
+    gtph[1] = 0xFF;
     *(__be16 *)(gtph + 2) = bpf_htons(inner_len);
     *(__be32 *)(gtph + 4) = bpf_htonl(*teid);
     if (bpf_skb_store_bytes(skb,
-                            /*off=*/sizeof(iph) + sizeof(udph),
-                            gtph, GTP_HDR_LEN,
-                            0) < 0)
-    {
-        LOG("write GTP hdr failed");
+                            ETH_HLEN + sizeof(iph) + sizeof(udph),
+                            gtph, GTP_HDR_LEN, 0) < 0)
         return TC_ACT_SHOT;
-    }
 
-    LOG("gtp_encap: done len=%d", new_len);
     return TC_ACT_OK;
 }
 
