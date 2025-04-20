@@ -31,13 +31,6 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	}
 	defer rootNS.Close()
 
-	// const (
-	// 	vethHost = "veth-host"
-	// 	vethUE   = "veth-ue"
-	// 	hostCIDR = "10.45.0.2/16"
-	// 	ueCIDR   = "10.45.0.1/16"
-	// )
-
 	// 1) Create veth pair
 	v := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: opts.VethHost},
@@ -68,14 +61,24 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	}
 
 	// now in UE ns: bring up veth-ue, assign UECIDR (ex. 10.45.0.1/16), set default via hostCIDR (ex. 10.45.0.2)
-	ueLink, _ := netlink.LinkByName(opts.VethUE)
-	if err := netlink.LinkSetUp(ueLink); err != nil {
+	ueLink, err := netlink.LinkByName(opts.VethUE)
+	if err != nil {
+		return fmt.Errorf("get %s: %w", opts.VethUE, err)
+	}
+	err = netlink.LinkSetUp(ueLink)
+	if err != nil {
 		return fmt.Errorf("ue: up %s: %w", opts.VethUE, err)
 	}
-	ueAddr, _ := netlink.ParseAddr(opts.UECIDR)
-	if err := netlink.AddrAdd(ueLink, ueAddr); err != nil {
+
+	ueAddr, err := netlink.ParseAddr(opts.UECIDR)
+	if err != nil {
+		return fmt.Errorf("ue: parse addr %s: %w", opts.UECIDR, err)
+	}
+	err = netlink.AddrAdd(ueLink, ueAddr)
+	if err != nil {
 		return fmt.Errorf("ue: addr add %s: %w", opts.UECIDR, err)
 	}
+
 	// default route
 	gw := net.ParseIP(opts.HostCIDR)
 	route := &netlink.Route{
@@ -89,7 +92,8 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.all.rp_filter=0").Run()
 
 	// 4) pop back to root ns
-	if err := netns.Set(rootNS); err != nil {
+	err = netns.Set(rootNS)
+	if err != nil {
 		return fmt.Errorf("restore root ns: %w", err)
 	}
 
@@ -101,10 +105,12 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	if err != nil {
 		return fmt.Errorf("parse UPF IP: %w", err)
 	}
+
 	n3Link, err := netlink.LinkByName(opts.HostN3Interface)
 	if err != nil {
 		return fmt.Errorf("get n3 link: %w", err)
 	}
+
 	rt := &netlink.Route{
 		LinkIndex: n3Link.Attrs().Index,
 		Dst:       upfDst,
