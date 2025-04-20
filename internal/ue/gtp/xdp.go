@@ -146,7 +146,7 @@ func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) erro
 		},
 		Fd:           prog.FD(),
 		Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
-		DirectAction: true,
+		DirectAction: false,
 	}
 
 	if err := netlink.FilterAdd(f); err != nil {
