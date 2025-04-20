@@ -153,32 +153,32 @@ func attachTCProg(ifaceName string, prog *ebpf.Program) error {
 	cls := &netlink.GenericQdisc{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: l.Attrs().Index,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_CLSACT,
+			Handle:    netlink.HANDLE_CLSACT, // 0xffff:0000
+			Parent:    netlink.HANDLE_CLSACT, // same
 		},
 		QdiscType: "clsact",
 	}
 	if err := netlink.QdiscReplace(cls); err != nil {
-		return err
+		return fmt.Errorf("install clsact qdisc: %w", err)
 	}
 
-	// 2) build your ingress filter
-	//    parent=ffff:fff1 for ingress, handle must be non‑zero
-	parent := netlink.MakeHandle(0xffff, 0xfff1)
-	filter := &netlink.BpfFilter{
+	// then pick your hook point (here, ingress):
+	parent := netlink.MakeHandle(0xffff, 0xfff1) // ffff:fff1
+
+	f := &netlink.BpfFilter{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: l.Attrs().Index,
 			Parent:    parent,
-			Handle:    1, // ← must be non‑zero
+			Handle:    1, // must be non‑zero
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
 		Fd:           prog.FD(),
-		Name:         "tc",
-		DirectAction: false, // standard TC
+		Name:         "upstream_prog_func",
+		DirectAction: true,
 	}
 
-	if err := netlink.FilterAdd(filter); err != nil {
+	if err := netlink.FilterAdd(f); err != nil {
 		return fmt.Errorf("could not attach TC filter: %w", err)
 	}
 	return nil
