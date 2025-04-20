@@ -174,7 +174,7 @@ func attachTCProg(ifaceName string, prog *ebpf.Program) error {
 			Protocol:  unix.ETH_P_ALL,
 		},
 		Fd:           prog.FD(),
-		Name:         "upstream_prog_func",
+		Name:         "tc",
 		DirectAction: false, // standard TC
 	}
 
