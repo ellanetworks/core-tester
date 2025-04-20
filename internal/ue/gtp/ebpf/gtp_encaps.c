@@ -30,10 +30,17 @@ struct
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
 {
-    __u64 key = 0, *teid, *saddr, *daddr;
-    void *data_end = (void *)(long)skb->data_end;
+    __u32 key = 0;
+    __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
+    __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
+    __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
+    if (!saddr || !daddr || !teid)
+    {
+        LOG("missing map entries");
+        return TC_ACT_SHOT;
+    }
 
-    // 1) reserve headroom for [IP][UDP][GTP]
+    // 1) reserve headroom for IP + UDP + GTP
     int hdrs = sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
     if (bpf_skb_adjust_room(skb, hdrs,
                             BPF_ADJ_ROOM_MAC, 0) < 0)
@@ -42,71 +49,69 @@ int gtp_encap(struct __sk_buff *skb)
         return TC_ACT_SHOT;
     }
 
-    // 2) re-load pointers
-    void *raw = (void *)(long)skb->data;
-    struct ethhdr *eth = raw;
-    if ((void *)(eth + 1) > data_end)
-        return TC_ACT_SHOT;
+    // 2) figure out inner payload length (L2 stripped by TC)
+    //    skb->len is now old_len + hdrs
+    __u16 new_len = skb->len;
+    __u16 inner_len = new_len - hdrs;
 
-    struct iphdr *outer_iph = (void *)eth + sizeof(*eth);
-    if ((void *)(outer_iph + 1) > data_end)
-        return TC_ACT_SHOT;
-
-    struct udphdr *outer_udph = (void *)outer_iph + sizeof(*outer_iph);
-    if ((void *)(outer_udph + 1) > data_end)
-        return TC_ACT_SHOT;
-
-    __u8 *gtph = (void *)outer_udph + sizeof(*outer_udph);
-    if (gtph + GTP_HDR_LEN > (__u8 *)data_end)
-        return TC_ACT_SHOT;
-
-    // 3) compute inner‐payload length
-    __u16 inner_len = skb->len - hdrs - sizeof(*eth);
-
-    // 4) build GTP header
-    teid = bpf_map_lookup_elem(&teid_map, &key);
-    if (!teid)
+    // 3) write outer IP header at offset = 0
+    struct iphdr iph = {
+        .version = 4,
+        .ihl = sizeof(iph) >> 2,
+        .tos = 0,
+        .tot_len = bpf_htons(sizeof(iph) + sizeof(struct udphdr) + GTP_HDR_LEN + inner_len),
+        .id = 0,
+        .frag_off = 0,
+        .ttl = 64,
+        .protocol = IPPROTO_UDP,
+        .saddr = *saddr,
+        .daddr = *daddr,
+        .check = 0, // will be filled next
+    };
+    iph.check = bpf_csum_diff(0, 0,
+                              (__be32 *)&iph, sizeof(iph),
+                              0);
+    if (bpf_skb_store_bytes(skb,
+                            /*off=*/0,
+                            &iph, sizeof(iph),
+                            0) < 0)
     {
-        LOG("no TEID");
+        LOG("write IP hdr failed");
         return TC_ACT_SHOT;
     }
-    gtph[0] = 0x30; // v1, PT=1
+
+    // 4) write outer UDP header immediately after IP
+    struct udphdr udph = {
+        .source = bpf_htons(GTPU_PORT),
+        .dest = bpf_htons(GTPU_PORT),
+        .len = bpf_htons(sizeof(udph) + GTP_HDR_LEN + inner_len),
+        .check = 0, // skip checksum
+    };
+    if (bpf_skb_store_bytes(skb,
+                            /*off=*/sizeof(iph),
+                            &udph, sizeof(udph),
+                            0) < 0)
+    {
+        LOG("write UDP hdr failed");
+        return TC_ACT_SHOT;
+    }
+
+    // 5) write GTP header immediately after UDP
+    __u8 gtph[GTP_HDR_LEN];
+    gtph[0] = 0x30; // version=1, PT=1
     gtph[1] = 0xFF; // T‑PDU
-    *(__u16 *)(gtph + 2) = bpf_htons(inner_len);
-    *(__u32 *)(gtph + 4) = bpf_htonl(*teid);
-
-    // 5) build outer UDP header
-    outer_udph->source = bpf_htons(GTPU_PORT);
-    outer_udph->dest = bpf_htons(GTPU_PORT);
-    outer_udph->len = bpf_htons(sizeof(*outer_udph) + GTP_HDR_LEN + inner_len);
-    outer_udph->check = 0; // no checksum
-
-    // 6) build outer IP header
-    saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
-    daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
-    if (!saddr || !daddr)
+    *(__be16 *)(gtph + 2) = bpf_htons(inner_len);
+    *(__be32 *)(gtph + 4) = bpf_htonl(*teid);
+    if (bpf_skb_store_bytes(skb,
+                            /*off=*/sizeof(iph) + sizeof(udph),
+                            gtph, GTP_HDR_LEN,
+                            0) < 0)
     {
-        LOG("no IP maps");
+        LOG("write GTP hdr failed");
         return TC_ACT_SHOT;
     }
 
-    outer_iph->version = 4;
-    outer_iph->ihl = sizeof(*outer_iph) >> 2;
-    outer_iph->tos = 0;
-    outer_iph->tot_len = bpf_htons(sizeof(*outer_iph) + sizeof(*outer_udph) + GTP_HDR_LEN + inner_len);
-    outer_iph->id = 0;
-    outer_iph->frag_off = 0;
-    outer_iph->ttl = 64;
-    outer_iph->protocol = IPPROTO_UDP;
-    outer_iph->saddr = *saddr;
-    outer_iph->daddr = *daddr;
-    outer_iph->check = 0;
-    outer_iph->check = bpf_csum_diff(0, 0,
-                                     (__be32 *)outer_iph,
-                                     sizeof(*outer_iph),
-                                     0);
-
-    LOG("gtp_encap: done");
+    LOG("gtp_encap: done len=%d", new_len);
     return TC_ACT_OK;
 }
 
