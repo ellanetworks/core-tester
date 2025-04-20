@@ -122,13 +122,10 @@ func attachTCProg(ifaceName string, prog *ebpf.Program) error {
 		return err
 	}
 
-	// then pick your hook point (here, ingress):
-	parent := netlink.MakeHandle(0xffff, 0xfff1) // ffff:fff1
-
 	f := &netlink.BpfFilter{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: l.Attrs().Index,
-			Parent:    parent,
+			Parent:    netlink.HANDLE_MIN_INGRESS,
 			Handle:    1, // must be non‑zero
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
