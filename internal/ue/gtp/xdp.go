@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os/exec"
 	"time"
 
 	"github.com/cilium/ebpf"
@@ -116,16 +117,24 @@ func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
 
 	return fmt.Sprintf("%10v Upstream", upstreamPacketCount), nil
 }
+func ensureClsact(ifi string) error {
+	// exactly: tc qdisc replace dev $IFACE clsact
+	cmd := exec.Command("tc", "qdisc", "replace",
+		"dev", ifi,
+		"clsact",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("tc qdisc replace: %v\n%s", err, out)
+	}
+	return nil
+}
 
 func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) error {
-	// link, err := net.InterfaceByName(ifaceName)
-	// if err != nil {
-	// 	return err
-	// }
-	// l, err := netlink.LinkByName(link.Name)
-	// if err != nil {
-	// 	return err
-	// }
+	err := ensureClsact(device.Attrs().Name)
+	if err != nil {
+		return fmt.Errorf("could not ensure clsact qdisc: %w", err)
+	}
 
 	f := &netlink.BpfFilter{
 		FilterAttrs: netlink.FilterAttrs{
