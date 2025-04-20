@@ -45,35 +45,6 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 
 	time.Sleep(time.Second)
 
-	// opts := &VethPairOptions{
-	// 	N3InterfaceName: n3InterfaceName,
-	// 	Interface0Name:  VethHostInterfaceName,
-	// 	Interface1Name:  VethUEInterfaceName,
-	// 	UEIP:            ueIp + "/16",
-	// 	GTPUPort:        2152,
-	// 	GnbIP:           ueGnbIp.String(),
-	// 	UpfIP:           upfIp,
-	// 	Rteid:           gnbPduSession.GetTeidDownlink(),
-	// }
-
-	// vethPair, err := NewVethPair(opts)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create veth pair: %w", err)
-	// }
-	// // Close the veth pair when the function returns
-	// defer func() {
-	// 	if err := vethPair.Close(); err != nil {
-	// 		logger.UELog.Errorf("failed to close veth pair: %v", err)
-	// 	}
-	// }()
-
-	// const (
-	// 	vethHost = "veth-host"
-	// 	vethUE   = "veth-ue"
-	// 	hostCIDR = "10.45.0.2/16"
-	// 	ueCIDR   = "10.45.0.1/16"
-	// )
-
 	opts := &SetupUEVethPairOpts{
 		NSName:          NSName,
 		UpfIP:           upfIp,
