@@ -68,7 +68,8 @@ int gtp_encap(struct __sk_buff *skb)
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
     __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
     if (!saddr || !daddr || !teid)
-        return TC_ACT_SHOT;
+        LOG("failed to lookup IPs or TEID");
+    return TC_ACT_SHOT;
 
     // — first, expand room _after_ the 14‑byte Eth header
     int hdrs = sizeof(struct iphdr) + sizeof(struct udphdr) + GTP_HDR_LEN;
@@ -81,7 +82,8 @@ int gtp_encap(struct __sk_buff *skb)
 
     // — rewrite the MAC header so we can actually transmit
     if (rewrite_eth(skb) < 0)
-        return TC_ACT_SHOT;
+        LOG("failed to rewrite EthHdr");
+    return TC_ACT_SHOT;
 
     // calculate lengths
     __u16 new_len = skb->len;
@@ -108,7 +110,8 @@ int gtp_encap(struct __sk_buff *skb)
                             /*14 = ETH_HLEN*/
                             ETH_HLEN,
                             &iph, sizeof(iph), 0) < 0)
-        return TC_ACT_SHOT;
+        LOG("failed to insert IPHdr");
+    return TC_ACT_SHOT;
 
     // — build & insert outer UDP
     struct udphdr udph = {
@@ -120,7 +123,8 @@ int gtp_encap(struct __sk_buff *skb)
     if (bpf_skb_store_bytes(skb,
                             ETH_HLEN + sizeof(iph),
                             &udph, sizeof(udph), 0) < 0)
-        return TC_ACT_SHOT;
+        LOG("failed to insert Udphdr");
+    return TC_ACT_SHOT;
 
     // — build & insert GTP‑U header
     __u8 gtph[GTP_HDR_LEN];
@@ -131,7 +135,8 @@ int gtp_encap(struct __sk_buff *skb)
     if (bpf_skb_store_bytes(skb,
                             ETH_HLEN + sizeof(iph) + sizeof(udph),
                             gtph, GTP_HDR_LEN, 0) < 0)
-        return TC_ACT_SHOT;
+        LOG("failed to insert GTPHdr");
+    return TC_ACT_SHOT;
 
     LOG("encapsulated packet");
 
