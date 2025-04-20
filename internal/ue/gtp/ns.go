@@ -37,26 +37,26 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		LinkAttrs: netlink.LinkAttrs{Name: opts.VethHost},
 		PeerName:  opts.VethUE,
 	}
-	if err := netlink.LinkAdd(v); err != nil {
+	err = netlink.LinkAdd(v)
+	if err != nil {
 		return fmt.Errorf("create veth: %w", err)
 	}
 
 	// 2) Bring up host side and give it hostCIDR (Ex. 10.45.0.2/16)
-	hostLink, _ := netlink.LinkByName(opts.VethHost)
-	if err := netlink.LinkSetUp(hostLink); err != nil {
-		return fmt.Errorf("up %s: %w", opts.VethHost, err)
-	}
-	hostAddr, _ := netlink.ParseAddr(opts.HostCIDR)
-	if err := netlink.AddrAdd(hostLink, hostAddr); err != nil {
-		return fmt.Errorf("addr add %s→%s: %w", opts.HostCIDR, opts.VethHost, err)
+	hostLink, err := netlink.LinkByName(opts.VethHost)
+	if err != nil {
+		return fmt.Errorf("get %s: %w", opts.VethHost, err)
 	}
 
-	// 3) Create and enter UE namespace
-	ueNS, err := netns.NewNamed(opts.NSName)
+	hostAddr, err := netlink.ParseAddr(opts.HostCIDR)
 	if err != nil {
-		return fmt.Errorf("new ns %s: %w", opts.NSName, err)
+		return fmt.Errorf("parse addr %s: %w", opts.HostCIDR, err)
 	}
-	defer ueNS.Close()
+
+	err = netlink.AddrAdd(hostLink, hostAddr)
+	if err != nil {
+		return fmt.Errorf("addr add %s: %w", opts.HostCIDR, err)
+	}
 
 	// Move Ue link to UE namespace, change to ue ns, bring up veth-ue, assign UECIDR (ex. 10.45.0.1/16), set default via hostCIDR (ex. 10.45.0.2)
 	ueLink, err := netlink.LinkByName(opts.VethUE)
@@ -64,19 +64,7 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 		return fmt.Errorf("get %s: %w", opts.VethUE, err)
 	}
 
-	err = netlink.LinkSetNsFd(ueLink, int(ueNS))
-	if err != nil {
-		return fmt.Errorf("set ns %s: %w", opts.NSName, err)
-	}
-
 	logger.UELog.Infof("moved %s to ns %s", ueLink.Attrs().Name, opts.NSName)
-
-	err = netns.Set(ueNS)
-	if err != nil {
-		return fmt.Errorf("enter ns %s: %w", opts.NSName, err)
-	}
-
-	logger.UELog.Infof("entered ns %s", opts.NSName)
 
 	err = netlink.LinkSetUp(ueLink)
 	if err != nil {
@@ -135,6 +123,18 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) error {
 	}
 	if err := netlink.RouteReplace(rt); err != nil {
 		return fmt.Errorf("route replace UPF: %w", err)
+	}
+
+	// 3) Create  UE namespace and move UE link to its
+	ueNS, err := netns.NewNamed(opts.NSName)
+	if err != nil {
+		return fmt.Errorf("new ns %s: %w", opts.NSName, err)
+	}
+	defer ueNS.Close()
+
+	err = netlink.LinkSetNsFd(ueLink, int(ueNS))
+	if err != nil {
+		return fmt.Errorf("set ns %s: %w", opts.NSName, err)
 	}
 
 	return nil
