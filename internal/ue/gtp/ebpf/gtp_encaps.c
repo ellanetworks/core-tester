@@ -32,6 +32,12 @@ struct
     upf_ip_map SEC(".maps"),
     teid_map SEC(".maps");
 
+#define LOG(fmt, ...)                                              \
+    ({                                                             \
+        char ____fmt[] = fmt "\n";                                 \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
+    })
+
 static __always_inline int rewrite_eth(struct __sk_buff *skb)
 {
     __u32 key = 0;
@@ -56,6 +62,7 @@ static __always_inline int rewrite_eth(struct __sk_buff *skb)
 SEC("tc")
 int gtp_encap(struct __sk_buff *skb)
 {
+    LOG("received packet");
     __u32 key = 0;
     __u32 *saddr = bpf_map_lookup_elem(&gnb_ip_map, &key);
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
@@ -69,7 +76,8 @@ int gtp_encap(struct __sk_buff *skb)
                             hdrs,
                             BPF_ADJ_ROOM_MAC,
                             0) < 0)
-        return TC_ACT_SHOT;
+        LOG("failed to adjust room");
+    return TC_ACT_SHOT;
 
     // — rewrite the MAC header so we can actually transmit
     if (rewrite_eth(skb) < 0)
@@ -124,6 +132,8 @@ int gtp_encap(struct __sk_buff *skb)
                             ETH_HLEN + sizeof(iph) + sizeof(udph),
                             gtph, GTP_HDR_LEN, 0) < 0)
         return TC_ACT_SHOT;
+
+    LOG("encapsulated packet");
 
     return TC_ACT_OK;
 }

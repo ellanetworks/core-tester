@@ -125,11 +125,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		// s, err := formatCounters(objs.UpstreamPktCount)
-		// if err != nil {
-		// 	logger.EBPFLog.Warnf("Error reading map: %s", err)
-		// 	continue
-		// }
 
 		logger.EBPFLog.Infof("Waiting: \n")
 	}
@@ -137,16 +132,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	return nil
 }
 
-func formatCounters(upstreamVar *ebpf.Variable) (string, error) {
-	var upstreamPacketCount uint64
-
-	// retrieve value from the ebpf map
-	if err := upstreamVar.Get(&upstreamPacketCount); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%10v Upstream", upstreamPacketCount), nil
-}
 func ensureClsact(ifi string) error {
 	// exactly: tc qdisc replace dev $IFACE clsact
 	cmd := exec.Command("tc", "qdisc", "replace",
