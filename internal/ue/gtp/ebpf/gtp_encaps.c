@@ -13,10 +13,10 @@
 /* map[0] = ifindex of ens5 */
 struct
 {
-    __uint(type, BPF_MAP_TYPE_DEVMAP);
+    __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
     __uint(key_size, sizeof(__u32));
-    __uint(value_size, sizeof(struct bpf_devmap_val));
+    __uint(value_size, sizeof(__u32));
 } ifindex_map SEC(".maps");
 
 /* map[0] = TEID (host‑order) */
