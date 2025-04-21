@@ -42,16 +42,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 	defer objs.Close()
 
-	// l, err := netlink.LinkByName(iface.Name)
-	// if err != nil {
-	// 	return fmt.Errorf("could not find link %q: %w", iface.Name, err)
-	// }
-
-	// err = attachTCProg(l, "gtp_encap", objs.GtpEncap)
-	// if err != nil {
-	// 	return fmt.Errorf("could not attach TC program: %w", err)
-	// }
-
 	xdpLink, err := link.AttachXDP(link.XDPOptions{
 		Program:   objs.GtpEncap,
 		Interface: iface.Index,
@@ -82,34 +72,31 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	upfIPVal := binary.LittleEndian.Uint32(upfIP)
 
 	var key uint32 = 0
-	err = objs.IfindexMap.Update(&key, uint32(n3Iface.Index), ebpf.UpdateAny)
+	idx32 := uint32(n3Iface.Index)
+	err = objs.IfindexMap.Update(&key, &idx32, ebpf.UpdateAny)
 	if err != nil {
 		return fmt.Errorf("failed to update ifindex_map: %w", err)
 	}
+
+	logger.EBPFLog.Infof("Added interface index %d to ifindex_map", n3Iface.Index)
+
 	if err := objs.N3IpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update gnb_ip_map: %w", err)
 	}
 
-	// logger.EBPFLog.Infof("Added GNB IP %s to gnb_ip_map", gnbIP)
+	logger.EBPFLog.Infof("Added GNB IP %s to gnb_ip_map", gnbIP)
 
 	if err := objs.UpfIpMap.Update(&key, &upfIPVal, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update upf_ip_map: %w", err)
 	}
 
-	// logger.EBPFLog.Infof("Added UPF IP %s to upf_ip_map", upfIP)
+	logger.EBPFLog.Infof("Added UPF IP %s to upf_ip_map", upfIP)
 
 	if err := objs.TeidMap.Update(&key, &opts.Teid, ebpf.UpdateAny); err != nil {
 		return fmt.Errorf("failed to update teid_map: %w", err)
 	}
 
-	// logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
-
-	// if err := objs.UeMacMap.Update(&key, &opts.UEMacAddress, ebpf.UpdateAny); err != nil {
-	// 	return err
-	// }
-	// if err := objs.UpfMacMap.Update(&key, &opts.UpfMacAddress, ebpf.UpdateAny); err != nil {
-	// 	return err
-	// }
+	logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
 
 	// Print the contents of the counters maps.
 	ticker := time.NewTicker(3 * time.Second)
@@ -121,31 +108,6 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 
 	return nil
 }
-
-// func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) error {
-// 	// err := ensureClsact(device.Attrs().Name)
-// 	// if err != nil {
-// 	// 	return fmt.Errorf("could not ensure clsact qdisc: %w", err)
-// 	// }
-
-// 	// f := &netlink.BpfFilter{
-// 	// 	FilterAttrs: netlink.FilterAttrs{
-// 	// 		LinkIndex: device.Attrs().Index,
-// 	// 		Parent:    netlink.HANDLE_MIN_INGRESS,
-// 	// 		Handle:    1, // must be non‑zero
-// 	// 		Priority:  1,
-// 	// 		Protocol:  unix.ETH_P_ALL,
-// 	// 	},
-// 	// 	Fd:           prog.FD(),
-// 	// 	Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
-// 	// 	DirectAction: false,
-// 	// }
-
-// 	// if err := netlink.FilterAdd(f); err != nil {
-// 	// 	return fmt.Errorf("could not attach TC filter: %w", err)
-// 	// }
-// 	return nil
-// }
 
 func StringToXDPAttachMode(Mode string) link.XDPAttachFlags {
 	switch Mode {
