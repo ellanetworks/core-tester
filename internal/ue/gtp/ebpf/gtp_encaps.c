@@ -102,11 +102,18 @@ int gtp_encap(struct __sk_buff *skb)
     }
 
     /* 2) reserve headroom for IP+UDP+GTP */
-    int hdr_room = sizeof(ip_hdr_static) + sizeof(udp_hdr_static) + GTPU_HDR_LEN;
-    if (bpf_skb_adjust_room(skb, hdr_room,
-                            BPF_ADJ_ROOM_MAC, 0) < 0)
+    /* total headroom needed = outer-IP(20) + outer-UDP(8) + GTP-U(8) */
+    int hdr_room = 20 + 8 + 8;
+
+    /* tell the helper this is an IPv4→UDP tunnel */
+    __u64 flags = BPF_F_ADJ_ROOM_ENCAP_L3_IPV4 | BPF_F_ADJ_ROOM_ENCAP_L4_UDP;
+
+    if (bpf_skb_adjust_room(skb,
+                            hdr_room,
+                            BPF_ADJ_ROOM_MAC,
+                            flags) < 0)
     {
-        LOG("gtp_encap: adjust_room failed");
+        LOG("gtp_encap: adjust_room failed, flags=0x%llx", flags);
         return TC_ACT_SHOT;
     }
 
