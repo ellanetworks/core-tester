@@ -110,8 +110,8 @@ int gtp_encap(struct xdp_md *ctx)
     __builtin_memcpy(data + gtp_off + sizeof(gtp_ft),
                      teid, sizeof(*teid));
 
-    /* 7) redirect out ens5 */
-    return bpf_redirect_map(&ifindex_map, key, XDP_REDIRECT);
+    // at the end of your XDP program:
+    return bpf_redirect(*ifidx, XDP_REDIRECT);
 }
 
 char LICENSE[] SEC("license") = "GPL";
