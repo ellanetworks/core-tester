@@ -59,6 +59,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	if gnbIP == nil {
 		return fmt.Errorf("invalid GNB IP: %s", opts.GnbIPAddress)
 	}
+
 	upfIP := net.ParseIP(opts.UpfIPAddress).To4()
 	if upfIP == nil {
 		return fmt.Errorf("invalid UPF IP: %s", opts.UpfIPAddress)
@@ -68,7 +69,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	// upfIPVal := binary.LittleEndian.Uint32(upfIP)
 
 	var key uint32 = 0
-	err = objs.IfindexMap.Update(&key, &n3Iface.Index, ebpf.UpdateAny)
+	err = objs.IfindexMap.Update(&key, uint32(n3Iface.Index), ebpf.UpdateAny)
 	if err != nil {
 		return fmt.Errorf("failed to update ifindex_map: %w", err)
 	}
