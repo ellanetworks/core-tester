@@ -44,7 +44,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	xdpLink, err := link.AttachXDP(link.XDPOptions{
 		Program:   objs.GtpEncap,
 		Interface: iface.Index,
-		Flags:     link.XDPDriverMode,
+		Flags:     link.XDPGenericMode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to attach eBPF program on interface %q: %s", iface.Name, err)
