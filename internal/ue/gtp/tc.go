@@ -132,7 +132,7 @@ func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) erro
 	f := &netlink.BpfFilter{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: device.Attrs().Index,
-			Parent:    netlink.HANDLE_MIN_EGRESS,
+			Parent:    netlink.HANDLE_MIN_INGRESS,
 			Handle:    1, // must be non‑zero
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
