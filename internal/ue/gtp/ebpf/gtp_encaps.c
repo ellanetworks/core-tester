@@ -29,20 +29,7 @@ int gtp_encap(struct xdp_md *ctx)
     // Log entry and packet length
     LOG("xdp_redirect: pkt len=%u", (unsigned int)(data_end - data));
 
-    // Parse Ethernet header
-    struct ethhdr *eth = data;
-    if ((void *)eth + sizeof(*eth) > data_end)
-        return XDP_DROP;
-
-    // Filter only IPv4
-    if (eth->h_proto != bpf_htons(ETH_P_IP))
-    {
-        // Pass non-IPv4 (e.g. ARP) to kernel
-        return XDP_PASS;
-    }
-
-    // Perform a devmap redirect
-    return bpf_redirect_map(&ifindex_map, /*key=*/0, /*flags=*/0);
+    return XDP_DROP;
 }
 
 char LICENSE[] SEC("license") = "GPL";
