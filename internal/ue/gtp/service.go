@@ -53,6 +53,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		HostCIDR:        "10.45.0.100/16", // This should not be hardcoded
 		UECIDR:          ueIp + "/16",
 		HostN3Interface: n3InterfaceName,
+		BridgeName:      "br0",
 	}
 	vethPair, err := SetupUEVethPair(opts)
 	if err != nil {
