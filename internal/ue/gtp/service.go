@@ -77,13 +77,14 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 	}
 
 	ebpfOpts := &AttachEbpfProgramOptions{
-		IfaceName:     VethHostInterfaceName,
-		GnbIPAddress:  ueGnbIp.String(),
-		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
-		UpfIPAddress:  upfIp,
-		Teid:          lTEID,
-		UEMacAddress:  vethPair.UELink.Attrs().HardwareAddr,
-		UpfMacAddress: upfHw,
+		IfaceName:       VethHostInterfaceName,
+		GnbIPAddress:    ueGnbIp.String(),
+		GnbMacAddress:   gnbLink.Attrs().HardwareAddr,
+		UpfIPAddress:    upfIp,
+		Teid:            lTEID,
+		UEMacAddress:    vethPair.UELink.Attrs().HardwareAddr,
+		UpfMacAddress:   upfHw,
+		N3InterfaceName: n3InterfaceName,
 	}
 
 	err = AttachEbpfProgram(ebpfOpts)
