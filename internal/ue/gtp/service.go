@@ -68,7 +68,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 		return fmt.Errorf("cannot read gnb link: %v", err)
 	}
 
-	upfMacStr := "52:54:00:53:75:fd"
+	upfMacStr := "52:54:00:53:75:fd" // Remove this hardcoded value
 
 	upfHw, err := net.ParseMAC(upfMacStr)
 	if err != nil {
@@ -76,7 +76,7 @@ func SetupGtpInterface(ue *context.UEContext, msg gnbContext.UEMessage, n3Interf
 	}
 
 	ebpfOpts := &AttachEbpfProgramOptions{
-		IfaceName:     "ens5",
+		IfaceName:     VethHostInterfaceName,
 		GnbIPAddress:  ueGnbIp.String(),
 		GnbMacAddress: gnbLink.Attrs().HardwareAddr,
 		UpfIPAddress:  upfIp,
