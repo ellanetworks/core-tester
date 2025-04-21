@@ -45,7 +45,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	xdpLink, err := link.AttachXDP(link.XDPOptions{
 		Program:   objs.GtpEncap,
 		Interface: iface.Index,
-		Flags:     StringToXDPAttachMode("native"),
+		Flags:     link.XDPGenericMode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to attach eBPF program on interface %q: %s", iface.Name, err)
@@ -107,17 +107,4 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 
 	return nil
-}
-
-func StringToXDPAttachMode(Mode string) link.XDPAttachFlags {
-	switch Mode {
-	case "generic":
-		return link.XDPGenericMode
-	case "native":
-		return link.XDPDriverMode
-	case "offload":
-		return link.XDPOffloadMode
-	default:
-		return link.XDPGenericMode
-	}
 }
