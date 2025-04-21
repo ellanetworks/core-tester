@@ -1,6 +1,7 @@
 package gtp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os/exec"
@@ -65,23 +66,23 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("invalid UPF IP: %s", opts.UpfIPAddress)
 	}
 
-	// gnbIPVal := binary.LittleEndian.Uint32(gnbIP)
-	// upfIPVal := binary.LittleEndian.Uint32(upfIP)
+	gnbIPVal := binary.LittleEndian.Uint32(gnbIP)
+	upfIPVal := binary.LittleEndian.Uint32(upfIP)
 
 	var key uint32 = 0
 	err = objs.IfindexMap.Update(&key, uint32(n3Iface.Index), ebpf.UpdateAny)
 	if err != nil {
 		return fmt.Errorf("failed to update ifindex_map: %w", err)
 	}
-	// if err := objs.GnbIpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
-	// 	return fmt.Errorf("failed to update gnb_ip_map: %w", err)
-	// }
+	if err := objs.N3IpMap.Update(&key, &gnbIPVal, ebpf.UpdateAny); err != nil {
+		return fmt.Errorf("failed to update gnb_ip_map: %w", err)
+	}
 
 	// logger.EBPFLog.Infof("Added GNB IP %s to gnb_ip_map", gnbIP)
 
-	// if err := objs.UpfIpMap.Update(&key, &upfIPVal, ebpf.UpdateAny); err != nil {
-	// 	return fmt.Errorf("failed to update upf_ip_map: %w", err)
-	// }
+	if err := objs.UpfIpMap.Update(&key, &upfIPVal, ebpf.UpdateAny); err != nil {
+		return fmt.Errorf("failed to update upf_ip_map: %w", err)
+	}
 
 	// logger.EBPFLog.Infof("Added UPF IP %s to upf_ip_map", upfIP)
 
