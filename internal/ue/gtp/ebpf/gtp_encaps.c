@@ -130,7 +130,7 @@ int gtp_encap(struct xdp_md *ctx)
     __builtin_memcpy(data + gtp_off + 2, teid, sizeof(*teid));
 
     /* 7) redirect out ens5 */
-    return bpf_redirect(*ifidx, /*flags=*/0);
+    return bpf_redirect_map(&ifindex_map, 0 /* key */, 0 /* flags */);
 }
 
 char LICENSE[] SEC("license") = "GPL";
