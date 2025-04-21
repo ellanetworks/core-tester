@@ -18,7 +18,6 @@ type SetupUEVethPairOpts struct {
 	HostCIDR        string // e.g. "10.45.0.2/16"
 	UECIDR          string // e.g. "10.45.0.1/16"
 	HostN3Interface string // e.g. "ens5"
-	BridgeName      string // e.g. "br0"
 }
 
 type VethPair struct {
@@ -107,38 +106,6 @@ func SetupUEVethPair(opts *SetupUEVethPairOpts) (*VethPair, error) {
 	// 6) switch back to root and finish up
 	if err := netns.Set(rootNS); err != nil {
 		return nil, fmt.Errorf("restoring original netns: %w", err)
-	}
-
-	// 7) create (or get) the bridge
-	var br netlink.Link
-	br, err = netlink.LinkByName(opts.BridgeName)
-	if err != nil {
-		// not found → create
-		br = &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: opts.BridgeName}}
-		if err := netlink.LinkAdd(br); err != nil {
-			return nil, fmt.Errorf("creating bridge %q: %w", opts.BridgeName, err)
-		}
-	}
-	// bring up the bridge itself
-	if err := netlink.LinkSetUp(br); err != nil {
-		return nil, fmt.Errorf("bringing up bridge %q: %w", opts.BridgeName, err)
-	}
-
-	// 8) enslave ens5 (or HostN3Interface) and our veth-host into the bridge
-	for _, slaveName := range []string{opts.HostN3Interface, opts.VethHost} {
-		slave, err := netlink.LinkByName(slaveName)
-		if err != nil {
-			return nil, fmt.Errorf("lookup %s for bridge: %w", slaveName, err)
-		}
-		// make sure the slave is down before changing master
-		_ = netlink.LinkSetDown(slave)
-		if err := netlink.LinkSetMaster(slave, br); err != nil {
-			return nil, fmt.Errorf("adding %s to bridge %s: %w", slaveName, opts.BridgeName, err)
-		}
-		// bring the slave back up
-		if err := netlink.LinkSetUp(slave); err != nil {
-			return nil, fmt.Errorf("bringing up %s after enslaving: %w", slaveName, err)
-		}
 	}
 
 	// 9) re-add your UPF route over ens5 if needed
