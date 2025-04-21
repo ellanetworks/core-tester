@@ -105,8 +105,10 @@ int gtp_encap(struct __sk_buff *skb)
     /* total headroom needed = outer-IP(20) + outer-UDP(8) + GTP-U(8) */
     int hdr_room = 20 + 8 + 8;
 
-    /* tell the helper this is an IPv4→UDP tunnel */
-    __u64 flags = BPF_F_ADJ_ROOM_ENCAP_L3_IPV4 | BPF_F_ADJ_ROOM_ENCAP_L4_UDP;
+    /* tell the helper “we’re making an IPv4→UDP tunnel over Ethernet” */
+    __u64 flags = BPF_F_ADJ_ROOM_ENCAP_L3_IPV4   /* new space will hold an IPv4 header     */
+                  | BPF_F_ADJ_ROOM_ENCAP_L4_UDP  /* followed by UDP                         */
+                  | BPF_F_ADJ_ROOM_ENCAP_L2_ETH; /* inner layer‑2 is Ethernet (14 bytes)    */
 
     if (bpf_skb_adjust_room(skb,
                             hdr_room,
