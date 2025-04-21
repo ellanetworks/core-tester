@@ -3,7 +3,7 @@
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <bpf/bpf_helpers.h>
-#include <bpf/bpf_endian.h>
+#include <bpf/bpf_endian.h> // for bpf_htons()
 
 #define LOG(fmt, ...) \
     ({ char ____fmt[] = fmt "\n"; bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); })
@@ -31,8 +31,8 @@ int gtp_encap(struct xdp_md *ctx)
     if ((void *)eth + sizeof(*eth) > data_end)
         return XDP_DROP;
 
-    __u16 hproto = bpf_ntohs(eth->h_proto);
-    if (hproto != ETH_P_IP)
+    // Filter only IPv4
+    if (eth->h_proto != bpf_htons(ETH_P_IP))
     {
         // Pass non-IPv4 (e.g. ARP) up to the kernel
         return XDP_PASS;
