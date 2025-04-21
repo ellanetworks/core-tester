@@ -85,9 +85,9 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 
 	// logger.EBPFLog.Infof("Added UPF IP %s to upf_ip_map", upfIP)
 
-	// if err := objs.TeidMap.Update(&key, &opts.Teid, ebpf.UpdateAny); err != nil {
-	// 	return fmt.Errorf("failed to update teid_map: %w", err)
-	// }
+	if err := objs.TeidMap.Update(&key, &opts.Teid, ebpf.UpdateAny); err != nil {
+		return fmt.Errorf("failed to update teid_map: %w", err)
+	}
 
 	// logger.EBPFLog.Infof("Added TEID %d to teid_map", opts.Teid)
 
