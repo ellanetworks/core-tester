@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
 )
@@ -28,7 +29,7 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 		return fmt.Errorf("could not find interface %q: %w", opts.IfaceName, err)
 	}
 
-	_, err = net.InterfaceByName(opts.N3InterfaceName)
+	n3Iface, err := net.InterfaceByName(opts.N3InterfaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %q: %w", opts.N3InterfaceName, err)
 	}
@@ -69,12 +70,12 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	// gnbIPVal := binary.LittleEndian.Uint32(gnbIP)
 	// upfIPVal := binary.LittleEndian.Uint32(upfIP)
 
-	// var key uint32 = 0
-	// idx32 := uint32(n3Iface.Index)
-	// err = objs.IfindexMap.Update(&key, &idx32, ebpf.UpdateAny)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to update ifindex_map: %w", err)
-	// }
+	var key uint32 = 0
+	idx32 := uint32(n3Iface.Index)
+	err = objs.IfindexMap.Update(&key, &idx32, ebpf.UpdateAny)
+	if err != nil {
+		return fmt.Errorf("failed to update ifindex_map: %w", err)
+	}
 
 	// logger.EBPFLog.Infof("Added interface index %d to ifindex_map", n3Iface.Index)
 
