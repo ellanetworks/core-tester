@@ -10,6 +10,13 @@
 
 #define GTPU_HDR_LEN 8
 
+/* log macro */
+#define LOG(fmt, ...)                                              \
+    ({                                                             \
+        char ____fmt[] = fmt "\n";                                 \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
+    })
+
 /* map[0] = ifindex of ens5 */
 struct
 {
@@ -53,47 +60,60 @@ static const __u8 gtp_ft[2] = {0x30, 0xFF};
 static const __u8 ip_hdr_static[20] = {
     0x45, 0x00, 0x00, 0x00, // ver=4,ihl=5, TOS=0, tot_len=0
     0x00, 0x00, 0x00, 0x00, // id=0, frag_off=0
-    0x40, 0x11, 0x00, 0x00, // TTL=64, proto=UDP(17), csum=0
-    /* place for saddr (4 bytes) */ 0x00, 0x00, 0x00, 0x00,
-    /* place for daddr (4 bytes) */ 0x00, 0x00, 0x00, 0x00};
+    0x40, 0x11, 0x00, 0x00, // TTL=64, proto=UDP, csum=0
+    /* place for saddr */ 0x00, 0x00, 0x00, 0x00,
+    /* place for daddr */ 0x00, 0x00, 0x00, 0x00};
 
 /* Static outer UDP header (8 bytes): 2152→2152, len=0, csum=0 */
 static const __u8 udp_hdr_static[8] = {
     0x08, 0x78, 0x08, 0x78, // src=2152, dst=2152
-    0x00, 0x00, 0x00, 0x00  // len=0, csum=0
+    0x00, 0x00, 0x00, 0x00  // len=0, checksum=0
 };
 
 SEC("xdp")
 int gtp_encap(struct xdp_md *ctx)
 {
+    /* entry log */
+    LOG("gtp_encap entry: orig pkt len=%d", ctx->data_end - ctx->data);
+
     void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;
 
-    /* 1) look up maps */
+    /* 1) map lookups */
     __u32 key = 0;
     __u32 *ifidx = bpf_map_lookup_elem(&ifindex_map, &key);
     __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
     __u32 *saddr = bpf_map_lookup_elem(&n3_ip_map, &key);
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
     if (!ifidx || !teid || !saddr || !daddr)
+    {
+        LOG("gtp_encap: missing map entry");
         return XDP_DROP;
+    }
+    LOG("gtp_encap: ifidx=%d ", *ifidx);
 
-    /* 2) carve headroom for 20+8+8 bytes */
+    /* 2) carve headroom */
     const int headroom = sizeof(ip_hdr_static) + sizeof(udp_hdr_static) + GTPU_HDR_LEN;
     if (bpf_xdp_adjust_head(ctx, -headroom) < 0)
+    {
+        LOG("gtp_encap: adjust_head failed");
         return XDP_DROP;
+    }
+    LOG("gtp_encap: headroom %d carved", headroom);
 
-    /* 3) reload data pointers */
+    /* 3) reload pointers */
     data = (void *)(long)ctx->data;
     data_end = (void *)(long)ctx->data_end;
     if (data + ETH_HLEN + headroom > data_end)
+    {
+        LOG("gtp_encap: bounds check failed");
         return XDP_DROP;
+    }
 
     /* 4) insert outer IP */
     __builtin_memcpy(data + ETH_HLEN,
                      ip_hdr_static,
                      sizeof(ip_hdr_static));
-    /* patch saddr,daddr */
     __builtin_memcpy(data + ETH_HLEN + offsetof(struct iphdr, saddr),
                      saddr, sizeof(*saddr));
     __builtin_memcpy(data + ETH_HLEN + offsetof(struct iphdr, daddr),
@@ -107,10 +127,9 @@ int gtp_encap(struct xdp_md *ctx)
     /* 6) insert GTP‑U */
     __u32 gtp_off = ETH_HLEN + sizeof(ip_hdr_static) + sizeof(udp_hdr_static);
     __builtin_memcpy(data + gtp_off, gtp_ft, sizeof(gtp_ft));
-    __builtin_memcpy(data + gtp_off + sizeof(gtp_ft),
-                     teid, sizeof(*teid));
+    __builtin_memcpy(data + gtp_off + 2, teid, sizeof(*teid));
 
-    // at the end of your XDP program:
+    /* 7) redirect out ens5 */
     return bpf_redirect(*ifidx, XDP_REDIRECT);
 }
 
