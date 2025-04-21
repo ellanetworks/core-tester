@@ -21,7 +21,7 @@ struct
 } ifindex_map SEC(".maps");
 
 SEC("xdp")
-int xdp_redirect(struct xdp_md *ctx)
+int gtp_encap(struct xdp_md *ctx)
 {
     void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;

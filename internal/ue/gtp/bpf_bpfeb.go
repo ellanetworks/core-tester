@@ -54,7 +54,7 @@ type bpfSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type bpfProgramSpecs struct {
-	XdpRedirect *ebpf.ProgramSpec `ebpf:"xdp_redirect"`
+	GtpEncap *ebpf.ProgramSpec `ebpf:"gtp_encap"`
 }
 
 // bpfMapSpecs contains maps before they are loaded into the kernel.
@@ -109,12 +109,12 @@ type bpfVariables struct {
 //
 // It can be passed to loadBpfObjects or ebpf.CollectionSpec.LoadAndAssign.
 type bpfPrograms struct {
-	XdpRedirect *ebpf.Program `ebpf:"xdp_redirect"`
+	GtpEncap *ebpf.Program `ebpf:"gtp_encap"`
 }
 
 func (p *bpfPrograms) Close() error {
 	return _BpfClose(
-		p.XdpRedirect,
+		p.GtpEncap,
 	)
 }
 
