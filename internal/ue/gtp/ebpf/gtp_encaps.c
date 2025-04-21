@@ -4,7 +4,7 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
-#include <linux/pkt_cls.h> // TC_ACT_* & BPF_ADJ_ROOM_MAC
+#include <linux/in.h> // IPPROTO_UDP
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
@@ -49,125 +49,69 @@ struct
 /* GTP flags+type (ver=1, PT=1, T‑PDU) */
 static const __u8 gtp_ft[2] = {0x30, 0xFF};
 
-/* Static outer IP header (20 bytes):
- * [0] version=4,IHL=5
- * [1] TOS=0
- * [2-3] tot_len=0
- * [4-5] id=0
- * [6-7] frag_off=0
- * [8] TTL=64
- * [9] protocol=UDP(17)
- * [10-11] checksum=0
- * [12-19] saddr,daddr placeholders
- */
+/* Static outer IP header (20 bytes): version/IHL, TTL, protocol, checksum=0 */
 static const __u8 ip_hdr_static[20] = {
-    0x45, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x40, 0x11, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00};
+    0x45, 0x00, 0x00, 0x00, // ver=4,ihl=5, TOS=0, tot_len=0
+    0x00, 0x00, 0x00, 0x00, // id=0, frag_off=0
+    0x40, 0x11, 0x00, 0x00, // TTL=64, proto=UDP(17), csum=0
+    /* place for saddr (4 bytes) */ 0x00, 0x00, 0x00, 0x00,
+    /* place for daddr (4 bytes) */ 0x00, 0x00, 0x00, 0x00};
 
-/* Static outer UDP header (8 bytes):
- * [0-1] src port = 2152 (0x0878)
- * [2-3] dst port = 2152
- * [4-5] len = 0
- * [6-7] csum = 0
- */
+/* Static outer UDP header (8 bytes): 2152→2152, len=0, csum=0 */
 static const __u8 udp_hdr_static[8] = {
-    0x08, 0x78, 0x08, 0x78,
-    0x00, 0x00, 0x00, 0x00};
+    0x08, 0x78, 0x08, 0x78, // src=2152, dst=2152
+    0x00, 0x00, 0x00, 0x00  // len=0, csum=0
+};
 
-/* lightweight printk */
-#define LOG(fmt, ...)                              \
-    ({                                             \
-        char ____fmt[] = fmt "\n";                 \
-        bpf_trace_printk(____fmt, sizeof(____fmt), \
-                         ##__VA_ARGS__);           \
-    })
-
-SEC("tc")
-int gtp_encap(struct __sk_buff *skb)
+SEC("xdp")
+int gtp_encap(struct xdp_md *ctx)
 {
-    /* 1) log + look up all maps */
-    LOG("gtp_encap: pkt len=%d", skb->len);
+    void *data = (void *)(long)ctx->data;
+    void *data_end = (void *)(long)ctx->data_end;
+
+    /* 1) look up maps */
     __u32 key = 0;
-    __u32 *idx = bpf_map_lookup_elem(&ifindex_map, &key);
+    __u32 *ifidx = bpf_map_lookup_elem(&ifindex_map, &key);
     __u32 *teid = bpf_map_lookup_elem(&teid_map, &key);
     __u32 *saddr = bpf_map_lookup_elem(&n3_ip_map, &key);
     __u32 *daddr = bpf_map_lookup_elem(&upf_ip_map, &key);
-    if (!idx || !teid || !saddr || !daddr)
-    {
-        LOG("gtp_encap: missing map");
-        return TC_ACT_SHOT;
-    }
+    if (!ifidx || !teid || !saddr || !daddr)
+        return XDP_DROP;
 
-    /* 2) reserve headroom for IP+UDP+GTP */
-    /* total headroom needed = outer-IP(20) + outer-UDP(8) + GTP-U(8) */
-    int hdr_room = 20 + 8 + 8;
+    /* 2) carve headroom for 20+8+8 bytes */
+    const int headroom = sizeof(ip_hdr_static) + sizeof(udp_hdr_static) + GTPU_HDR_LEN;
+    if (bpf_xdp_adjust_head(ctx, -headroom) < 0)
+        return XDP_DROP;
 
-    /* tell the helper “we’re making an IPv4→UDP tunnel over Ethernet” */
-    __u64 flags = BPF_F_ADJ_ROOM_ENCAP_L3_IPV4   /* new space will hold an IPv4 header     */
-                  | BPF_F_ADJ_ROOM_ENCAP_L4_UDP  /* followed by UDP                         */
-                  | BPF_F_ADJ_ROOM_ENCAP_L2_ETH; /* inner layer‑2 is Ethernet (14 bytes)    */
+    /* 3) reload data pointers */
+    data = (void *)(long)ctx->data;
+    data_end = (void *)(long)ctx->data_end;
+    if (data + ETH_HLEN + headroom > data_end)
+        return XDP_DROP;
 
-    if (bpf_skb_adjust_room(skb,
-                            hdr_room,
-                            BPF_ADJ_ROOM_MAC,
-                            flags) < 0)
-    {
-        LOG("gtp_encap: adjust_room failed, flags=0x%llx", flags);
-        return TC_ACT_SHOT;
-    }
+    /* 4) insert outer IP */
+    __builtin_memcpy(data + ETH_HLEN,
+                     ip_hdr_static,
+                     sizeof(ip_hdr_static));
+    /* patch saddr,daddr */
+    __builtin_memcpy(data + ETH_HLEN + offsetof(struct iphdr, saddr),
+                     saddr, sizeof(*saddr));
+    __builtin_memcpy(data + ETH_HLEN + offsetof(struct iphdr, daddr),
+                     daddr, sizeof(*daddr));
 
-    /* pointers to new and old data */
-    void *data_end = (void *)(long)skb->data_end;
-    void *data = (void *)(long)skb->data;
+    /* 5) insert outer UDP */
+    __builtin_memcpy(data + ETH_HLEN + sizeof(ip_hdr_static),
+                     udp_hdr_static,
+                     sizeof(udp_hdr_static));
 
-    /* verify we can write Eth + hdrs */
-    if (data + ETH_HLEN + hdr_room > data_end)
-        return TC_ACT_SHOT;
-
-    /* 3) write outer IP header at offset ETH_HLEN */
-    bpf_skb_store_bytes(skb,
-                        ETH_HLEN,
-                        ip_hdr_static,
-                        sizeof(ip_hdr_static),
-                        0);
-
-    /* override saddr+daddr in that IP header */
-    bpf_skb_store_bytes(skb,
-                        ETH_HLEN + offsetof(struct iphdr, saddr),
-                        saddr, 4, 0);
-    bpf_skb_store_bytes(skb,
-                        ETH_HLEN + offsetof(struct iphdr, daddr),
-                        daddr, 4, 0);
-
-    /* 4) write outer UDP header at IP_OFF + sizeof(iphdr) */
-    bpf_skb_store_bytes(skb,
-                        ETH_HLEN + sizeof(ip_hdr_static),
-                        udp_hdr_static,
-                        sizeof(udp_hdr_static),
-                        0);
-
-    /* compute offset to GTP: */
+    /* 6) insert GTP‑U */
     __u32 gtp_off = ETH_HLEN + sizeof(ip_hdr_static) + sizeof(udp_hdr_static);
+    __builtin_memcpy(data + gtp_off, gtp_ft, sizeof(gtp_ft));
+    __builtin_memcpy(data + gtp_off + sizeof(gtp_ft),
+                     teid, sizeof(*teid));
 
-    /* 5) write GTP flags/type */
-    bpf_skb_store_bytes(skb,
-                        gtp_off,
-                        gtp_ft,
-                        sizeof(gtp_ft),
-                        0);
-
-    /* 6) write TEID (network order) at gtp_off+2 */
-    bpf_skb_store_bytes(skb,
-                        gtp_off + sizeof(gtp_ft),
-                        teid,
-                        sizeof(*teid),
-                        0);
-
-    /* 7) finally redirect out ens5 */
-    return bpf_redirect(*idx, 0);
+    /* 7) redirect out ens5 */
+    return bpf_redirect_map(&ifindex_map, key, XDP_REDIRECT);
 }
 
 char LICENSE[] SEC("license") = "GPL";

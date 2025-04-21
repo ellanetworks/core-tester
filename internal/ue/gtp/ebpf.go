@@ -4,13 +4,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"os/exec"
 	"time"
 
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -tags linux bpf ebpf/gtp_encaps.c
@@ -44,15 +42,29 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	}
 	defer objs.Close()
 
-	l, err := netlink.LinkByName(iface.Name)
-	if err != nil {
-		return fmt.Errorf("could not find link %q: %w", iface.Name, err)
-	}
+	// l, err := netlink.LinkByName(iface.Name)
+	// if err != nil {
+	// 	return fmt.Errorf("could not find link %q: %w", iface.Name, err)
+	// }
 
-	err = attachTCProg(l, "gtp_encap", objs.GtpEncap)
+	// err = attachTCProg(l, "gtp_encap", objs.GtpEncap)
+	// if err != nil {
+	// 	return fmt.Errorf("could not attach TC program: %w", err)
+	// }
+
+	xdpLink, err := link.AttachXDP(link.XDPOptions{
+		Program:   objs.GtpEncap,
+		Interface: iface.Index,
+		Flags:     StringToXDPAttachMode("native"),
+	})
 	if err != nil {
-		return fmt.Errorf("could not attach TC program: %w", err)
+		return fmt.Errorf("failed to attach eBPF program on interface %q: %s", iface.Name, err)
 	}
+	defer func() {
+		if err := xdpLink.Close(); err != nil {
+			logger.UELog.Warnf("Failed to detach eBPF program from interface: %s", err)
+		}
+	}()
 
 	logger.EBPFLog.Infof("Attached GTP-U encapsulation eBPF program to egress of iface %q (index %d)", iface.Name, iface.Index)
 
@@ -110,40 +122,40 @@ func AttachEbpfProgram(opts *AttachEbpfProgramOptions) error {
 	return nil
 }
 
-func ensureClsact(ifi string) error {
-	// exactly: tc qdisc replace dev $IFACE clsact
-	cmd := exec.Command("tc", "qdisc", "replace",
-		"dev", ifi,
-		"clsact",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("tc qdisc replace: %v\n%s", err, out)
-	}
-	return nil
-}
+// func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) error {
+// 	// err := ensureClsact(device.Attrs().Name)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("could not ensure clsact qdisc: %w", err)
+// 	// }
 
-func attachTCProg(device netlink.Link, progName string, prog *ebpf.Program) error {
-	err := ensureClsact(device.Attrs().Name)
-	if err != nil {
-		return fmt.Errorf("could not ensure clsact qdisc: %w", err)
-	}
+// 	// f := &netlink.BpfFilter{
+// 	// 	FilterAttrs: netlink.FilterAttrs{
+// 	// 		LinkIndex: device.Attrs().Index,
+// 	// 		Parent:    netlink.HANDLE_MIN_INGRESS,
+// 	// 		Handle:    1, // must be non‑zero
+// 	// 		Priority:  1,
+// 	// 		Protocol:  unix.ETH_P_ALL,
+// 	// 	},
+// 	// 	Fd:           prog.FD(),
+// 	// 	Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
+// 	// 	DirectAction: false,
+// 	// }
 
-	f := &netlink.BpfFilter{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: device.Attrs().Index,
-			Parent:    netlink.HANDLE_MIN_INGRESS,
-			Handle:    1, // must be non‑zero
-			Priority:  1,
-			Protocol:  unix.ETH_P_ALL,
-		},
-		Fd:           prog.FD(),
-		Name:         fmt.Sprintf("%s-%s", progName, device.Attrs().Name),
-		DirectAction: false,
-	}
+// 	// if err := netlink.FilterAdd(f); err != nil {
+// 	// 	return fmt.Errorf("could not attach TC filter: %w", err)
+// 	// }
+// 	return nil
+// }
 
-	if err := netlink.FilterAdd(f); err != nil {
-		return fmt.Errorf("could not attach TC filter: %w", err)
+func StringToXDPAttachMode(Mode string) link.XDPAttachFlags {
+	switch Mode {
+	case "generic":
+		return link.XDPGenericMode
+	case "native":
+		return link.XDPDriverMode
+	case "offload":
+		return link.XDPOffloadMode
+	default:
+		return link.XDPGenericMode
 	}
-	return nil
 }
