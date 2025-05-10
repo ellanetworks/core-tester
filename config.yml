@@ -53,3 +53,5 @@ amfif:
     port: 38412
 
 log-level: "info"
+
+tcx-interface-name: "ens5"
