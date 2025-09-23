@@ -38,7 +38,6 @@ func NewUE(conf config.Config, id int, ueMgrChannel chan procedures.UeTesterMess
 		conf.GetUESecurityCapability(),
 		conf.Ue.Key,
 		conf.Ue.Opc,
-		"c9e8763286b5b9ffbdf56e1297d0887b",
 		conf.Ue.Amf,
 		conf.Ue.Sqn,
 		conf.Ue.Hplmn.Mcc,
