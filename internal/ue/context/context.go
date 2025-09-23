@@ -115,7 +115,7 @@ type SECURITY struct {
 
 func (ue *UEContext) NewRanUeContext(msin string,
 	ueSecurityCapability *nasType.UESecurityCapability,
-	k, opc, op, amf, sqn, mcc, mnc string, homeNetworkPublicKey sidf.HomeNetworkPublicKey, routingIndicator, dnn string,
+	k, opc, amf, sqn, mcc, mnc string, homeNetworkPublicKey sidf.HomeNetworkPublicKey, routingIndicator, dnn string,
 	sst int32, sd string, scenarioChan chan scenario.ScenarioMessage,
 	gnbInboundChannel chan context.UEMessage, id int,
 ) error {
@@ -137,7 +137,7 @@ func (ue *UEContext) NewRanUeContext(msin string,
 	ue.UeSecurity.NgKsi.Tsc = models.ScType_NATIVE
 
 	// added key, AuthenticationManagementField and opc or op.
-	ue.SetAuthSubscription(k, opc, op, amf, sqn)
+	ue.SetAuthSubscription(k, opc, amf, sqn)
 
 	// added mcc and mnc
 	ue.UeSecurity.mcc = mcc
@@ -532,15 +532,15 @@ func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscr
 	AUTN []byte,
 ) ([]byte, error) {
 	// Get OPC, K, SQN from USIM.
-	OPC, err := hex.DecodeString(authSubs.Opc.OpcValue)
+	OPC, err := hex.DecodeString(authSubs.EncOpcKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode OPC: %v", err)
 	}
-	K, err := hex.DecodeString(authSubs.PermanentKey.PermanentKeyValue)
+	K, err := hex.DecodeString(authSubs.EncPermanentKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode K: %v", err)
 	}
-	sqnUe, err := hex.DecodeString(authSubs.SequenceNumber)
+	sqnUe, err := hex.DecodeString(authSubs.SequenceNumber.Sqn)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode SQN: %v", err)
 	}
@@ -561,7 +561,9 @@ func (ue *UEContext) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscr
 	}
 
 	// updated sqn value.
-	authSubs.SequenceNumber = fmt.Sprintf("%08x", sqnHn)
+	authSubs.SequenceNumber = &models.SequenceNumber{
+		Sqn: fmt.Sprintf("%08x", sqnHn),
+	}
 
 	// derive RES*
 	key := append(CK, IK...)
@@ -625,21 +627,15 @@ func (ue *UEContext) DerivateAlgKey() error {
 	return nil
 }
 
-func (ue *UEContext) SetAuthSubscription(k, opc, op, amf, sqn string) {
-	ue.UeSecurity.AuthenticationSubs.PermanentKey = &models.PermanentKey{
-		PermanentKeyValue: k,
-	}
-	ue.UeSecurity.AuthenticationSubs.Opc = &models.Opc{
-		OpcValue: opc,
-	}
-	ue.UeSecurity.AuthenticationSubs.Milenage = &models.Milenage{
-		Op: &models.Op{
-			OpValue: op,
-		},
-	}
+func (ue *UEContext) SetAuthSubscription(k, opc, amf, sqn string) {
+	ue.UeSecurity.AuthenticationSubs.EncPermanentKey = k
+	ue.UeSecurity.AuthenticationSubs.EncOpcKey = opc
+
 	ue.UeSecurity.AuthenticationSubs.AuthenticationManagementField = amf
 
-	ue.UeSecurity.AuthenticationSubs.SequenceNumber = sqn
+	ue.UeSecurity.AuthenticationSubs.SequenceNumber = &models.SequenceNumber{
+		Sqn: sqn,
+	}
 	ue.UeSecurity.AuthenticationSubs.AuthenticationMethod = models.AuthMethod__5_G_AKA
 }
 
