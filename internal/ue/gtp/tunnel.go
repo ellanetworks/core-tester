@@ -189,7 +189,7 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 		// ignoring the GTP header
 		payloadStart = 8
 		if packet[0]&0x07 > 0 {
-			payloadStart = payloadStart + 4
+			payloadStart = payloadStart + 3
 		}
 		if packet[0]&0x04 > 0 {
 			// Next Header extension present
