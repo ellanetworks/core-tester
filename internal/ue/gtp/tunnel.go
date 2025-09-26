@@ -1,3 +1,6 @@
+// Copyright 2025 Ghislain Bourgeois
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package gtp
 
 import (
@@ -14,7 +17,7 @@ import (
 type Tunnel struct {
 	Name    string
 	gtpConn *net.UDPConn
-	tuns    []*water.Interface
+	tuns    []*water.Interface // multiple queues for RX only
 	lteid   uint32
 	rteid   uint32
 }
@@ -38,29 +41,29 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("could not connect to UPF: %v", err)
 	}
 
-	config := water.Config{
+	cfg := water.Config{
 		DeviceType: water.TUN,
 		PlatformSpecificParams: water.PlatformSpecificParams{
-			MultiQueue: true,
+			MultiQueue: true, // IMPORTANT: multiqueue must be here
 		},
 	}
-	config.Name = opts.TunInterfaceName
+	cfg.Name = opts.TunInterfaceName
 
-	// Open N queues
+	// Open N TUN file descriptors (same name), used only for RX fan-out
 	nq := runtime.NumCPU() / 2
 	if nq < 2 {
 		nq = 2
 	}
 	tuns := make([]*water.Interface, 0, nq)
 	for i := 0; i < nq; i++ {
-		ifce, err := water.New(config)
+		ifce, err := water.New(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("open TUN (mq): %w", err)
 		}
 		tuns = append(tuns, ifce)
 	}
 
-	// Configure IP once on the device
+	// Netlink config once on the device (use the first fd)
 	link, err := netlink.LinkByName(tuns[0].Name())
 	if err != nil {
 		return nil, fmt.Errorf("cannot read TUN interface: %w", err)
@@ -76,11 +79,11 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("link up: %w", err)
 	}
 
-	// Start workers for each queue
-	for _, ifce := range tuns {
-		go tunToGtp(conn, ifce, opts.Lteid)
-		go gtpToTun(conn, ifce)
-	}
+	// TX path: keep single-queue behavior (use the first fd only)
+	go tunToGtp(conn, tuns[0], opts.Lteid)
+
+	// RX path: single UDP reader → fan out across multiple TUN queues
+	go gtpToTunFanout(conn, tuns)
 
 	return &Tunnel{
 		Name:    tuns[0].Name(),
@@ -96,25 +99,29 @@ func (t *Tunnel) Close() error {
 	if err := t.gtpConn.Close(); err != nil {
 		firstErr = err
 	}
-	for _, ifce := range t.tuns {
-		if err := ifce.Close(); err != nil && firstErr == nil {
+	for _, q := range t.tuns {
+		if err := q.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
 	return firstErr
 }
 
+// === Unchanged TX path (single-queue) ===
 func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	buf := make([]byte, 2000)
-	hdr := [8]byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0}
+	hdr := [8]byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0} // GTPv1, T-PDU
 	for {
 		n, err := ifce.Read(buf)
 		if err != nil {
 			log.Printf("tun read: %v", err)
 			continue
 		}
-		binary.BigEndian.PutUint16(hdr[2:4], uint16(n))
-		binary.BigEndian.PutUint32(hdr[4:8], lteid)
+		if n == 0 {
+			continue
+		}
+		binary.BigEndian.PutUint16(hdr[2:4], uint16(n)) // payload length
+		binary.BigEndian.PutUint32(hdr[4:8], lteid)     // TEID
 		pkt := append(hdr[:], buf[:n]...)
 		if _, err := conn.Write(pkt); err != nil {
 			log.Printf("udp write: %v", err)
@@ -122,18 +129,63 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	}
 }
 
-func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
-	pkt := make([]byte, 2000)
+// === RX path with fan-out across TUN queues ===
+func gtpToTunFanout(conn *net.UDPConn, queues []*water.Interface) {
+	if len(queues) == 0 {
+		return
+	}
+	pkt := make([]byte, 4096) // enough for MTU-sized payload + GTP
+	var rr int
 	for {
-		n, err := conn.Read(pkt)
+		n, err := conn.Read(pkt) // single reader
 		if err != nil {
 			log.Printf("udp read: %v", err)
 			continue
 		}
 		if n < 8 || (pkt[0]&0x30) != 0x30 || pkt[1] != 0xFF {
+			continue // not GTPv1 T-PDU
+		}
+
+		// Validate length field (optional but safer)
+		gl := int(binary.BigEndian.Uint16(pkt[2:4]))
+		if 8+gl > n {
+			continue // truncated/invalid
+		}
+
+		// Base header is 8 bytes. Optional fields if any E/S/PN present: +4
+		payloadStart := 8
+		if (pkt[0] & 0x07) != 0 {
+			payloadStart += 4
+		}
+		// Extension headers (rare for T-PDU). Walk if E bit set.
+		if (pkt[0] & 0x04) != 0 {
+			off := payloadStart
+			for {
+				if off >= n {
+					break
+				}
+				typ := pkt[off]
+				off++
+				if typ == 0x00 { // no more extensions
+					payloadStart = off
+					break
+				}
+				if off >= n {
+					break
+				}
+				// length is in 4-byte units, excluding the first 2 bytes
+				ln := int(pkt[off]) * 4
+				off++
+				off += ln
+			}
+		}
+		if payloadStart >= n {
 			continue
 		}
-		payloadStart := 8
+
+		// Round-robin to TUN queues (RX multiqueue)
+		ifce := queues[rr%len(queues)]
+		rr++
 		if _, err := ifce.Write(pkt[payloadStart:n]); err != nil {
 			log.Printf("tun write: %v", err)
 		}
