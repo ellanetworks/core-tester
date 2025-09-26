@@ -82,9 +82,11 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("link up: %w", err)
 	}
 
-	// IMPORTANT: pass *all* queues to the workers
-	go tunToGtp(conn, opts.Lteid, tuns...)
-	go gtpToTun(conn, tuns...) // see change below to accept variadic
+	_ = conn.SetReadBuffer(64 * 1024 * 1024)
+	_ = conn.SetWriteBuffer(64 * 1024 * 1024)
+
+	go tunToGtp(conn, opts.Lteid, tuns...) // uplink from all queues
+	go gtpToTun(conn, tuns[0])             // downlink → write to queue 0 only
 
 	return &Tunnel{
 		Name:    tuns[0].Name(),
@@ -110,33 +112,33 @@ func (t *Tunnel) Close() error {
 }
 
 func tunToGtp(conn *net.UDPConn, lteid uint32, tuns ...*water.Interface) {
-	for _, ifce := range tuns {
+	for _, q := range tuns {
 		go func(ifce *water.Interface) {
-			buf := make([]byte, 2048)
-			hdr := []byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0}
+			payload := make([]byte, 2048)
+			hdr := [8]byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0}
+			buf := make([]byte, 2048+8) // single contiguous buffer
 			for {
-				n, err := ifce.Read(buf)
+				n, err := ifce.Read(payload)
 				if err != nil {
 					log.Printf("tun read: %v", err)
 					continue
 				}
 				binary.BigEndian.PutUint16(hdr[2:4], uint16(n))
 				binary.BigEndian.PutUint32(hdr[4:8], lteid)
-				pkt := append(append([]byte{}, hdr...), buf[:n]...)
-				if _, err := conn.Write(pkt); err != nil {
+				copy(buf[:8], hdr[:])
+				copy(buf[8:8+n], payload[:n])
+				if _, err := conn.Write(buf[:8+n]); err != nil {
 					log.Printf("udp write: %v", err)
 				}
 			}
-		}(ifce)
+		}(q)
 	}
 }
 
-func gtpToTun(conn *net.UDPConn, tuns ...*water.Interface) {
-	// simple fan-out: round-robin into the queues
-	var i int
+func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 	pkt := make([]byte, 2048)
 	for {
-		n, _, err := conn.ReadFrom(pkt)
+		n, err := conn.Read(pkt) // <-- Read, not ReadFrom
 		if err != nil {
 			log.Printf("GTP read: %v", err)
 			continue
@@ -144,29 +146,32 @@ func gtpToTun(conn *net.UDPConn, tuns ...*water.Interface) {
 		if n < 8 || (pkt[0]&0x30) != 0x30 || pkt[1] != 0xFF {
 			continue
 		}
-
 		payloadStart := 8
+		// Optional fields present if any of E/S/PN set
 		if (pkt[0] & 0x07) != 0 {
-			payloadStart += 4
-		} // E/S/PN → +4
-		if (pkt[0] & 0x04) != 0 {
-			// walk ext hdrs
+			payloadStart += 4 // seq(2) + npdu(1) + next_ext(1)
+		}
+		if (pkt[0] & 0x04) != 0 { // E bit → extension headers present
 			off := payloadStart
 			for {
-				if pkt[off] == 0x00 {
+				if off >= n {
+					break
+				}
+				// ext header: type(1), len(1)=#4B units, then data..., then next type(1)
+				if pkt[off] == 0x00 { // no more extension headers
 					off++
 					payloadStart = off
+					break
+				}
+				if off+1 >= n {
 					break
 				}
 				off += int(pkt[off+1]) * 4
 			}
 		}
-
-		if len(tuns) == 0 {
+		if payloadStart >= n {
 			continue
 		}
-		ifce := tuns[i%len(tuns)]
-		i++
 		if _, err := ifce.Write(pkt[payloadStart:n]); err != nil {
 			log.Printf("tun write: %v", err)
 		}
