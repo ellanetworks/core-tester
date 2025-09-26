@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"runtime"
 
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
@@ -48,8 +49,26 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 
 	config := water.Config{
 		DeviceType: water.TUN,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			MultiQueue: true,
+		},
 	}
 	config.Name = opts.TunInterfaceName
+
+	var tuns []*water.Interface
+	queues := runtime.NumCPU() / 2 // or 4–8; tune
+	if queues < 2 {
+		queues = 2
+	}
+
+	for i := 0; i < queues; i++ {
+		ifce, err := water.New(config) // same Name, MultiQueue true
+		if err != nil {
+			return nil, fmt.Errorf("open TUN mq: %w", err)
+		}
+		tuns = append(tuns, ifce)
+	}
+
 	ifce, err := water.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not open TUN interface: %v", err)
@@ -75,7 +94,7 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
 	}
 
-	go tunToGtp(conn, ifce, opts.Lteid)
+	go tunToGtp(conn, opts.Lteid, ifce)
 	go gtpToTun(conn, ifce)
 
 	return &Tunnel{
@@ -100,29 +119,56 @@ func (t *Tunnel) Close() error {
 	return err
 }
 
-func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
-	packet := make([]byte, 2000)
-	packet[0] = 0x30                               // Version 1, Protocol type GTP
-	packet[1] = 0xFF                               // Message type T-PDU
-	binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
-	binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
-	for {
-		n, err := ifce.Read(packet[8:])
-		if err != nil {
-			log.Printf("error reading from tun interface: %v", err)
-			continue
-		}
-		if n == 0 {
-			log.Println("read 0 bytes")
-			continue
-		}
-		binary.BigEndian.PutUint16(packet[2:4], uint16(n))
-		_, err = conn.Write(packet[:n+8])
-		if err != nil {
-			log.Printf("error writing to GTP: %v", err)
-			continue
-		}
+func tunToGtp(conn *net.UDPConn, lteid uint32, tuns ...*water.Interface) {
+	// packet := make([]byte, 2000)
+	// packet[0] = 0x30                               // Version 1, Protocol type GTP
+	// packet[1] = 0xFF                               // Message type T-PDU
+	// binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
+	// binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
+	// for {
+	// 	n, err := ifce.Read(packet[8:])
+	// 	if err != nil {
+	// 		log.Printf("error reading from tun interface: %v", err)
+	// 		continue
+	// 	}
+	// 	if n == 0 {
+	// 		log.Println("read 0 bytes")
+	// 		continue
+	// 	}
+	// 	binary.BigEndian.PutUint16(packet[2:4], uint16(n))
+	// 	_, err = conn.Write(packet[:n+8])
+	// 	if err != nil {
+	// 		log.Printf("error writing to GTP: %v", err)
+	// 		continue
+	// 	}
+	// }
+	for i := range tuns {
+		go func(ifce *water.Interface) {
+			// optionally: runtime.LockOSThread()
+			buf := make([]byte, 2048)
+			hdr := make([]byte, 8) // fixed GTP header
+			hdr[0] = 0x30
+			hdr[1] = 0xFF
+
+			for {
+				n, err := ifce.Read(buf) // IP packet from UE
+				if err != nil {
+					log.Printf("tun read: %v", err)
+					continue
+				}
+				binary.BigEndian.PutUint16(hdr[2:4], uint16(n))
+				binary.BigEndian.PutUint32(hdr[4:8], lteid)
+
+				// write header+payload in one go (avoid two writes)
+				// use a single contiguous slice backed by a scratch buffer
+				pkt := append(hdr[:8], buf[:n]...)
+				if _, err := conn.Write(pkt); err != nil {
+					log.Printf("udp write: %v", err)
+				}
+			}
+		}(tuns[i])
 	}
+
 }
 
 func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
@@ -143,7 +189,7 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 		// ignoring the GTP header
 		payloadStart = 8
 		if packet[0]&0x07 > 0 {
-			payloadStart = payloadStart + 3
+			payloadStart = payloadStart + 4
 		}
 		if packet[0]&0x04 > 0 {
 			// Next Header extension present
