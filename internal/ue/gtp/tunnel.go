@@ -134,59 +134,64 @@ func gtpToTunFanout(conn *net.UDPConn, queues []*water.Interface) {
 	if len(queues) == 0 {
 		return
 	}
-	pkt := make([]byte, 4096) // enough for MTU-sized payload + GTP
+	buf := make([]byte, 1<<15) // 32 KiB
 	var rr int
+
 	for {
-		n, err := conn.Read(pkt) // single reader
+		n, err := conn.Read(buf)
 		if err != nil {
 			log.Printf("udp read: %v", err)
 			continue
 		}
-		if n < 8 || (pkt[0]&0x30) != 0x30 || pkt[1] != 0xFF {
-			continue // not GTPv1 T-PDU
+		if n < 8 {
+			continue
+		}
+		// GTPv1, T-PDU
+		if (buf[0]&0x30) != 0x30 || buf[1] != 0xFF {
+			continue
 		}
 
-		// Validate length field (optional but safer)
-		gl := int(binary.BigEndian.Uint16(pkt[2:4]))
-		if 8+gl > n {
-			continue // truncated/invalid
-		}
-
-		// Base header is 8 bytes. Optional fields if any E/S/PN present: +4
 		payloadStart := 8
-		if (pkt[0] & 0x07) != 0 {
+
+		// Optional 4-byte field when any of E/S/PN set
+		flags := buf[0]
+		if (flags & 0x07) != 0 { // E(0x04) S(0x02) PN(0x01)
+			if n < payloadStart+4 {
+				continue
+			}
+			// Next Extension Header Type is the last byte of this 4-byte block
+			next := buf[payloadStart+3]
 			payloadStart += 4
-		}
-		// Extension headers (rare for T-PDU). Walk if E bit set.
-		if (pkt[0] & 0x04) != 0 {
-			off := payloadStart
-			for {
-				if off >= n {
-					break
+
+			// If E was set, walk extension headers
+			if (flags & 0x04) != 0 {
+				for next != 0x00 {
+					// Each ext: Type(1) Length(1) Content(Length*4 bytes) …last byte is NextExtType
+					if n < payloadStart+2 {
+						next = 0x00
+						break
+					}
+					extLenUnits := int(buf[payloadStart+1]) // in 4-byte units
+					block := 2 + extLenUnits*4
+					end := payloadStart + block
+					if end > n {
+						next = 0x00
+						break
+					}
+					// NextExtType is the last byte of the ext block
+					next = buf[end-1]
+					payloadStart = end
 				}
-				typ := pkt[off]
-				off++
-				if typ == 0x00 { // no more extensions
-					payloadStart = off
-					break
-				}
-				if off >= n {
-					break
-				}
-				// length is in 4-byte units, excluding the first 2 bytes
-				ln := int(pkt[off]) * 4
-				off++
-				off += ln
 			}
 		}
+
 		if payloadStart >= n {
 			continue
 		}
 
-		// Round-robin to TUN queues (RX multiqueue)
 		ifce := queues[rr%len(queues)]
 		rr++
-		if _, err := ifce.Write(pkt[payloadStart:n]); err != nil {
+		if _, err := ifce.Write(buf[payloadStart:n]); err != nil {
 			log.Printf("tun write: %v", err)
 		}
 	}
