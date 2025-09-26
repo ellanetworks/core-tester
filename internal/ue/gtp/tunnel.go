@@ -43,17 +43,15 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 
 	cfg := water.Config{
 		DeviceType: water.TUN,
-		PlatformSpecificParams: water.PlatformSpecificParams{
-			MultiQueue: true, // IMPORTANT: multiqueue must be here
-		},
 	}
 	cfg.Name = opts.TunInterfaceName
+	cfg.MultiQueue = true
 
-	// Open N TUN file descriptors (same name), used only for RX fan-out
 	nq := runtime.NumCPU() / 2
 	if nq < 2 {
 		nq = 2
 	}
+
 	tuns := make([]*water.Interface, 0, nq)
 	for i := 0; i < nq; i++ {
 		ifce, err := water.New(cfg)
@@ -79,10 +77,8 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("link up: %w", err)
 	}
 
-	// TX path: keep single-queue behavior (use the first fd only)
 	go tunToGtp(conn, tuns[0], opts.Lteid)
 
-	// RX path: single UDP reader → fan out across multiple TUN queues
 	go gtpToTunFanout(conn, tuns)
 
 	return &Tunnel{
@@ -110,7 +106,7 @@ func (t *Tunnel) Close() error {
 // === Unchanged TX path (single-queue) ===
 func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	buf := make([]byte, 2000)
-	hdr := [8]byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0} // GTPv1, T-PDU
+	hdr := [8]byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0}
 	for {
 		n, err := ifce.Read(buf)
 		if err != nil {
@@ -120,8 +116,8 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 		if n == 0 {
 			continue
 		}
-		binary.BigEndian.PutUint16(hdr[2:4], uint16(n)) // payload length
-		binary.BigEndian.PutUint32(hdr[4:8], lteid)     // TEID
+		binary.BigEndian.PutUint16(hdr[2:4], uint16(n))
+		binary.BigEndian.PutUint32(hdr[4:8], lteid)
 		pkt := append(hdr[:], buf[:n]...)
 		if _, err := conn.Write(pkt); err != nil {
 			log.Printf("udp write: %v", err)
@@ -146,46 +142,20 @@ func gtpToTunFanout(conn *net.UDPConn, queues []*water.Interface) {
 		if n < 8 {
 			continue
 		}
-		// GTPv1, T-PDU
+
+		// GTPv1 (version=1, PT=1) and T-PDU (0xFF)
 		if (buf[0]&0x30) != 0x30 || buf[1] != 0xFF {
 			continue
 		}
 
-		payloadStart := 8
-
-		// Optional 4-byte field when any of E/S/PN set
-		flags := buf[0]
-		if (flags & 0x07) != 0 { // E(0x04) S(0x02) PN(0x01)
-			if n < payloadStart+4 {
-				continue
-			}
-			// Next Extension Header Type is the last byte of this 4-byte block
-			next := buf[payloadStart+3]
-			payloadStart += 4
-
-			// If E was set, walk extension headers
-			if (flags & 0x04) != 0 {
-				for next != 0x00 {
-					// Each ext: Type(1) Length(1) Content(Length*4 bytes) …last byte is NextExtType
-					if n < payloadStart+2 {
-						next = 0x00
-						break
-					}
-					extLenUnits := int(buf[payloadStart+1]) // in 4-byte units
-					block := 2 + extLenUnits*4
-					end := payloadStart + block
-					if end > n {
-						next = 0x00
-						break
-					}
-					// NextExtType is the last byte of the ext block
-					next = buf[end-1]
-					payloadStart = end
-				}
-			}
+		l := int(binary.BigEndian.Uint16(buf[2:4])) // bytes after first 8
+		// Sanity: l must be <= n-8
+		if l < 0 || l > n-8 {
+			continue
 		}
 
-		if payloadStart >= n {
+		payloadStart := n - l // 8 + opt + exts
+		if payloadStart < 8 { // should never happen after check above
 			continue
 		}
 
