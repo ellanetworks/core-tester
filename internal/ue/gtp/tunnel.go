@@ -50,6 +50,7 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		DeviceType: water.TUN,
 	}
 	config.Name = opts.TunInterfaceName
+	config.MultiQueue = true
 	ifce, err := water.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not open TUN interface: %v", err)
