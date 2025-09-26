@@ -17,7 +17,7 @@ import (
 type Tunnel struct {
 	Name    string
 	gtpConn *net.UDPConn
-	tunIF   *water.Interface
+	tuns    []*water.Interface
 	lteid   uint32
 	rteid   uint32
 }
@@ -62,149 +62,113 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 	}
 
 	for i := 0; i < queues; i++ {
-		ifce, err := water.New(config) // same Name, MultiQueue true
+		ifce, err := water.New(config) // same Name, MultiQueue: true
 		if err != nil {
 			return nil, fmt.Errorf("open TUN mq: %w", err)
 		}
 		tuns = append(tuns, ifce)
 	}
 
-	ifce, err := water.New(config)
+	// netlink setup once on the device
+	eth, err := netlink.LinkByName(tuns[0].Name())
 	if err != nil {
-		return nil, fmt.Errorf("could not open TUN interface: %v", err)
+		return nil, fmt.Errorf("cannot read TUN interface: %w", err)
+	}
+	ueAddr, _ := netlink.ParseAddr(opts.UEIP)
+	if err := netlink.AddrAdd(eth, ueAddr); err != nil {
+		return nil, fmt.Errorf("addr add: %w", err)
+	}
+	if err := netlink.LinkSetUp(eth); err != nil {
+		return nil, fmt.Errorf("link up: %w", err)
 	}
 
-	eth, err := netlink.LinkByName(ifce.Name())
-	if err != nil {
-		return nil, fmt.Errorf("cannot read TUN interface: %v", err)
-	}
-
-	ueAddr, err := netlink.ParseAddr(opts.UEIP)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse UE address: %v", err)
-	}
-
-	err = netlink.AddrAdd(eth, ueAddr)
-	if err != nil {
-		return nil, fmt.Errorf("could not assign UE address to TUN interface: %v", err)
-	}
-
-	err = netlink.LinkSetUp(eth)
-	if err != nil {
-		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
-	}
-
+	// IMPORTANT: pass *all* queues to the workers
 	go tunToGtp(conn, opts.Lteid, tuns...)
-	go gtpToTun(conn, ifce)
+	go gtpToTun(conn, tuns...) // see change below to accept variadic
 
 	return &Tunnel{
-		Name:    ifce.Name(),
+		Name:    tuns[0].Name(),
 		gtpConn: conn,
-		tunIF:   ifce,
+		tuns:    tuns,
 		lteid:   opts.Lteid,
 		rteid:   opts.Rteid,
 	}, nil
+
 }
 
 func (t *Tunnel) Close() error {
-	var err error
-	errG := t.gtpConn.Close()
-	if errG != nil {
-		err = fmt.Errorf("could not close GTP connection: %v", errG)
+	var firstErr error
+	if err := t.gtpConn.Close(); err != nil {
+		firstErr = err
 	}
-	errT := t.tunIF.Close()
-	if errT != nil {
-		err = fmt.Errorf("%v; could not close TUN interface: %v", err, errT)
+	for _, q := range t.tuns {
+		if err := q.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return err
+	return firstErr
 }
 
 func tunToGtp(conn *net.UDPConn, lteid uint32, tuns ...*water.Interface) {
-	// packet := make([]byte, 2000)
-	// packet[0] = 0x30                               // Version 1, Protocol type GTP
-	// packet[1] = 0xFF                               // Message type T-PDU
-	// binary.BigEndian.PutUint16(packet[2:4], 0)     // Length
-	// binary.BigEndian.PutUint32(packet[4:8], lteid) // TEID
-	// for {
-	// 	n, err := ifce.Read(packet[8:])
-	// 	if err != nil {
-	// 		log.Printf("error reading from tun interface: %v", err)
-	// 		continue
-	// 	}
-	// 	if n == 0 {
-	// 		log.Println("read 0 bytes")
-	// 		continue
-	// 	}
-	// 	binary.BigEndian.PutUint16(packet[2:4], uint16(n))
-	// 	_, err = conn.Write(packet[:n+8])
-	// 	if err != nil {
-	// 		log.Printf("error writing to GTP: %v", err)
-	// 		continue
-	// 	}
-	// }
-	for i := range tuns {
+	for _, ifce := range tuns {
 		go func(ifce *water.Interface) {
-			// optionally: runtime.LockOSThread()
 			buf := make([]byte, 2048)
-			hdr := make([]byte, 8) // fixed GTP header
-			hdr[0] = 0x30
-			hdr[1] = 0xFF
-
+			hdr := []byte{0x30, 0xFF, 0, 0, 0, 0, 0, 0}
 			for {
-				n, err := ifce.Read(buf) // IP packet from UE
+				n, err := ifce.Read(buf)
 				if err != nil {
 					log.Printf("tun read: %v", err)
 					continue
 				}
 				binary.BigEndian.PutUint16(hdr[2:4], uint16(n))
 				binary.BigEndian.PutUint32(hdr[4:8], lteid)
-
-				// write header+payload in one go (avoid two writes)
-				// use a single contiguous slice backed by a scratch buffer
-				pkt := append(hdr[:8], buf[:n]...)
+				pkt := append(append([]byte{}, hdr...), buf[:n]...)
 				if _, err := conn.Write(pkt); err != nil {
 					log.Printf("udp write: %v", err)
 				}
 			}
-		}(tuns[i])
+		}(ifce)
 	}
-
 }
 
-func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
-	var payloadStart int
-	packet := make([]byte, 2000)
+func gtpToTun(conn *net.UDPConn, tuns ...*water.Interface) {
+	// simple fan-out: round-robin into the queues
+	var i int
+	pkt := make([]byte, 2048)
 	for {
-		// Read a packet from UDP
-		// Currently ignores the address
-		n, _, err := conn.ReadFrom(packet)
+		n, _, err := conn.ReadFrom(pkt)
 		if err != nil {
-			log.Printf("error reading from GTP: %v", err)
-		}
-		// Ignore packets that are not a GTP-U v1 T-PDU packet
-		if packet[0]&0x30 != 0x30 || packet[1] != 0xFF {
+			log.Printf("GTP read: %v", err)
 			continue
 		}
-		// Write the packet to the TUN interface
-		// ignoring the GTP header
-		payloadStart = 8
-		if packet[0]&0x07 > 0 {
-			payloadStart = payloadStart + 3
+		if n < 8 || (pkt[0]&0x30) != 0x30 || pkt[1] != 0xFF {
+			continue
 		}
-		if packet[0]&0x04 > 0 {
-			// Next Header extension present
+
+		payloadStart := 8
+		if (pkt[0] & 0x07) != 0 {
+			payloadStart += 4
+		} // E/S/PN → +4
+		if (pkt[0] & 0x04) != 0 {
+			// walk ext hdrs
+			off := payloadStart
 			for {
-				if packet[payloadStart] == 0x00 {
-					payloadStart = payloadStart + 1
+				if pkt[off] == 0x00 {
+					off++
+					payloadStart = off
 					break
 				}
-				payloadStart = payloadStart + (int(packet[payloadStart+1]) * 4)
+				off += int(pkt[off+1]) * 4
 			}
 		}
-		_, err = ifce.Write(packet[payloadStart:n])
-		if err != nil {
-			log.Printf("error writing to tun interface: %v", err)
+
+		if len(tuns) == 0 {
 			continue
+		}
+		ifce := tuns[i%len(tuns)]
+		i++
+		if _, err := ifce.Write(pkt[payloadStart:n]); err != nil {
+			log.Printf("tun write: %v", err)
 		}
 	}
 }
