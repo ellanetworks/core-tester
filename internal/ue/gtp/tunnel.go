@@ -94,7 +94,7 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
 	}
 
-	go tunToGtp(conn, opts.Lteid, ifce)
+	go tunToGtp(conn, opts.Lteid, tuns...)
 	go gtpToTun(conn, ifce)
 
 	return &Tunnel{
