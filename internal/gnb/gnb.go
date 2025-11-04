@@ -1,71 +1,89 @@
-/**
- * SPDX-License-Identifier: Apache-2.0
- * © Copyright 2023 Hewlett Packard Enterprise Development LP
- */
 package gnb
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"sync"
 
-	"github.com/ellanetworks/core-tester/internal/config"
-	"github.com/ellanetworks/core-tester/internal/gnb/context"
-	serviceNas "github.com/ellanetworks/core-tester/internal/gnb/nas/service"
-	"github.com/ellanetworks/core-tester/internal/gnb/ngap"
-	"github.com/ellanetworks/core-tester/internal/gnb/ngap/trigger"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/free5gc/ngap"
+	"github.com/free5gc/ngap/ngapType"
+	"github.com/ishidawataru/sctp"
 )
 
-func InitGnb(conf config.Config, wg *sync.WaitGroup) (*context.GNBContext, error) {
-	// instance new gnb.
-	gnb := &context.GNBContext{}
-
-	// new gnb context.
-	gnb.NewRanGnbContext(
-		conf.GNodeB.PlmnList.GnbId,
-		conf.GNodeB.PlmnList.Mcc,
-		conf.GNodeB.PlmnList.Mnc,
-		conf.GNodeB.PlmnList.Tac,
-		conf.GNodeB.SliceSupportList.Sst,
-		conf.GNodeB.SliceSupportList.Sd,
-		conf.GNodeB.ControlIF.AddrPort,
-		conf.GNodeB.DataIF.AddrPort,
-	)
-
-	// start communication with AMF (server SCTP).
-	for _, amfConfig := range conf.AMFs {
-		// new AMF context.
-		amf := gnb.NewGnBAmf(amfConfig.AddrPort)
-
-		// start communication with AMF(SCTP).
-		if err := ngap.InitConn(amf, gnb); err != nil {
-			return nil, fmt.Errorf("could not initialize SCTP connection: %w", err)
-		} else {
-			logger.GnbLog.Info("SCTP/NGAP service is running")
-			// wg.Add(1)
-		}
-
-		err := trigger.SendNgSetupRequest(gnb, amf)
-		if err != nil {
-			return nil, fmt.Errorf("could not send NG Setup Request: %w", err)
-		}
+func Start(coreN2Address string, gnbN2Address string) error {
+	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
+	if err != nil {
+		return err
 	}
 
-	// start communication with UE (server UNIX sockets).
-	serviceNas.InitServer(gnb)
+	loc, err := sctp.ResolveSCTPAddr("sctp", gnbN2Address)
+	if err != nil {
+		return err
+	}
 
-	go func() {
-		// control the signals
-		sigGnb := make(chan os.Signal, 1)
-		signal.Notify(sigGnb, os.Interrupt)
+	conn, err := sctp.DialSCTPExt(
+		"sctp",
+		loc,
+		rem,
+		sctp.InitMsg{NumOstreams: 2, MaxInstreams: 2})
+	if err != nil {
+		return fmt.Errorf("could not dial SCTP: %w", err)
+	}
 
-		// Block until a signal is received.
-		<-sigGnb
-		// gnb.Terminate()
-		wg.Done()
-	}()
+	err = conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
+	if err != nil {
+		return fmt.Errorf("could not subscribe SCTP events: %w", err)
+	}
 
-	return gnb, nil
+	go Listen(conn)
+
+	return nil
+}
+
+func Listen(conn *sctp.SCTPConn) {
+	buf := make([]byte, 65535)
+
+	for {
+		n, info, err := conn.SCTPRead(buf[:])
+		if err != nil {
+			break
+		}
+
+		logger.GnbLog.Info("receive message in ", info.Stream, " stream\n")
+
+		forwardData := make([]byte, n)
+
+		copy(forwardData, buf[:n])
+
+		go Dispatch(forwardData)
+	}
+}
+
+func Dispatch(message []byte) {
+	if message == nil {
+		logger.GnbLog.Info("NGAP message is nil")
+	}
+
+	ngapMsg, err := ngap.Decoder(message)
+	if err != nil {
+		logger.GnbLog.Error("Error decoding NGAP message:", err)
+	}
+
+	switch ngapMsg.Present {
+	case ngapType.NGAPPDUPresentInitiatingMessage:
+		switch ngapMsg.InitiatingMessage.ProcedureCode.Value {
+		default:
+			logger.GnbLog.Warnf("Received unhandled initiating NGAP message 0x%x", ngapMsg.InitiatingMessage.ProcedureCode.Value)
+		}
+	case ngapType.NGAPPDUPresentSuccessfulOutcome:
+		switch ngapMsg.SuccessfulOutcome.ProcedureCode.Value {
+		default:
+			logger.GnbLog.Warnf("Received unhandled successful NGAP message 0x%x", ngapMsg.SuccessfulOutcome.ProcedureCode.Value)
+		}
+
+	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
+		switch ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value {
+		default:
+			logger.GnbLog.Warnf("Received unhandled unsuccessful NGAP message 0x%x", ngapMsg.UnsuccessfulOutcome.ProcedureCode.Value)
+		}
+	}
 }

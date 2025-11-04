@@ -4,19 +4,19 @@ linters:
     - asciicheck
     - bodyclose
     - dogsled
-    - goconst
+    - gocognit
     - godox
     - gomodguard
     - misspell
     - nakedret
+    - nestif
     - noctx
     - predeclared
+    - staticcheck
     - unconvert
     - unparam
     - whitespace
-    - govet
-  disable:
-    - staticcheck
+    - wsl
   exclusions:
     generated: lax
     presets:
@@ -28,15 +28,6 @@ linters:
       - third_party$
       - builtin$
       - examples$
-issues:
-  new-from-rev: ""
-  new: false
-severity:
-  default: error
-  rules:
-    - linters:
-        - mnd
-      severity: ignore
 formatters:
   enable:
     - gci

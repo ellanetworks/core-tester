@@ -43,6 +43,7 @@ func init() {
 	}
 
 	var err error
+
 	log, err = config.Build()
 	if err != nil {
 		panic(err)
@@ -54,18 +55,14 @@ func init() {
 	EllaCoreTesterLog = log.Sugar().With("component", "EllaCoreTester")
 }
 
-// ConfigureLogging allows the user to reconfigure the logger.
-// The caller specifies the log level and for each logger (system and audit) the output mode
-// ("stdout", "file", or "both") and (if applicable) a file path.
 func ConfigureLogging(level string) error {
-	// Parse the desired system log level.
 	zapLevel, err := zapcore.ParseLevel(level)
 	if err != nil {
 		return fmt.Errorf("failed to parse log level: %v", err)
 	}
+
 	atomicLevel.SetLevel(zapLevel)
 
-	// Create a shared encoder configuration.
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "timestamp"
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -90,7 +87,7 @@ func ConfigureLogging(level string) error {
 	if err != nil {
 		return fmt.Errorf("failed to build system logger: %w", err)
 	}
-	// Update the global system logger and its component-specific sugared loggers.
+
 	log = newSysLogger
 	GnbLog = log.Sugar().With("component", "Gnb")
 	UELog = log.Sugar().With("component", "UE")
@@ -99,9 +96,9 @@ func ConfigureLogging(level string) error {
 	return nil
 }
 
-// CapitalColorLevelEncoder encodes the log level in color.
 func CapitalColorLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	var color string
+
 	switch l {
 	case zapcore.DebugLevel:
 		color = "\033[37m" // White
@@ -116,5 +113,6 @@ func CapitalColorLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder
 	default:
 		color = "\033[0m" // Reset
 	}
+
 	enc.AppendString(fmt.Sprintf("%s%s\033[0m", color, l.CapitalString()))
 }
