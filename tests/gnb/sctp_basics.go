@@ -12,22 +12,27 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-type RegistrationBasic struct{}
+type SCTPBasic struct{}
 
-func (RegistrationBasic) Meta() engine.Meta {
+func (SCTPBasic) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "gnb/sctp/basic",
-		Summary: "SCTP basic connectivity test with NGSetupRequest/Response",
-		Tags:    []string{"gnb", "nas"},
-		Timeout: 90 * time.Second,
+		ID:      "gnb/sctp",
+		Summary: "SCTP connectivity test validating SCTP Stream Identifier and PPID for NGSetup procedure",
 	}
 }
 
-func (t RegistrationBasic) Run(env engine.Env) error {
+func (t SCTPBasic) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
+
+	defer func() {
+		err := gNodeB.Close()
+		if err != nil {
+			fmt.Printf("error closing gNB: %v\n", err)
+		}
+	}()
 
 	opts := &gnb.NGSetupRequestOpts{
 		Mcc: "001",
