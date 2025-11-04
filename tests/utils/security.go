@@ -1,4 +1,4 @@
-package ue
+package utils
 
 import (
 	"github.com/free5gc/nas/nasMessage"

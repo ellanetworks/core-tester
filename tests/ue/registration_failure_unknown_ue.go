@@ -10,21 +10,22 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type RegistrationBasic struct{}
+type RegistrationReject_UnknownUE struct{}
 
-func (RegistrationBasic) Meta() engine.Meta {
+func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_basic",
-		Summary: "Basic UE registration test validating initial registration procedure",
+		ID:      "ue/registration_reject/unknown_ue",
+		Summary: "UE registration reject test for unknown UE",
 	}
 }
 
-func (t RegistrationBasic) Run(env engine.Env) error {
+func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -37,16 +38,16 @@ func (t RegistrationBasic) Run(env engine.Env) error {
 		}
 	}()
 
-	err = NGSetupProcedure(gNodeB)
+	err = utils.NGSetupProcedure(gNodeB)
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
 	}
 
-	secCap := UeSecurityCapability{
-		Integrity: IntegrityAlgorithms{
+	secCap := utils.UeSecurityCapability{
+		Integrity: utils.IntegrityAlgorithms{
 			Nia2: true,
 		},
-		Ciphering: CipheringAlgorithms{
+		Ciphering: utils.CipheringAlgorithms{
 			Nea0: true,
 			Nea2: true,
 		},
@@ -68,7 +69,7 @@ func (t RegistrationBasic) Run(env engine.Env) error {
 		Dnn:                  "internet",
 		Sst:                  1,
 		Sd:                   "010203",
-		UeSecurityCapability: GetUESecurityCapability(&secCap),
+		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
 	}
 
 	newUE, err := ue.NewUE(newUEOpts)
@@ -132,6 +133,64 @@ func (t RegistrationBasic) Run(env engine.Env) error {
 	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
 	if downlinkNASTransport == nil {
 		return fmt.Errorf("DownlinkNASTransport is nil")
+	}
+
+	err = validateDownlinkNASTransport(downlinkNASTransport, newUE)
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	return nil
+}
+
+func validateDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport, ueIns *ue.UE) error {
+	var nasPDU *ngapType.NASPDU
+
+	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDAMFUENGAPID:
+		case ngapType.ProtocolIEIDRANUENGAPID:
+		case ngapType.ProtocolIEIDOldAMF:
+		case ngapType.ProtocolIEIDRANPagingPriority:
+		case ngapType.ProtocolIEIDNASPDU:
+			nasPDU = ie.Value.NASPDU
+		case ngapType.ProtocolIEIDMobilityRestrictionList:
+		case ngapType.ProtocolIEIDIndexToRFSP:
+		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
+		case ngapType.ProtocolIEIDAllowedNSSAI:
+
+		default:
+			return fmt.Errorf("DownlinkNASTransport IE ID (%d) not supported", ie.Id.Value)
+		}
+	}
+
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationReject {
+		return fmt.Errorf("NAS message type is not Registration Reject (%d)", nas.MsgTypeRegistrationReject)
+	}
+
+	if msg.RegistrationReject == nil {
+		return fmt.Errorf("NAS Registration Reject message is nil")
+	}
+
+	if msg.RegistrationReject.GetCauseValue() != nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork {
+		return fmt.Errorf("NAS Registration Reject Cause is not Unknown UE (%x), received (%x)", nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork, msg.RegistrationReject.GetCauseValue())
 	}
 
 	return nil

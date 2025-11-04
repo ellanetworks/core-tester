@@ -13,7 +13,7 @@ func RegisterAll() error {
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
 		gnb.NGSetupFailure_UnknownPLMN{},
-		ue.RegistrationBasic{},
+		ue.RegistrationReject_UnknownUE{},
 	}
 
 	for _, test := range allTests {

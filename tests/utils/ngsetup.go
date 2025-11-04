@@ -1,4 +1,4 @@
-package ue
+package utils
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/gnb/build"
-	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -31,7 +30,7 @@ func NGSetupProcedure(gNodeB *gnb.GnodeB) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 0)
+	err = ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
