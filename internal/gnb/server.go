@@ -2,6 +2,7 @@ package gnb
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/ishidawataru/sctp"
@@ -19,17 +20,18 @@ type SCTPFrame struct {
 func Start(coreN2Address string, gnbN2Address string) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not resolve Ella Core SCTP address: %w", err)
 	}
 
-	loc, err := sctp.ResolveSCTPAddr("sctp", gnbN2Address)
-	if err != nil {
-		return nil, err
+	localAddr := &sctp.SCTPAddr{
+		IPAddrs: []net.IPAddr{
+			{IP: net.ParseIP(gnbN2Address)},
+		},
 	}
 
 	conn, err := sctp.DialSCTPExt(
 		"sctp",
-		loc,
+		localAddr,
 		rem,
 		sctp.InitMsg{NumOstreams: 2, MaxInstreams: 2})
 	if err != nil {

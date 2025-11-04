@@ -5,6 +5,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/tests/gnb"
+	"github.com/ellanetworks/core-tester/tests/ue"
 )
 
 func RegisterAll() error {
@@ -12,6 +13,7 @@ func RegisterAll() error {
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
 		gnb.NGSetupFailure_UnknownPLMN{},
+		ue.RegistrationReject_UnknownUE{},
 	}
 
 	for _, test := range allTests {

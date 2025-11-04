@@ -1,39 +1,16 @@
-package gnb
+package utils
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/gnb/build"
-	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type SCTPBasic struct{}
-
-func (SCTPBasic) Meta() engine.Meta {
-	return engine.Meta{
-		ID:      "gnb/sctp",
-		Summary: "SCTP connectivity test validating SCTP Stream Identifier and PPID for NGSetup procedure",
-	}
-}
-
-func (t SCTPBasic) Run(env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
-	if err != nil {
-		return fmt.Errorf("error starting gNB: %v", err)
-	}
-
-	defer func() {
-		err := gNodeB.Close()
-		if err != nil {
-			fmt.Printf("error closing gNB: %v\n", err)
-		}
-	}()
-
+func NGSetupProcedure(gNodeB *gnb.GnodeB) error {
 	opts := &build.NGSetupRequestOpts{
 		Mcc: "001",
 		Mnc: "01",
@@ -41,7 +18,7 @@ func (t SCTPBasic) Run(env engine.Env) error {
 		Tac: "000001",
 	}
 
-	err = gNodeB.SendNGSetupRequest(opts)
+	err := gNodeB.SendNGSetupRequest(opts)
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
@@ -53,7 +30,7 @@ func (t SCTPBasic) Run(env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 0)
+	err = ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
