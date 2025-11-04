@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ellanetworks/core-tester/internal/common/sidf"
+	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"

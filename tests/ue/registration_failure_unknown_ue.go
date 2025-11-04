@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/common/sidf"
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/ellanetworks/core-tester/internal/ue"
+	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
