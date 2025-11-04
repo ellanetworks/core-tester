@@ -86,12 +86,13 @@ func (t RegistrationBasic) Run(env engine.Env) error {
 	}
 
 	initialUEMsgOpts := &build.InitialUEMessageOpts{
-		Mcc:   "001",
-		Mnc:   "01",
-		GnbID: "000008",
-		Tac:   "0001",
-		// RanUENGAPIID: 1,
-		NasPDU: nasPDU,
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		RanUENGAPID: 1,
+		NasPDU:      nasPDU,
+		Guti5g:      newUE.UeSecurity.Guti,
 	}
 
 	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)
