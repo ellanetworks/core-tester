@@ -12,7 +12,7 @@ on:
     branches:
       - main
 
-jobs: 
+jobs:
   go-unit-test:
     uses: ./.github/workflows/go-unittest.yaml
   go-vet:
