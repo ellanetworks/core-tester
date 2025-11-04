@@ -1,0 +1,99 @@
+package gnb
+
+import (
+	"encoding/binary"
+	"fmt"
+	"time"
+
+	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/free5gc/ngap"
+	"github.com/free5gc/ngap/ngapType"
+	"github.com/ishidawataru/sctp"
+)
+
+type RegistrationBasic struct{}
+
+func (RegistrationBasic) Meta() engine.Meta {
+	return engine.Meta{
+		ID:      "gnb/sctp/basic",
+		Summary: "SCTP basic connectivity test with NGSetupRequest/Response",
+		Tags:    []string{"gnb", "nas"},
+		Timeout: 90 * time.Second,
+	}
+}
+
+func (t RegistrationBasic) Run(env engine.Env) error {
+	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	if err != nil {
+		return fmt.Errorf("error starting gNB: %v", err)
+	}
+
+	opts := &gnb.NGSetupRequestOpts{
+		Mcc: "001",
+		Mnc: "01",
+		Sst: "01",
+		Tac: "000001",
+	}
+
+	err = gNodeB.SendNGSetupRequest(opts)
+	if err != nil {
+		return fmt.Errorf("could not send NGSetupRequest: %v", err)
+	}
+
+	timeout := 30 * time.Second
+
+	fr, err := gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = validateSCTP(fr.Info, 60, 0)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.SuccessfulOutcome == nil {
+		return fmt.Errorf("NGAP PDU is not a SuccessfulOutcome")
+	}
+
+	if pdu.SuccessfulOutcome.ProcedureCode.Value != ngapType.ProcedureCodeNGSetup {
+		return fmt.Errorf("NGAP ProcedureCode is not NGSetup (%d)", ngapType.ProcedureCodeNGSetup)
+	}
+
+	nGSetupResponse := pdu.SuccessfulOutcome.Value.NGSetupResponse
+	if nGSetupResponse == nil {
+		return fmt.Errorf("NGSetupResponse is nil")
+	}
+
+	return nil
+}
+
+func validateSCTP(info *sctp.SndRcvInfo, expectedPPID uint32, expectedStreamID uint16) error {
+	if info == nil {
+		return fmt.Errorf("missing SCTP SndRcvInfo")
+	}
+
+	if info.PPID != nativeToNetworkEndianness32(expectedPPID) {
+		return fmt.Errorf("ppid=%d want %d (NGAP)", info.PPID, nativeToNetworkEndianness32(expectedPPID))
+	}
+
+	if info.Stream != expectedStreamID {
+		return fmt.Errorf("stream=%d want %d (non-UE signalling)", info.Stream, expectedStreamID)
+	}
+
+	return nil
+}
+
+func nativeToNetworkEndianness32(value uint32) uint32 {
+	var b [4]byte
+
+	binary.NativeEndian.PutUint32(b[:], value)
+
+	return binary.BigEndian.Uint32(b[:])
+}

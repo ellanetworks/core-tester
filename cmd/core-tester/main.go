@@ -1,51 +1,73 @@
 package main
 
 import (
-	"context"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/ellanetworks/core-tester/internal/config"
-	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/internal/logger"
-)
-
-const (
-	coreN2Address = "192.168.40.6:38412"
-	gnbN2Address  = "192.168.40.6:38414"
+	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/tests"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	configFilePtr := flag.String("config", "", "The config file to be provided for Ella Core Tester")
+	configPath := flag.String("config", "", "Path to config file (mandatory)")
+	outputFilePtr := flag.String("write", "", "The output file to write test results to (in JSON format)")
 	flag.Parse()
 
-	if *configFilePtr == "" {
+	if *configPath == "" {
 		log.Fatal("No config file provided. Use `-config` to provide a config file")
 	}
 
-	cfg, err := config.Validate(*configFilePtr)
+	cfg, err := config.Validate(*configPath)
 	if err != nil {
-		log.Fatalf("couldn't validate config: %v", err)
+		log.Fatalf("Couldn't validate config: %v\n", err)
 	}
 
-	err = logger.ConfigureLogging(cfg.LogLevel)
+	err = tests.RegisterAll()
 	if err != nil {
-		logger.EllaCoreTesterLog.Fatalf("Error configuring logging: %v", err)
+		log.Fatalf("Could not register tests: %v\n", err)
 	}
 
-	logger.EllaCoreTesterLog.Info("Starting Ella Core Tester")
-
-	err = gnb.Start(coreN2Address, gnbN2Address)
-	if err != nil {
-		logger.EllaCoreTesterLog.Fatalf("Error starting gNB: %v", err)
+	testEnv := engine.Env{
+		CoreN2Address: cfg.EllaCore.N2Address,
+		GnbN2Address:  cfg.Gnb.N2Address,
 	}
 
-	<-ctx.Done()
-	logger.EllaCoreTesterLog.Info("Shutdown signal received, exiting.")
+	allPassed, testResults := engine.Run(testEnv)
+
+	err = writeResultsToFile(*outputFilePtr, testResults)
+	if err != nil {
+		log.Fatalf("Could not write test results to file: %v\n", err)
+	}
+
+	if !allPassed {
+		os.Exit(1)
+	}
+}
+
+func writeResultsToFile(filePath string, testResults []engine.TestResult) error {
+	if filePath == "" {
+		return nil
+	}
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("could not create output file: %v", err)
+	}
+	defer f.Close()
+
+	b, err := json.Marshal(testResults)
+	if err != nil {
+		return fmt.Errorf("could not marshal test results to json: %v", err)
+	}
+
+	_, err = f.Write(b)
+	if err != nil {
+		return fmt.Errorf("could not write test results to file: %v", err)
+	}
+
+	return nil
 }

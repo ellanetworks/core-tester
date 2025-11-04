@@ -8,12 +8,30 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type EllaCoreConfig struct {
+	N2Address string
+}
+
+type GnbConfig struct {
+	N2Address string
+}
+
 type Config struct {
-	LogLevel string
+	EllaCore EllaCoreConfig
+	Gnb      GnbConfig
+}
+
+type EllaCoreYAML struct {
+	N2Address string `yaml:"n2-address"`
+}
+
+type GnbYAML struct {
+	N2Address string `yaml:"n2-address"`
 }
 
 type ConfigYAML struct {
-	LogLevel string `yaml:"log-level"`
+	EllaCore EllaCoreYAML `yaml:"ella-core"`
+	Gnb      GnbYAML      `yaml:"gnb"`
 }
 
 func Validate(filePath string) (Config, error) {
@@ -30,11 +48,20 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, fmt.Errorf("cannot unmarshal config file")
 	}
 
-	if c.LogLevel == "" {
-		return Config{}, errors.New("logLevel is empty")
+	if c.EllaCore == (EllaCoreYAML{}) {
+		return Config{}, errors.New("ella-core section is missing")
 	}
 
-	config.LogLevel = c.LogLevel
+	if c.EllaCore.N2Address == "" {
+		return Config{}, errors.New("ella-core.n2-address is empty")
+	}
+
+	if c.Gnb == (GnbYAML{}) {
+		return Config{}, errors.New("gnb section is missing")
+	}
+
+	config.EllaCore.N2Address = c.EllaCore.N2Address
+	config.Gnb.N2Address = c.Gnb.N2Address
 
 	return config, nil
 }
