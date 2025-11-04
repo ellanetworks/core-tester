@@ -2,13 +2,17 @@ package ue
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/common/sidf"
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/ellanetworks/core-tester/internal/ue"
+	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type RegistrationBasic struct{}
@@ -98,6 +102,36 @@ func (t RegistrationBasic) Run(env engine.Env) error {
 	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)
 	if err != nil {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+	}
+
+	timeout := 1 * time.Microsecond
+
+	fr, err := gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
+		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
+	}
+
+	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
+	if downlinkNASTransport == nil {
+		return fmt.Errorf("DownlinkNASTransport is nil")
 	}
 
 	return nil

@@ -81,7 +81,7 @@ func profileBEncrypt(msin string, hnPubkey *ecdh.PublicKey) (string, error) {
 	}
 
 	// For the KDF we need the ephemeral public key in compressed form
-	x, y := elliptic.Unmarshal(elliptic.P256(), ephemeralPriv.PublicKey().Bytes())
+	x, y := elliptic.Unmarshal(elliptic.P256(), ephemeralPriv.PublicKey().Bytes()) //nolint:staticcheck
 	if x == nil || y == nil {
 		return "", errors.New("failed to unmarshal ephemeral public key")
 	}

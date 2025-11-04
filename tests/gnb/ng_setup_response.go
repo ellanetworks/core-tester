@@ -48,7 +48,7 @@ func (t NGSetupResponse) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	timeout := 30 * time.Second
+	timeout := 10 * time.Millisecond
 
 	fr, err := gNodeB.ReceiveFrame(timeout)
 	if err != nil {

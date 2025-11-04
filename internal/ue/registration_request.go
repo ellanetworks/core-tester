@@ -33,11 +33,11 @@ func BuildRegistrationRequest(opts *RegistrationRequestOpts) ([]byte, error) {
 
 	registrationRequest := nasMessage.NewRegistrationRequest(0)
 	registrationRequest.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
-	registrationRequest.SpareHalfOctetAndSecurityHeaderType.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
-	registrationRequest.SpareHalfOctetAndSecurityHeaderType.SetSpareHalfOctet(0x00)
-	registrationRequest.RegistrationRequestMessageIdentity.SetMessageType(nas.MsgTypeRegistrationRequest)
+	registrationRequest.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
+	registrationRequest.SetSpareHalfOctet(0x00)
+	registrationRequest.SetMessageType(nas.MsgTypeRegistrationRequest)
 	registrationRequest.NgksiAndRegistrationType5GS.SetNasKeySetIdentifiler(uint8(opts.UESecurity.NgKsi.Ksi))
-	registrationRequest.NgksiAndRegistrationType5GS.SetRegistrationType5GS(opts.RegistrationType)
+	registrationRequest.SetRegistrationType5GS(opts.RegistrationType)
 	// If AMF previously assigned the UE a 5G-GUTI, reuses it
 	// If the 5G-GUTI is no longer valid, AMF will issue an Identity Request
 	// which we'll answer with the requested Mobility Identity (eg. SUCI)
@@ -85,7 +85,7 @@ func BuildRegistrationRequest(opts *RegistrationRequestOpts) ([]byte, error) {
 		registrationRequest.PDUSessionStatus.Buffer = registrationRequest.UplinkDataStatus.Buffer
 	}
 
-	m.GmmMessage.RegistrationRequest = registrationRequest
+	m.RegistrationRequest = registrationRequest
 
 	data := new(bytes.Buffer)
 

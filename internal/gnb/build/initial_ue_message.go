@@ -51,7 +51,6 @@ func InitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error) {
 	plmnIdentity := GetPLMNIdentity(opts.Mcc, opts.Mnc)
 
 	tac, err := GetTacInBytes(opts.Tac)
-
 	if err != nil {
 		return ngapType.NGAPPDU{}, fmt.Errorf("failed to get tac: %+v", err)
 	}
