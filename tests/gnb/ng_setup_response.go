@@ -8,6 +8,8 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/gnb/build"
+	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -34,7 +36,7 @@ func (t NGSetupResponse) Run(env engine.Env) error {
 		}
 	}()
 
-	opts := &gnb.NGSetupRequestOpts{
+	opts := &build.NGSetupRequestOpts{
 		Mcc: "001",
 		Mnc: "01",
 		Sst: "01",
@@ -53,7 +55,7 @@ func (t NGSetupResponse) Run(env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = validateSCTP(fr.Info, 60, 0)
+	err = utils.ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
