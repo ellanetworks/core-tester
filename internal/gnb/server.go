@@ -73,3 +73,14 @@ func (g *GnodeB) ReceiveFrame(timeout time.Duration) (SCTPFrame, error) {
 		return SCTPFrame{Data: data, Info: info}, nil
 	}
 }
+
+func (g *GnodeB) Close() error {
+	if g.Conn != nil {
+		err := g.Conn.Close()
+		if err != nil {
+			return fmt.Errorf("could not close SCTP connection: %w", err)
+		}
+	}
+
+	return nil
+}

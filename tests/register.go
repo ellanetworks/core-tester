@@ -8,9 +8,17 @@ import (
 )
 
 func RegisterAll() error {
-	err := engine.Register(gnb.RegistrationBasic{})
-	if err != nil {
-		return fmt.Errorf("could not register gnb/sctp/basic test: %v", err)
+	allTests := []engine.Test{
+		gnb.SCTPBasic{},
+		gnb.NGSetupResponse{},
+		gnb.NGSetupFailure_UnknownPLMN{},
+	}
+
+	for _, test := range allTests {
+		err := engine.Register(test)
+		if err != nil {
+			return fmt.Errorf("could not register test %T: %v", test, err)
+		}
 	}
 
 	return nil

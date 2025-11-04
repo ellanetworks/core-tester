@@ -82,6 +82,7 @@ func Run(env Env) (bool, []TestResult) {
 			details = err.Error()
 			aTestFailed = true
 		}
+		// time.Sleep(1 * time.Second) // Small delay between tests
 
 		testResults = append(testResults, TestResult{
 			Meta:    v.Meta(),
