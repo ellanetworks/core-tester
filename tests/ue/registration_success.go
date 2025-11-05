@@ -1,7 +1,9 @@
 package ue
 
 import (
+	"bytes"
 	"fmt"
+	"net"
 	"reflect"
 	"time"
 
@@ -115,27 +117,9 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	downlinkNASTransport, err := validateDownlinkNASTransport(fr)
 	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
-
-	pdu, err := ngap.Decoder(fr.Data)
-	if err != nil {
-		return fmt.Errorf("could not decode NGAP: %v", err)
-	}
-
-	if pdu.InitiatingMessage == nil {
-		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
-	}
-
-	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
-		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d), received %d", ngapType.ProcedureCodeDownlinkNASTransport, pdu.InitiatingMessage.ProcedureCode.Value)
-	}
-
-	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
-	if downlinkNASTransport == nil {
-		return fmt.Errorf("DownlinkNASTransport is nil")
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
 	amfUENGAPID := getAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport)
@@ -144,10 +128,6 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	}
 
 	receivedNASPDU := getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
-	if receivedNASPDU == nil {
-		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
-	}
 
 	rand, autn, err := validateNASPDUAuthenticationRequest(receivedNASPDU, newUE)
 	if err != nil {
@@ -189,34 +169,12 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	downlinkNASTransport, err = validateDownlinkNASTransport(fr)
 	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
-
-	pdu, err = ngap.Decoder(fr.Data)
-	if err != nil {
-		return fmt.Errorf("could not decode NGAP: %v", err)
-	}
-
-	if pdu.InitiatingMessage == nil {
-		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
-	}
-
-	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
-		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d), received %d", ngapType.ProcedureCodeDownlinkNASTransport, pdu.InitiatingMessage.ProcedureCode.Value)
-	}
-
-	downlinkNASTransport = pdu.InitiatingMessage.Value.DownlinkNASTransport
-	if downlinkNASTransport == nil {
-		return fmt.Errorf("DownlinkNASTransport is nil")
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
 	receivedNASPDU = getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
-	if receivedNASPDU == nil {
-		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
-	}
 
 	ksi, tsc, err := validateNASPDUSecurityModeCommand(receivedNASPDU, newUE)
 	if err != nil {
@@ -260,27 +218,9 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	initialContextSetupRequest, err := validateInitialContextSetupRequest(fr)
 	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
-
-	pdu, err = ngap.Decoder(fr.Data)
-	if err != nil {
-		return fmt.Errorf("could not decode NGAP: %v", err)
-	}
-
-	if pdu.InitiatingMessage == nil {
-		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
-	}
-
-	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeInitialContextSetup {
-		return fmt.Errorf("NGAP ProcedureCode is not InitialContextSetup (%d), received %d", ngapType.ProcedureCodeInitialContextSetup, pdu.InitiatingMessage.ProcedureCode.Value)
-	}
-
-	initialContextSetupRequest := pdu.InitiatingMessage.Value.InitialContextSetupRequest
-	if initialContextSetupRequest == nil {
-		return fmt.Errorf("InitialContextSetupRequest is nil")
+		return fmt.Errorf("initial context setup request validation failed: %v", err)
 	}
 
 	initialContextSetupRespOpts := &build.InitialContextSetupResponseOpts{
@@ -376,9 +316,411 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	fr, err = gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive NGAP frame: %v", err)
+	}
+
+	expectedUEIP := net.ParseIP("10.45.0.1")
+	expectedPDUSessionEstablishmentAccept := &ExpectedPDUSessionEstablishmentAccept{
+		PDUSessionID: 1,
+		UeIP:         &expectedUEIP,
+		Dnn:          "internet",
+		Sst:          1,
+		Sd:           "102030",
+		Qfi:          1,
+		FiveQI:       9,
+	}
+
+	err = validatePDUSessionResourceSetupRequest(fr, 1, "01", "102030", newUE, expectedPDUSessionEstablishmentAccept)
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
 
 	return nil
+}
+
+func validateDownlinkNASTransport(frame gnb.SCTPFrame) (*ngapType.DownlinkNASTransport, error) {
+	err := utils.ValidateSCTP(frame.Info, 60, 1)
+	if err != nil {
+		return nil, fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(frame.Data)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return nil, fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
+		return nil, fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d), received %d", ngapType.ProcedureCodeDownlinkNASTransport, pdu.InitiatingMessage.ProcedureCode.Value)
+	}
+
+	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
+	if downlinkNASTransport == nil {
+		return nil, fmt.Errorf("DownlinkNASTransport is nil")
+	}
+
+	return downlinkNASTransport, nil
+}
+
+func validateInitialContextSetupRequest(frame gnb.SCTPFrame) (*ngapType.InitialContextSetupRequest, error) {
+	err := utils.ValidateSCTP(frame.Info, 60, 1)
+	if err != nil {
+		return nil, fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(frame.Data)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return nil, fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeInitialContextSetup {
+		return nil, fmt.Errorf("NGAP ProcedureCode is not InitialContextSetup (%d), received %d", ngapType.ProcedureCodeInitialContextSetup, pdu.InitiatingMessage.ProcedureCode.Value)
+	}
+
+	initialContextSetupRequest := pdu.InitiatingMessage.Value.InitialContextSetupRequest
+	if initialContextSetupRequest == nil {
+		return nil, fmt.Errorf("InitialContextSetupRequest is nil")
+	}
+
+	return initialContextSetupRequest, nil
+}
+
+func validatePDUSessionResourceSetupRequest(
+	frame gnb.SCTPFrame,
+	expectedPDUSessionID int64,
+	expectedSST string,
+	expectedSD string,
+	ueIns *ue.UE,
+	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
+) error {
+	err := utils.ValidateSCTP(frame.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(frame.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodePDUSessionResourceSetup {
+		return fmt.Errorf("NGAP PDU is not a PDUSessionResourceSetupRequest")
+	}
+
+	pDUSessionResourceSetupRequest := pdu.InitiatingMessage.Value.PDUSessionResourceSetupRequest
+	if pDUSessionResourceSetupRequest == nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest is nil")
+	}
+
+	var (
+		amfueNGAPID                                  *ngapType.AMFUENGAPID
+		ranueNGAPID                                  *ngapType.RANUENGAPID
+		protocolIEIDPDUSessionResourceSetupListSUReq *ngapType.PDUSessionResourceSetupListSUReq
+		protocolIEIDUEAggregateMaximumBitRate        *ngapType.UEAggregateMaximumBitRate
+	)
+
+	for _, ie := range pDUSessionResourceSetupRequest.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDAMFUENGAPID:
+			amfueNGAPID = ie.Value.AMFUENGAPID
+		case ngapType.ProtocolIEIDRANUENGAPID:
+			ranueNGAPID = ie.Value.RANUENGAPID
+		case ngapType.ProtocolIEIDPDUSessionResourceSetupListSUReq:
+			protocolIEIDPDUSessionResourceSetupListSUReq = ie.Value.PDUSessionResourceSetupListSUReq
+		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
+			protocolIEIDUEAggregateMaximumBitRate = ie.Value.UEAggregateMaximumBitRate
+		default:
+			return fmt.Errorf("PDUSessionResourceSetupRequest IE ID (%d) not supported", ie.Id.Value)
+		}
+	}
+
+	if amfueNGAPID == nil {
+		return fmt.Errorf("AMFUENGAPID is missing in PDUSessionResourceSetupRequest")
+	}
+
+	if ranueNGAPID == nil {
+		return fmt.Errorf("RANUENGAPID is missing in PDUSessionResourceSetupRequest")
+	}
+
+	if protocolIEIDPDUSessionResourceSetupListSUReq == nil {
+		return fmt.Errorf("PDUSessionResourceSetupListSUReq is missing in PDUSessionResourceSetupRequest")
+	}
+
+	if protocolIEIDUEAggregateMaximumBitRate == nil {
+		return fmt.Errorf("UEAggregateMaximumBitRate is missing in PDUSessionResourceSetupRequest")
+	}
+
+	err = validatePDUSessionResourceSetupListSUReq(protocolIEIDPDUSessionResourceSetupListSUReq, expectedPDUSessionID, expectedSST, expectedSD, ueIns, expectedPDUSessionEstablishmentAccept)
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupListSUReq validation failed: %v", err)
+	}
+
+	return nil
+}
+
+func validatePDUSessionResourceSetupListSUReq(
+	pDUSessionResourceSetupListSUReq *ngapType.PDUSessionResourceSetupListSUReq,
+	expectedPDUSessionID int64,
+	expectedSST string,
+	expectedSD string,
+	ueIns *ue.UE,
+	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
+) error {
+	if len(pDUSessionResourceSetupListSUReq.List) != 1 {
+		return fmt.Errorf("PDUSessionResourceSetupListSUReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListSUReq.List))
+	}
+
+	item := pDUSessionResourceSetupListSUReq.List[0]
+	if item.PDUSessionID.Value != expectedPDUSessionID {
+		return fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
+	}
+
+	expectedSSTBytes, expectedSDBytes, err := build.GetSliceInBytes(expectedSST, expectedSD)
+	if err != nil {
+		return fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
+	}
+
+	if !bytes.Equal(item.SNSSAI.SST.Value, expectedSSTBytes) {
+		return fmt.Errorf("unexpected SNSSAI SST: %x, expected: %x", item.SNSSAI.SST.Value, expectedSSTBytes)
+	}
+
+	if !bytes.Equal(item.SNSSAI.SD.Value, expectedSDBytes) {
+		return fmt.Errorf("unexpected SNSSAI SD: %x, expected: %x", item.SNSSAI.SD.Value, expectedSDBytes)
+	}
+
+	if item.PDUSessionNASPDU == nil {
+		return fmt.Errorf("PDUSessionNASPDU is nil")
+	}
+
+	msg, err := ueIns.DecodeNAS(item.PDUSessionNASPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode PDU Session NAS PDU: %v", err)
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeDLNASTransport {
+		return fmt.Errorf("NAS message type is not DLNASTransport (%d), got (%d)", nas.MsgTypeDLNASTransport, msg.GmmMessage.GetMessageType())
+	}
+
+	if msg.DLNASTransport == nil {
+		return fmt.Errorf("NAS DLNASTransport message is nil")
+	}
+
+	if reflect.ValueOf(msg.DLNASTransport.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.DLNASTransport.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.DLNASTransport.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half not expected value")
+	}
+
+	if msg.DLNASTransport.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header not expected value")
+	}
+
+	if reflect.ValueOf(msg.DLNASTransport.SpareHalfOctetAndPayloadContainerType).IsZero() {
+		return fmt.Errorf("payload container type is missing")
+	}
+
+	if msg.DLNASTransport.GetPayloadContainerType() != 1 {
+		return fmt.Errorf("payload container type not expected value")
+	}
+
+	if reflect.ValueOf(msg.DLNASTransport.PayloadContainer).IsZero() || msg.DLNASTransport.GetPayloadContainerContents() == nil {
+		return fmt.Errorf("payload container is missing")
+	}
+
+	if reflect.ValueOf(msg.DLNASTransport.PduSessionID2Value).IsZero() {
+		return fmt.Errorf("pdu session id is missing")
+	}
+
+	if msg.DLNASTransport.PduSessionID2Value.GetIei() != 18 {
+		return fmt.Errorf("pdu session id not expected value")
+	}
+
+	payloadContainer, err := getNasPduFromPduAccept(msg)
+	if err != nil {
+		return fmt.Errorf("could not get PDU Session establishment accept: %v", err)
+	}
+
+	pcMsgType := payloadContainer.GsmHeader.GetMessageType()
+	if pcMsgType != nas.MsgTypePDUSessionEstablishmentAccept {
+		return fmt.Errorf("PDU Session Establishment Accept message type is not correct, expected: %d, got: %d", nas.MsgTypePDUSessionEstablishmentAccept, pcMsgType)
+	}
+
+	err = validatePDUSessionEstablishmentAccept(payloadContainer.PDUSessionEstablishmentAccept, expectedPDUSessionEstablishmentAccept)
+	if err != nil {
+		return fmt.Errorf("could not validate PDU Session Establishment Accept: %v", err)
+	}
+
+	return nil
+}
+
+type ExpectedPDUSessionEstablishmentAccept struct {
+	PDUSessionID uint8
+	UeIP         *net.IP
+	Dnn          string
+	Sst          uint8
+	Sd           string
+	Qfi          uint8
+	FiveQI       uint8
+}
+
+func validatePDUSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishmentAccept, opts *ExpectedPDUSessionEstablishmentAccept) error {
+	// check the mandatory fields
+	if reflect.ValueOf(msg.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol discriminator is missing")
+	}
+
+	if msg.GetExtendedProtocolDiscriminator() != 46 {
+		return fmt.Errorf("extended protocol discriminator not expected value")
+	}
+
+	if reflect.ValueOf(msg.PDUSessionID).IsZero() {
+		return fmt.Errorf("pdu session id is missing or not expected value")
+	}
+
+	if reflect.ValueOf(msg.PTI).IsZero() {
+		return fmt.Errorf("pti is missing")
+	}
+
+	if msg.GetPTI() != 1 {
+		return fmt.Errorf("pti not expected value")
+	}
+
+	if msg.GetMessageType() != nas.MsgTypePDUSessionEstablishmentAccept {
+		return fmt.Errorf("message type is missing or not expected value, got: %d, expected: %d", msg.GetMessageType(), nas.MsgTypePDUSessionEstablishmentAccept)
+	}
+
+	if reflect.ValueOf(msg.SelectedSSCModeAndSelectedPDUSessionType).IsZero() {
+		return fmt.Errorf("ssc mode or pdu session type is missing")
+	}
+
+	if msg.GetPDUSessionType() != 1 {
+		return fmt.Errorf("pdu session type not expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthorizedQosRules).IsZero() {
+		return fmt.Errorf("authorized qos rules is missing")
+	}
+
+	if reflect.ValueOf(msg.SessionAMBR).IsZero() {
+		return fmt.Errorf("session ambr is missing")
+	}
+
+	pduSessionId := msg.GetPDUSessionID()
+	if pduSessionId != opts.PDUSessionID {
+		return fmt.Errorf("unexpected PDUSessionID: %d", pduSessionId)
+	}
+
+	ueIP, err := ueIPFromNAS(msg.GetPDUAddressInformation())
+	if err != nil {
+		return fmt.Errorf("could not get UE IP from NAS PDU Address Information: %v", err)
+	}
+
+	if ueIP.String() != opts.UeIP.String() {
+		return fmt.Errorf("unexpected UE IP: %s, expected: %s", ueIP, opts.UeIP)
+	}
+
+	qosRulesBytes := msg.GetQosRule()
+
+	qosRules, err := utils.UnmarshalQosRules(qosRulesBytes)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal QoS Rules: %v", err)
+	}
+
+	if len(qosRules) != 1 {
+		return fmt.Errorf("unexpected number of QoS Rules: %d", len(qosRules))
+	}
+
+	qosRule := qosRules[0]
+	if qosRule.QFI != opts.Qfi {
+		return fmt.Errorf("unexpected QoS Rules Identifier: %d, expected: %d", qosRule.QFI, opts.Qfi)
+	}
+
+	qosFlowDescs, err := utils.ParseAuthorizedQosFlowDescriptions(msg.GetQoSFlowDescriptions())
+	if err != nil {
+		return fmt.Errorf("could not parse AuthorizedQosFlowDescriptions: %v", err)
+	}
+
+	if len(qosFlowDescs) != 1 {
+		return fmt.Errorf("unexpected number of AuthorizedQosFlowDescriptions: %d", len(qosFlowDescs))
+	}
+
+	qosFlowDesc := qosFlowDescs[0]
+
+	if qosFlowDesc.Qfi != opts.Qfi {
+		return fmt.Errorf("unexpected AuthorizedQosFlowDescriptions QFI: %d", qosFlowDesc.Qfi)
+	}
+
+	if len(qosFlowDesc.ParamList) != 1 {
+		return fmt.Errorf("unexpected number of AuthorizedQosFlowDescriptions Parameters: %d, expected: 1", len(qosFlowDesc.ParamList))
+	}
+
+	// check FiveQI
+	if qosFlowDesc.ParamList[0].ParamID != utils.QFDParamID5QI {
+		return fmt.Errorf("unexpected AuthorizedQosFlowDescriptions Parameter Type: %d, expected: %d", qosFlowDesc.ParamList[0].ParamID, utils.QFDParamID5QI)
+	}
+
+	fiveQI := qosFlowDesc.ParamList[0].FiveQI
+	// if fiveQI != &opts.FiveQI {
+	// 	return fmt.Errorf("unexpected AuthorizedQosFlowDescriptions FiveQI: %d, expected: %d", *fiveQI, opts.FiveQI)
+	// }
+	if ptrToVal(fiveQI) != opts.FiveQI {
+		return fmt.Errorf("unexpected AuthorizedQosFlowDescriptions FiveQI: %d, expected: %d", ptrToVal(fiveQI), opts.FiveQI)
+	}
+
+	dnn := msg.GetDNN()
+	if dnn != opts.Dnn {
+		return fmt.Errorf("unexpected DNN: %s", dnn)
+	}
+
+	sst := msg.GetSST()
+
+	sd := msg.GetSD()
+
+	if sst != opts.Sst {
+		return fmt.Errorf("unexpected SNSSAI SST: %d", sst)
+	}
+
+	sdStr := sdFromNAS(sd)
+	if sdStr != opts.Sd {
+		return fmt.Errorf("unexpected SNSSAI SD: %s", sdStr)
+	}
+
+	return nil
+}
+
+func getNasPduFromPduAccept(dlNas *nas.Message) (*nas.Message, error) {
+	payload := dlNas.DLNASTransport.GetPayloadContainerContents()
+	m := new(nas.Message)
+
+	err := m.PlainNasDecode(&payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode NAS PDU: %v", err)
+	}
+
+	return m, nil
 }
 
 func getNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.NASPDU {
@@ -653,4 +995,27 @@ func validateNASPDURegistrationAcceptInitialContextSetupRequest(nasPDU *ngapType
 	}
 
 	return msg.RegistrationAccept.GUTI5G, nil
+}
+
+func ueIPFromNAS(ip [12]uint8) (*net.IP, error) {
+	ueIPString := fmt.Sprintf("%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3])
+
+	ueIP := net.ParseIP(ueIPString)
+	if ueIP == nil {
+		return nil, fmt.Errorf("could not parse UE IP: %s", ueIPString)
+	}
+
+	return &ueIP, nil
+}
+
+func sdFromNAS(sd [3]uint8) string {
+	return fmt.Sprintf("%x%x%x", sd[0], sd[1], sd[2])
+}
+
+func ptrToVal(p *uint8) uint8 {
+	if p == nil {
+		return 0
+	}
+
+	return *p
 }
