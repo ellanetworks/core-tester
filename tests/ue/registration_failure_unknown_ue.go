@@ -135,35 +135,21 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("DownlinkNASTransport is nil")
 	}
 
-	err = validateDownlinkNASTransport(downlinkNASTransport, newUE)
+	receivedNASPDU := getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
+
+	if receivedNASPDU == nil {
+		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
+	}
+
+	err = validateNASPDURegistrationReject(receivedNASPDU, newUE)
 	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
 	return nil
 }
 
-func validateDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport, ueIns *ue.UE) error {
-	var nasPDU *ngapType.NASPDU
-
-	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDAMFUENGAPID:
-		case ngapType.ProtocolIEIDRANUENGAPID:
-		case ngapType.ProtocolIEIDOldAMF:
-		case ngapType.ProtocolIEIDRANPagingPriority:
-		case ngapType.ProtocolIEIDNASPDU:
-			nasPDU = ie.Value.NASPDU
-		case ngapType.ProtocolIEIDMobilityRestrictionList:
-		case ngapType.ProtocolIEIDIndexToRFSP:
-		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
-		case ngapType.ProtocolIEIDAllowedNSSAI:
-
-		default:
-			return fmt.Errorf("DownlinkNASTransport IE ID (%d) not supported", ie.Id.Value)
-		}
-	}
-
+func validateNASPDURegistrationReject(nasPDU *ngapType.NASPDU, ueIns *ue.UE) error {
 	if nasPDU == nil {
 		return fmt.Errorf("NAS PDU is nil")
 	}
@@ -182,7 +168,7 @@ func validateDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTran
 	}
 
 	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationReject {
-		return fmt.Errorf("NAS message type is not Registration Reject (%d)", nas.MsgTypeRegistrationReject)
+		return fmt.Errorf("NAS message type is not Registration Reject (%d), got (%d)", nas.MsgTypeRegistrationReject, msg.GmmMessage.GetMessageType())
 	}
 
 	if msg.RegistrationReject == nil {

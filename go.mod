@@ -17,6 +17,7 @@ require (
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	golang.org/x/sys v0.31.0 // indirect

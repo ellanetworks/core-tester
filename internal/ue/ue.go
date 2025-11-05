@@ -1,14 +1,19 @@
 package ue
 
 import (
+	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/milenage"
+	"github.com/free5gc/util/ueauth"
 )
 
 const (
@@ -43,11 +48,17 @@ type UESecurity struct {
 	Guti                 *nasType.GUTI5G
 }
 
+type Amf struct {
+	mcc string
+	mnc string
+}
+
 type UE struct {
 	UeSecurity UESecurity
 	StateMM    int
 	Dnn        string
 	Snssai     models.Snssai
+	amfInfo    Amf
 }
 
 type UEOpts struct {
@@ -101,6 +112,8 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode SUCI: %v", err)
 	}
+
+	ue.SetAmfMccAndMnc(opts.Mcc, opts.Mnc)
 
 	ue.UeSecurity.Suci = suci
 
@@ -248,4 +261,119 @@ func reverse(s string) string {
 	}
 
 	return aux
+}
+
+var (
+	ErrMACFailure = errors.New("milenage MAC failure")
+	ErrSQNFailure = errors.New("sequence number out of range")
+)
+
+func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription, RAND []byte, snNmae string, AUTN []byte) ([]byte, error) {
+	OPC, err := hex.DecodeString(authSubs.EncOpcKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode OPC: %v", err)
+	}
+
+	K, err := hex.DecodeString(authSubs.EncPermanentKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode K: %v", err)
+	}
+
+	sqnUe, err := hex.DecodeString(authSubs.SequenceNumber.Sqn)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode SQN: %v", err)
+	}
+
+	sqnHn, AK, IK, CK, RES, err := milenage.GenerateKeysWithAUTN(OPC, K, RAND, AUTN)
+	if err != nil {
+		return nil, ErrMACFailure
+	}
+
+	if bytes.Compare(sqnUe, sqnHn) > 0 {
+		auts, err := milenage.GenerateAUTS(OPC, K, RAND, sqnUe)
+		if err != nil {
+			return auts, fmt.Errorf("AUTS generation error: %v", err)
+		}
+
+		return auts, ErrSQNFailure
+	}
+
+	authSubs.SequenceNumber = &models.SequenceNumber{
+		Sqn: fmt.Sprintf("%08x", sqnHn),
+	}
+
+	key := append(CK, IK...)
+	FC := ueauth.FC_FOR_RES_STAR_XRES_STAR_DERIVATION
+	P0 := []byte(snNmae)
+	P1 := RAND
+	P2 := RES
+
+	err = ue.DerivateKamf(key, snNmae, sqnHn, AK)
+	if err != nil {
+		return nil, fmt.Errorf("error while deriving Kamf: %v", err)
+	}
+
+	kdfVal_for_resStar, err := ueauth.GetKDFValue(key, FC, P0, ueauth.KDFLen(P0), P1, ueauth.KDFLen(P1), P2, ueauth.KDFLen(P2))
+	if err != nil {
+		return nil, fmt.Errorf("error while deriving KDF: %v", err)
+	}
+
+	return kdfVal_for_resStar[len(kdfVal_for_resStar)/2:], nil
+}
+
+func (ue *UE) DerivateKamf(key []byte, snName string, SQN, AK []byte) error {
+	FC := ueauth.FC_FOR_KAUSF_DERIVATION
+	P0 := []byte(snName)
+	SQNxorAK := make([]byte, 6)
+
+	for i := 0; i < len(SQN); i++ {
+		SQNxorAK[i] = SQN[i] ^ AK[i]
+	}
+
+	P1 := SQNxorAK
+
+	Kausf, err := ueauth.GetKDFValue(key, FC, P0, ueauth.KDFLen(P0), P1, ueauth.KDFLen(P1))
+	if err != nil {
+		return fmt.Errorf("error while deriving Kausf: %v", err)
+	}
+
+	P0 = []byte(snName)
+
+	Kseaf, err := ueauth.GetKDFValue(Kausf, ueauth.FC_FOR_KSEAF_DERIVATION, P0, ueauth.KDFLen(P0))
+	if err != nil {
+		return fmt.Errorf("error while deriving Kseaf: %v", err)
+	}
+
+	supiRegexp, _ := regexp.Compile("(?:imsi|supi)-([0-9]{5,15})")
+	groups := supiRegexp.FindStringSubmatch(ue.UeSecurity.Supi)
+
+	P0 = []byte(groups[1])
+	L0 := ueauth.KDFLen(P0)
+	P1 = []byte{0x00, 0x00}
+	L1 := ueauth.KDFLen(P1)
+
+	ue.UeSecurity.Kamf, err = ueauth.GetKDFValue(Kseaf, ueauth.FC_FOR_KAMF_DERIVATION, P0, L0, P1, L1)
+	if err != nil {
+		return fmt.Errorf("error while deriving Kamf: %v", err)
+	}
+
+	return nil
+}
+
+func (ue *UE) SetAmfMccAndMnc(mcc string, mnc string) {
+	ue.amfInfo.mcc = mcc
+	ue.amfInfo.mnc = mnc
+	ue.UeSecurity.Snn = ue.deriveSNN()
+}
+
+// Build SNN (// 5G:mnc093.mcc208.3gppnetwork.org)
+func (ue *UE) deriveSNN() string {
+	var resu string
+	if len(ue.amfInfo.mnc) == 2 {
+		resu = "5G:mnc0" + ue.amfInfo.mnc + ".mcc" + ue.amfInfo.mcc + ".3gppnetwork.org"
+	} else {
+		resu = "5G:mnc" + ue.amfInfo.mnc + ".mcc" + ue.amfInfo.mcc + ".3gppnetwork.org"
+	}
+
+	return resu
 }

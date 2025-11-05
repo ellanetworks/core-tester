@@ -1,0 +1,266 @@
+package ue
+
+import (
+	"fmt"
+	"reflect"
+	"time"
+
+	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/gnb/build"
+	"github.com/ellanetworks/core-tester/internal/ue"
+	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap"
+	"github.com/free5gc/ngap/ngapType"
+)
+
+type RegistrationSuccess struct{}
+
+func (RegistrationSuccess) Meta() engine.Meta {
+	return engine.Meta{
+		ID:      "ue/registration_success",
+		Summary: "UE registration success test",
+	}
+}
+
+func (t RegistrationSuccess) Run(env engine.Env) error {
+	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	if err != nil {
+		return fmt.Errorf("error starting gNB: %v", err)
+	}
+
+	defer func() {
+		err := gNodeB.Close()
+		if err != nil {
+			fmt.Printf("error closing gNB: %v\n", err)
+		}
+	}()
+
+	err = utils.NGSetupProcedure(gNodeB)
+	if err != nil {
+		return fmt.Errorf("NGSetupProcedure failed: %v", err)
+	}
+
+	secCap := utils.UeSecurityCapability{
+		Integrity: utils.IntegrityAlgorithms{
+			Nia2: true,
+		},
+		Ciphering: utils.CipheringAlgorithms{
+			Nea0: true,
+			Nea2: true,
+		},
+	}
+
+	newUEOpts := &ue.UEOpts{
+		Msin: "2989077253",
+		K:    "369f7bd3067faec142c47ed9132e942a",
+		OpC:  "34e89843fe0683dc961873ebc05b8a35",
+		Amf:  "80000000000000000000000000000000",
+		Sqn:  "000000000001",
+		Mcc:  "001",
+		Mnc:  "01",
+		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
+			ProtectionScheme: "0",
+			PublicKeyID:      "0",
+		},
+		RoutingIndicator:     "0000",
+		Dnn:                  "internet",
+		Sst:                  1,
+		Sd:                   "010203",
+		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
+	}
+
+	newUE, err := ue.NewUE(newUEOpts)
+	if err != nil {
+		return fmt.Errorf("could not create UE: %v", err)
+	}
+
+	regReqOpts := &ue.RegistrationRequestOpts{
+		RegistrationType:  nasMessage.RegistrationType5GSInitialRegistration,
+		RequestedNSSAI:    nil,
+		UplinkDataStatus:  nil,
+		IncludeCapability: false,
+		UESecurity:        newUE.UeSecurity,
+	}
+
+	nasPDU, err := ue.BuildRegistrationRequest(regReqOpts)
+	if err != nil {
+		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+	}
+
+	initialUEMsgOpts := &build.InitialUEMessageOpts{
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		RanUENGAPID: 1,
+		NasPDU:      nasPDU,
+		Guti5g:      newUE.UeSecurity.Guti,
+	}
+
+	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)
+	if err != nil {
+		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+	}
+
+	timeout := 1 * time.Microsecond
+
+	fr, err := gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
+		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
+	}
+
+	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
+	if downlinkNASTransport == nil {
+		return fmt.Errorf("DownlinkNASTransport is nil")
+	}
+
+	receivedNASPDU := getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
+
+	if receivedNASPDU == nil {
+		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
+	}
+
+	rand, autn, err := validateNASPDUAuthenticationRequest(receivedNASPDU, newUE)
+	if err != nil {
+		return fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	paramAutn, err := newUE.DeriveRESstarAndSetKey(newUE.UeSecurity.AuthenticationSubs, rand[:], newUE.UeSecurity.Snn, autn[:])
+	if err != nil {
+		return fmt.Errorf("could not derive RES* and set key: %v", err)
+	}
+
+	authRespOpts := &ue.AuthenticationResponseOpts{
+		AuthenticationResponseParam: paramAutn,
+		EapMsg:                      "",
+	}
+
+	authResp, err := ue.BuildAuthenticationResponse(authRespOpts)
+	if err != nil {
+		return fmt.Errorf("could not build authentication response: %v", err)
+	}
+
+	uplinkNasTransportOpts := &build.UplinkNasTransportOpts{
+		AMFUeNgapID: 1, // TODO: change using actual AMF UE NGAP ID
+		RANUeNgapID: 1,
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		NasPDU:      authResp,
+	}
+
+	err = gNodeB.SendUplinkNASTransport(uplinkNasTransportOpts)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	return nil
+}
+
+func getNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.NASPDU {
+	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDNASPDU:
+			return ie.Value.NASPDU
+		default:
+			continue
+		}
+	}
+
+	return nil
+}
+
+func validateNASPDUAuthenticationRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) ([16]uint8, [16]uint8, error) {
+	if nasPDU == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeAuthenticationRequest {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message type is not Authentication Request (%d), got (%d)", nas.MsgTypeAuthenticationRequest, msg.GmmMessage.GetMessageType())
+	}
+
+	if msg.AuthenticationRequest == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS Authentication Request message is nil")
+	}
+
+	if msg.AuthenticationParameterRAND == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS Authentication Request RAND is nil")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.ExtendedProtocolDiscriminator).IsZero() {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.AuthenticationRequest.GetExtendedProtocolDiscriminator() != 126 {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.AuthenticationRequest.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.AuthenticationRequest.GetSecurityHeaderType() != 0 {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("security header type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.AuthenticationRequestMessageIdentity).IsZero() {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("message type is missing")
+	}
+
+	if msg.AuthenticationRequest.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.AuthenticationRequest.GetNasKeySetIdentifiler() == 7 {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ngKSI not the expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.ABBA).IsZero() {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ABBA is missing")
+	}
+
+	if msg.AuthenticationRequest.GetABBAContents() == nil {
+		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ABBA content is missing")
+	}
+
+	rand := msg.GetRANDValue()
+	autn := msg.GetAUTN()
+
+	return rand, autn, nil
+}
