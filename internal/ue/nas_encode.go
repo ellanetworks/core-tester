@@ -17,7 +17,7 @@ func (ue *UE) EncodeNasPduWithSecurity(pdu []byte, securityHeaderType uint8, sec
 
 	err := m.PlainNasDecode(&pdu)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not decode nas message: %v", err)
 	}
 
 	m.SecurityHeader = nas.SecurityHeader{
@@ -29,20 +29,12 @@ func (ue *UE) EncodeNasPduWithSecurity(pdu []byte, securityHeaderType uint8, sec
 }
 
 func (ue *UE) NASEncode(msg *nas.Message, securityContextAvailable bool, newSecurityContext bool) ([]byte, error) {
-	var sequenceNumber uint8
-
-	var payload []byte
-
-	var err error
-
 	if ue == nil {
-		err = fmt.Errorf("amfUe is nil")
-		return nil, err
+		return nil, fmt.Errorf("amfUe is nil")
 	}
 
 	if msg == nil {
-		err = fmt.Errorf("NAS message is empty")
-		return nil, err
+		return nil, fmt.Errorf("nas message is nil")
 	}
 
 	if !securityContextAvailable {
@@ -54,11 +46,11 @@ func (ue *UE) NASEncode(msg *nas.Message, securityContextAvailable bool, newSecu
 		ue.UeSecurity.DLCount.Set(0, 0)
 	}
 
-	sequenceNumber = ue.UeSecurity.ULCount.SQN()
+	sequenceNumber := ue.UeSecurity.ULCount.SQN()
 
-	payload, err = msg.PlainNasEncode()
+	payload, err := msg.PlainNasEncode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not encode nas message: %v", err)
 	}
 
 	if msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtected && msg.SecurityHeaderType != nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext {
@@ -68,7 +60,6 @@ func (ue *UE) NASEncode(msg *nas.Message, securityContextAvailable bool, newSecu
 		}
 	}
 
-	// add sequence number
 	payload = append([]byte{sequenceNumber}, payload[:]...)
 
 	mac32, err := security.NASMacCalculate(ue.UeSecurity.IntegrityAlg, ue.UeSecurity.KnasInt, ue.UeSecurity.ULCount.Get(), security.Bearer3GPP, security.DirectionUplink, payload)

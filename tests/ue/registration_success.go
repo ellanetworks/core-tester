@@ -13,6 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
@@ -23,7 +24,7 @@ type RegistrationSuccess struct{}
 func (RegistrationSuccess) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_success",
-		Summary: "UE registration success test",
+		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
 	}
 }
 
@@ -70,7 +71,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		RoutingIndicator:     "0000",
 		Dnn:                  "internet",
 		Sst:                  1,
-		Sd:                   "010203",
+		Sd:                   "102030",
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
 	}
 
@@ -129,7 +130,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	}
 
 	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
-		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
+		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d), received %d", ngapType.ProcedureCodeDownlinkNASTransport, pdu.InitiatingMessage.ProcedureCode.Value)
 	}
 
 	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
@@ -203,7 +204,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	}
 
 	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
-		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
+		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d), received %d", ngapType.ProcedureCodeDownlinkNASTransport, pdu.InitiatingMessage.ProcedureCode.Value)
 	}
 
 	downlinkNASTransport = pdu.InitiatingMessage.Value.DownlinkNASTransport
@@ -217,7 +218,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
 	}
 
-	ksi, tsc, _, err := validateNASPDUSecurityModeCommand(receivedNASPDU, newUE)
+	ksi, tsc, err := validateNASPDUSecurityModeCommand(receivedNASPDU, newUE)
 	if err != nil {
 		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
@@ -254,11 +255,106 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	fr, err = gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err = ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeInitialContextSetup {
+		return fmt.Errorf("NGAP ProcedureCode is not InitialContextSetup (%d), received %d", ngapType.ProcedureCodeInitialContextSetup, pdu.InitiatingMessage.ProcedureCode.Value)
+	}
+
+	initialContextSetupRequest := pdu.InitiatingMessage.Value.InitialContextSetupRequest
+	if initialContextSetupRequest == nil {
+		return fmt.Errorf("InitialContextSetupRequest is nil")
+	}
+
+	initialContextSetupRespOpts := &build.InitialContextSetupResponseOpts{
+		AMFUENGAPID: amfUENGAPID.Value,
+		RANUENGAPID: 1,
+	}
+
+	err = gNodeB.SendInitialContextSetupResponse(initialContextSetupRespOpts)
+	if err != nil {
+		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+	}
+
+	receivedNASPDU = getNASPDUFromInitialContextSetupRequest(initialContextSetupRequest)
+
+	if receivedNASPDU == nil {
+		return fmt.Errorf("could not get NAS PDU from InitialContextSetupRequest")
+	}
+
+	guti5g, err := validateNASPDURegistrationAcceptInitialContextSetupRequest(receivedNASPDU, newUE)
+	if err != nil {
+		return fmt.Errorf("could not validate NAS PDU Registration Accept Initial Context Setup Request: %v", err)
+	}
+
+	newUE.Set5gGuti(guti5g)
+
+	regCompOpts := &ue.RegistrationCompleteOpts{
+		SORTransparentContainer: nil,
+	}
+
+	regComplete, err := ue.BuildRegistrationComplete(regCompOpts)
+	if err != nil {
+		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
+	}
+
+	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", newUE.UeSecurity.Supi)
+	}
+
+	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID.Value,
+		RANUeNgapID: 1,
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		NasPDU:      encodedPdu,
+	}
+
+	err = gNodeB.SendUplinkNASTransport(uplinkNasTransportOpts)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	time.Sleep(1 * time.Second)
+
 	return nil
 }
 
 func getNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.NASPDU {
 	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDNASPDU:
+			return ie.Value.NASPDU
+		default:
+			continue
+		}
+	}
+
+	return nil
+}
+
+func getNASPDUFromInitialContextSetupRequest(initialContextSetupRequest *ngapType.InitialContextSetupRequest) *ngapType.NASPDU {
+	for _, ie := range initialContextSetupRequest.ProtocolIEs.List {
 		switch ie.Id.Value {
 		case ngapType.ProtocolIEIDNASPDU:
 			return ie.Value.NASPDU
@@ -355,67 +451,62 @@ func validateNASPDUAuthenticationRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) 
 	return rand, autn, nil
 }
 
-func validateNASPDUSecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (int32, models.ScType, uint8, error) {
+func validateNASPDUSecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (int32, models.ScType, error) {
 	if nasPDU == nil {
-		return 0, "", 0, fmt.Errorf("NAS PDU is nil")
+		return 0, "", fmt.Errorf("NAS PDU is nil")
 	}
 
 	msg, err := ueIns.DecodeNAS(nasPDU.Value)
 	if err != nil {
-		return 0, "", 0, fmt.Errorf("could not decode NAS PDU: %v", err)
+		return 0, "", fmt.Errorf("could not decode NAS PDU: %v", err)
 	}
 
 	if msg == nil {
-		return 0, "", 0, fmt.Errorf("NAS message is nil")
+		return 0, "", fmt.Errorf("NAS message is nil")
 	}
 
 	if msg.GmmMessage == nil {
-		return 0, "", 0, fmt.Errorf("NAS message is not a GMM message")
+		return 0, "", fmt.Errorf("NAS message is not a GMM message")
 	}
 
 	if msg.GmmMessage.GetMessageType() != nas.MsgTypeSecurityModeCommand {
-		return 0, "", 0, fmt.Errorf("NAS message type is not Security Mode Command (%d), got (%d)", nas.MsgTypeSecurityModeCommand, msg.GmmMessage.GetMessageType())
+		return 0, "", fmt.Errorf("NAS message type is not Security Mode Command (%d), got (%d)", nas.MsgTypeSecurityModeCommand, msg.GmmMessage.GetMessageType())
 	}
 
 	if reflect.ValueOf(msg.SecurityModeCommand.ExtendedProtocolDiscriminator).IsZero() {
-		return 0, "", 0, fmt.Errorf("extended protocol is missing")
+		return 0, "", fmt.Errorf("extended protocol is missing")
 	}
 
 	if msg.SecurityModeCommand.GetExtendedProtocolDiscriminator() != 126 {
-		return 0, "", 0, fmt.Errorf("extended protocol not the expected value")
+		return 0, "", fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if msg.SecurityModeCommand.GetSecurityHeaderType() != 0 {
-		return 0, "", 0, fmt.Errorf("security header type not the expected value")
+		return 0, "", fmt.Errorf("security header type not the expected value")
 	}
 
 	if msg.SecurityModeCommand.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		return 0, "", 0, fmt.Errorf("spare half octet not the expected value")
+		return 0, "", fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if reflect.ValueOf(msg.SecurityModeCommand.SecurityModeCommandMessageIdentity).IsZero() {
-		return 0, "", 0, fmt.Errorf("message type is missing")
+		return 0, "", fmt.Errorf("message type is missing")
 	}
 
 	if reflect.ValueOf(msg.SecurityModeCommand.SelectedNASSecurityAlgorithms).IsZero() {
-		return 0, "", 0, fmt.Errorf("nas security algorithms is missing")
+		return 0, "", fmt.Errorf("nas security algorithms is missing")
 	}
 
 	if msg.SecurityModeCommand.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
-		return 0, "", 0, fmt.Errorf("spare half octet not the expected value")
+		return 0, "", fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if msg.SecurityModeCommand.GetNasKeySetIdentifiler() == 7 {
-		return 0, "", 0, fmt.Errorf("ngKSI not the expected value")
+		return 0, "", fmt.Errorf("ngKSI not the expected value")
 	}
 
 	if reflect.ValueOf(msg.SecurityModeCommand.ReplayedUESecurityCapabilities).IsZero() {
-		return 0, "", 0, fmt.Errorf("replayed ue security capabilities is missing")
-	}
-
-	rinmr := uint8(0)
-	if msg.Additional5GSecurityInformation != nil {
-		rinmr = msg.GetRINMR()
+		return 0, "", fmt.Errorf("replayed ue security capabilities is missing")
 	}
 
 	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())
@@ -429,5 +520,96 @@ func validateNASPDUSecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (i
 		tsc = models.ScType_MAPPED
 	}
 
-	return ksi, tsc, rinmr, nil
+	return ksi, tsc, nil
+}
+
+func validateNASPDURegistrationAcceptInitialContextSetupRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (*nasType.GUTI5G, error) {
+	if nasPDU == nil {
+		return nil, fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return nil, fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return nil, fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationAccept {
+		return nil, fmt.Errorf("NAS message type is not Registration Accept (%d), got (%d)", nas.MsgTypeRegistrationAccept, msg.GmmMessage.GetMessageType())
+	}
+
+	if msg.RegistrationAccept == nil {
+		return nil, fmt.Errorf("NAS Registration Accept message is nil")
+	}
+
+	if reflect.ValueOf(msg.RegistrationAccept.ExtendedProtocolDiscriminator).IsZero() {
+		return nil, fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.RegistrationAccept.GetExtendedProtocolDiscriminator() != 126 {
+		return nil, fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.RegistrationAccept.GetSpareHalfOctet() != 0 {
+		return nil, fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.RegistrationAccept.GetSecurityHeaderType() != 0 {
+		return nil, fmt.Errorf("security header type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.RegistrationAccept.RegistrationAcceptMessageIdentity).IsZero() {
+		return nil, fmt.Errorf("message type is missing")
+	}
+
+	if msg.RegistrationAcceptMessageIdentity.GetMessageType() != 66 {
+		return nil, fmt.Errorf("message type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.RegistrationAccept.RegistrationResult5GS).IsZero() {
+		return nil, fmt.Errorf("registration result 5GS is missing")
+	}
+
+	if msg.GetRegistrationResultValue5GS() != 1 {
+		return nil, fmt.Errorf("registration result 5GS not the expected value")
+	}
+
+	if msg.RegistrationAccept.GUTI5G == nil {
+		return nil, fmt.Errorf("GUTI5G is nil")
+	}
+
+	snssai := msg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
+
+	if len(snssai) == 0 {
+		return nil, fmt.Errorf("allowed NSSAI is missing")
+	}
+
+	sst := int32(snssai[1])
+	sd := fmt.Sprintf("%x%x%x", snssai[2], snssai[3], snssai[4])
+
+	if sst != ueIns.Snssai.Sst {
+		return nil, fmt.Errorf("allowed NSSAI SST not the expected value, got: %d, want: %d", sst, ueIns.Snssai.Sst)
+	}
+
+	if sd != ueIns.Snssai.Sd {
+		return nil, fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, ueIns.Snssai.Sd)
+	}
+
+	if msg.T3512Value == nil {
+		return nil, fmt.Errorf("T3512 value is nil")
+	}
+
+	timerInSeconds := utils.NasToGPRSTimer3(msg.T3512Value.Octet)
+	if timerInSeconds != 3600 {
+		return nil, fmt.Errorf("T3512 timer in seconds not the expected value, got: %d, want: 3600", timerInSeconds)
+	}
+
+	return msg.RegistrationAccept.GUTI5G, nil
 }

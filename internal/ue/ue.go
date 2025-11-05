@@ -377,3 +377,7 @@ func (ue *UE) deriveSNN() string {
 
 	return resu
 }
+
+func (ue *UE) Set5gGuti(guti *nasType.GUTI5G) {
+	ue.UeSecurity.Guti = guti
+}
