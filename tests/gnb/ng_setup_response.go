@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -48,9 +47,7 @@ func (t NGSetupResponse) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	timeout := 1 * time.Microsecond
-
-	fr, err := gNodeB.ReceiveFrame(timeout)
+	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

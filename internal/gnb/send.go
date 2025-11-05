@@ -16,9 +16,10 @@ const (
 	NGAPProcedureNGSetupRequest NGAPProcedure = "NGSetupRequest"
 
 	// UE-associated NGAP procedures
-	NGAPProcedureInitialUEMessage            NGAPProcedure = "InitialUEMessage"
-	NGAPProcedureUplinkNASTransport          NGAPProcedure = "UplinkNASTransport"
-	NGAPProcedureInitialContextSetupResponse NGAPProcedure = "InitialContextSetupResponse"
+	NGAPProcedureInitialUEMessage                NGAPProcedure = "InitialUEMessage"
+	NGAPProcedureUplinkNASTransport              NGAPProcedure = "UplinkNASTransport"
+	NGAPProcedureInitialContextSetupResponse     NGAPProcedure = "InitialContextSetupResponse"
+	NGAPProcedurePDUSessionResourceSetupResponse NGAPProcedure = "PDUSessionResourceSetupResponse"
 )
 
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
@@ -29,7 +30,7 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 
 	// UE-associated procedures
 	case NGAPProcedureInitialUEMessage, NGAPProcedureUplinkNASTransport,
-		NGAPProcedureInitialContextSetupResponse:
+		NGAPProcedureInitialContextSetupResponse, NGAPProcedurePDUSessionResourceSetupResponse:
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("NGAP message type (%s) not supported", msgType)
@@ -70,6 +71,15 @@ func (g *GnodeB) SendInitialContextSetupResponse(opts *build.InitialContextSetup
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureInitialContextSetupResponse)
+}
+
+func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *build.PDUSessionResourceSetupResponseOpts) error {
+	pdu, err := build.PDUSessionResourceSetupResponse(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build PDUSessionResourceSetupResponse: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedurePDUSessionResourceSetupResponse)
 }
 
 func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) error {

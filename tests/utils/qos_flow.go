@@ -53,7 +53,7 @@ type QoSFlowDescription struct {
 	QFDLen     uint8
 }
 
-func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, error) {
+func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, error) { // nolint:gocognit
 	var descs []QoSFlowDescription
 
 	i := 0

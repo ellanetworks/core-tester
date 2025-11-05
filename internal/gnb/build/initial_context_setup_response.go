@@ -16,21 +16,21 @@ type InitialContextSetupResponseBuilder struct {
 }
 
 type GnbPDUSession struct {
-	pduSessionId int64
-	downlinkTeid uint32
-	qosId        int64
+	PDUSessionId int64
+	DownlinkTeid uint32
+	QosId        int64
 }
 
 func (pduSession *GnbPDUSession) GetPduSessionId() int64 {
-	return pduSession.pduSessionId
+	return pduSession.PDUSessionId
 }
 
 func (pduSession *GnbPDUSession) GetTeidDownlink() uint32 {
-	return pduSession.downlinkTeid
+	return pduSession.DownlinkTeid
 }
 
 func (pduSession *GnbPDUSession) GetQosId() int64 {
-	return pduSession.qosId
+	return pduSession.QosId
 }
 
 type InitialContextSetupResponseOpts struct {
@@ -133,10 +133,6 @@ func (builder *InitialContextSetupResponseBuilder) SetPDUSessionResourceSetupLis
 
 	return builder
 }
-
-// func (builder *InitialContextSetupResponseBuilder) Build() ([]byte, error) {
-// 	return ngap.Encoder(builder.pdu)
-// }
 
 func GetPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) ([]byte, error) {
 	data := buildPDUSessionResourceSetupResponseTransfer(ipv4, teid, qosId)

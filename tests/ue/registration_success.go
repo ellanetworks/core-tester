@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/netip"
 	"reflect"
 	"time"
 
@@ -21,6 +22,10 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+const (
+	NGAPFrameTimeout = 1 * time.Microsecond
+)
+
 type RegistrationSuccess struct{}
 
 func (RegistrationSuccess) Meta() engine.Meta {
@@ -30,7 +35,7 @@ func (RegistrationSuccess) Meta() engine.Meta {
 	}
 }
 
-func (t RegistrationSuccess) Run(env engine.Env) error {
+func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -110,9 +115,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	timeout := 1 * time.Microsecond
-
-	fr, err := gNodeB.ReceiveFrame(timeout)
+	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -164,7 +167,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = gNodeB.ReceiveFrame(timeout)
+	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -213,7 +216,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = gNodeB.ReceiveFrame(timeout)
+	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -316,7 +319,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
-	fr, err = gNodeB.ReceiveFrame(timeout)
+	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive NGAP frame: %v", err)
 	}
@@ -336,6 +339,36 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
 	}
+
+	n3GnbIP, err := netip.ParseAddr("1.2.3.4")
+	if err != nil {
+		return fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
+	}
+
+	optsPduResp := &build.PDUSessionResourceSetupResponseOpts{
+		AMFUENGAPID: amfUENGAPID.Value,
+		RANUENGAPID: 1,
+		N3GnbIp:     n3GnbIP,
+		PDUSessions: [16]*build.GnbPDUSession{
+			{
+				PDUSessionId: 1,
+				DownlinkTeid: 100,
+				QosId:        1,
+			},
+		},
+	}
+
+	_, err = build.PDUSessionResourceSetupResponse(optsPduResp)
+	if err != nil {
+		return fmt.Errorf("failed to build PDUSessionResourceSetupResponse: %v", err)
+	}
+
+	err = gNodeB.SendPDUSessionResourceSetupResponse(optsPduResp)
+	if err != nil {
+		return fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	return nil
 }
