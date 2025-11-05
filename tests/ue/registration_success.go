@@ -10,7 +10,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -41,12 +40,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
-	defer func() {
-		err := gNodeB.Close()
-		if err != nil {
-			fmt.Printf("error closing gNB: %v\n", err)
-		}
-	}()
+	defer gNodeB.Close()
 
 	err = utils.NGSetupProcedure(gNodeB)
 	if err != nil {
@@ -100,7 +94,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	initialUEMsgOpts := &build.InitialUEMessageOpts{
+	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
 		Mcc:         "001",
 		Mnc:         "01",
 		GnbID:       "000008",
@@ -152,7 +146,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("could not build authentication response: %v", err)
 	}
 
-	uplinkNasTransportOpts := &build.UplinkNasTransportOpts{
+	uplinkNasTransportOpts := &gnb.UplinkNasTransportOpts{
 		AMFUeNgapID: amfUENGAPID.Value,
 		RANUeNgapID: 1,
 		Mcc:         "001",
@@ -201,7 +195,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
 	}
 
-	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+	uplinkNasTransportOpts = &gnb.UplinkNasTransportOpts{
 		AMFUeNgapID: amfUENGAPID.Value,
 		RANUeNgapID: 1,
 		Mcc:         "001",
@@ -226,7 +220,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("initial context setup request validation failed: %v", err)
 	}
 
-	initialContextSetupRespOpts := &build.InitialContextSetupResponseOpts{
+	initialContextSetupRespOpts := &gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: amfUENGAPID.Value,
 		RANUENGAPID: 1,
 	}
@@ -263,7 +257,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", newUE.UeSecurity.Supi)
 	}
 
-	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+	uplinkNasTransportOpts = &gnb.UplinkNasTransportOpts{
 		AMFUeNgapID: amfUENGAPID.Value,
 		RANUeNgapID: 1,
 		Mcc:         "001",
@@ -304,7 +298,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", newUE.UeSecurity.Supi)
 	}
 
-	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+	uplinkNasTransportOpts = &gnb.UplinkNasTransportOpts{
 		AMFUeNgapID: amfUENGAPID.Value,
 		RANUeNgapID: 1,
 		Mcc:         "001",
@@ -345,22 +339,17 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
 	}
 
-	optsPduResp := &build.PDUSessionResourceSetupResponseOpts{
+	optsPduResp := &gnb.PDUSessionResourceSetupResponseOpts{
 		AMFUENGAPID: amfUENGAPID.Value,
 		RANUENGAPID: 1,
 		N3GnbIp:     n3GnbIP,
-		PDUSessions: [16]*build.GnbPDUSession{
+		PDUSessions: [16]*gnb.GnbPDUSession{
 			{
 				PDUSessionId: 1,
 				DownlinkTeid: 100,
 				QosId:        1,
 			},
 		},
-	}
-
-	_, err = build.PDUSessionResourceSetupResponse(optsPduResp)
-	if err != nil {
-		return fmt.Errorf("failed to build PDUSessionResourceSetupResponse: %v", err)
 	}
 
 	err = gNodeB.SendPDUSessionResourceSetupResponse(optsPduResp)
@@ -521,7 +510,7 @@ func validatePDUSessionResourceSetupListSUReq(
 		return fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
 	}
 
-	expectedSSTBytes, expectedSDBytes, err := build.GetSliceInBytes(expectedSST, expectedSD)
+	expectedSSTBytes, expectedSDBytes, err := gnb.GetSliceInBytes(expectedSST, expectedSD)
 	if err != nil {
 		return fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
 	}

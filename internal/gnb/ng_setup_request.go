@@ -1,4 +1,4 @@
-package build
+package gnb
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type NGSetupRequestOpts struct {
 	Sd  string
 }
 
-func NGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
+func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 	if opts.Mcc == "" {
 		return ngapType.NGAPPDU{}, fmt.Errorf("MCC is required to build NGSetupRequest")
 	}

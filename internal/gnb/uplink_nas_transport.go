@@ -1,4 +1,4 @@
-package build
+package gnb
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type UplinkNasTransportOpts struct {
 	Tac         string
 }
 
-func UplinkNasTransport(opts *UplinkNasTransportOpts) (ngapType.NGAPPDU, error) {
+func BuildUplinkNasTransport(opts *UplinkNasTransportOpts) (ngapType.NGAPPDU, error) {
 	if opts == nil {
 		return ngapType.NGAPPDU{}, fmt.Errorf("UplinkNasTransportOpts is nil")
 	}

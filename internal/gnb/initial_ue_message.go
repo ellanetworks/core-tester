@@ -1,4 +1,4 @@
-package build
+package gnb
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type InitialUEMessageOpts struct {
 	GnbID       string
 }
 
-func InitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error) {
+func BuildInitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error) {
 	if opts.Mcc == "" {
 		return ngapType.NGAPPDU{}, fmt.Errorf("MCC is required to build InitialUEMessage")
 	}

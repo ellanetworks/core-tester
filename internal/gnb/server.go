@@ -8,6 +8,10 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
+const (
+	SCTPReadBufferSize = 65535
+)
+
 type GnodeB struct {
 	Conn *sctp.SCTPConn
 }
@@ -51,7 +55,7 @@ func (g *GnodeB) ReceiveFrame(timeout time.Duration) (SCTPFrame, error) {
 		return SCTPFrame{}, fmt.Errorf("SCTP connection is nil")
 	}
 
-	buf := make([]byte, 65535)
+	buf := make([]byte, SCTPReadBufferSize)
 
 	deadline := time.Now().Add(timeout)
 
@@ -76,13 +80,11 @@ func (g *GnodeB) ReceiveFrame(timeout time.Duration) (SCTPFrame, error) {
 	}
 }
 
-func (g *GnodeB) Close() error {
+func (g *GnodeB) Close() {
 	if g.Conn != nil {
 		err := g.Conn.Close()
 		if err != nil {
-			return fmt.Errorf("could not close SCTP connection: %w", err)
+			fmt.Println("could not close SCTP connection:", err)
 		}
 	}
-
-	return nil
 }

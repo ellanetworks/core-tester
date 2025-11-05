@@ -5,7 +5,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -30,12 +29,7 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
-	defer func() {
-		err := gNodeB.Close()
-		if err != nil {
-			fmt.Printf("error closing gNB: %v\n", err)
-		}
-	}()
+	defer gNodeB.Close()
 
 	err = utils.NGSetupProcedure(gNodeB)
 	if err != nil {
@@ -89,7 +83,7 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	initialUEMsgOpts := &build.InitialUEMessageOpts{
+	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
 		Mcc:         "001",
 		Mnc:         "01",
 		GnbID:       "000008",
