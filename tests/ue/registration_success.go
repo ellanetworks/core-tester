@@ -15,6 +15,7 @@ import (
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/openapi/models"
 )
 
 type RegistrationSuccess struct{}
@@ -136,6 +137,11 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("DownlinkNASTransport is nil")
 	}
 
+	amfUENGAPID := getAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport)
+	if amfUENGAPID == nil {
+		return fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
+	}
+
 	receivedNASPDU := getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
 
 	if receivedNASPDU == nil {
@@ -163,13 +169,84 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	}
 
 	uplinkNasTransportOpts := &build.UplinkNasTransportOpts{
-		AMFUeNgapID: 1, // TODO: change using actual AMF UE NGAP ID
+		AMFUeNgapID: amfUENGAPID.Value,
 		RANUeNgapID: 1,
 		Mcc:         "001",
 		Mnc:         "01",
 		GnbID:       "000008",
 		Tac:         "000001",
 		NasPDU:      authResp,
+	}
+
+	err = gNodeB.SendUplinkNASTransport(uplinkNasTransportOpts)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	fr, err = gNodeB.ReceiveFrame(timeout)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err = ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
+		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
+	}
+
+	downlinkNASTransport = pdu.InitiatingMessage.Value.DownlinkNASTransport
+	if downlinkNASTransport == nil {
+		return fmt.Errorf("DownlinkNASTransport is nil")
+	}
+
+	receivedNASPDU = getNASPDUFromDownlinkNasTransport(downlinkNASTransport)
+
+	if receivedNASPDU == nil {
+		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
+	}
+
+	ksi, tsc, _, err := validateNASPDUSecurityModeCommand(receivedNASPDU, newUE)
+	if err != nil {
+		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
+	}
+
+	newUE.UeSecurity.NgKsi.Ksi = ksi
+	newUE.UeSecurity.NgKsi.Tsc = tsc
+
+	secModeCompOpts := &ue.SecurityModeCompleteOpts{
+		UESecurity: newUE.UeSecurity,
+	}
+
+	securityModeComplete, err := ue.BuildSecurityModeComplete(secModeCompOpts)
+	if err != nil {
+		return fmt.Errorf("error sending Security Mode Complete: %w", err)
+	}
+
+	encodedPdu, err := newUE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
+	}
+
+	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID.Value,
+		RANUeNgapID: 1,
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		NasPDU:      encodedPdu,
 	}
 
 	err = gNodeB.SendUplinkNASTransport(uplinkNasTransportOpts)
@@ -185,6 +262,19 @@ func getNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNA
 		switch ie.Id.Value {
 		case ngapType.ProtocolIEIDNASPDU:
 			return ie.Value.NASPDU
+		default:
+			continue
+		}
+	}
+
+	return nil
+}
+
+func getAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.AMFUENGAPID {
+	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDAMFUENGAPID:
+			return ie.Value.AMFUENGAPID
 		default:
 			continue
 		}
@@ -263,4 +353,81 @@ func validateNASPDUAuthenticationRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) 
 	autn := msg.GetAUTN()
 
 	return rand, autn, nil
+}
+
+func validateNASPDUSecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (int32, models.ScType, uint8, error) {
+	if nasPDU == nil {
+		return 0, "", 0, fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return 0, "", 0, fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return 0, "", 0, fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return 0, "", 0, fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeSecurityModeCommand {
+		return 0, "", 0, fmt.Errorf("NAS message type is not Security Mode Command (%d), got (%d)", nas.MsgTypeSecurityModeCommand, msg.GmmMessage.GetMessageType())
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.ExtendedProtocolDiscriminator).IsZero() {
+		return 0, "", 0, fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.SecurityModeCommand.GetExtendedProtocolDiscriminator() != 126 {
+		return 0, "", 0, fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.SecurityModeCommand.GetSecurityHeaderType() != 0 {
+		return 0, "", 0, fmt.Errorf("security header type not the expected value")
+	}
+
+	if msg.SecurityModeCommand.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
+		return 0, "", 0, fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.SecurityModeCommandMessageIdentity).IsZero() {
+		return 0, "", 0, fmt.Errorf("message type is missing")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.SelectedNASSecurityAlgorithms).IsZero() {
+		return 0, "", 0, fmt.Errorf("nas security algorithms is missing")
+	}
+
+	if msg.SecurityModeCommand.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
+		return 0, "", 0, fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.SecurityModeCommand.GetNasKeySetIdentifiler() == 7 {
+		return 0, "", 0, fmt.Errorf("ngKSI not the expected value")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.ReplayedUESecurityCapabilities).IsZero() {
+		return 0, "", 0, fmt.Errorf("replayed ue security capabilities is missing")
+	}
+
+	rinmr := uint8(0)
+	if msg.Additional5GSecurityInformation != nil {
+		rinmr = msg.GetRINMR()
+	}
+
+	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())
+
+	var tsc models.ScType
+
+	switch msg.SecurityModeCommand.GetTSC() {
+	case nasMessage.TypeOfSecurityContextFlagNative:
+		tsc = models.ScType_NATIVE
+	case nasMessage.TypeOfSecurityContextFlagMapped:
+		tsc = models.ScType_MAPPED
+	}
+
+	return ksi, tsc, rinmr, nil
 }
