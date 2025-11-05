@@ -16,7 +16,10 @@ const (
 	NGAPProcedureNGSetupRequest NGAPProcedure = "NGSetupRequest"
 
 	// UE-associated NGAP procedures
-	NGAPProcedureInitialUEMessage NGAPProcedure = "InitialUEMessage"
+	NGAPProcedureInitialUEMessage                NGAPProcedure = "InitialUEMessage"
+	NGAPProcedureUplinkNASTransport              NGAPProcedure = "UplinkNASTransport"
+	NGAPProcedureInitialContextSetupResponse     NGAPProcedure = "InitialContextSetupResponse"
+	NGAPProcedurePDUSessionResourceSetupResponse NGAPProcedure = "PDUSessionResourceSetupResponse"
 )
 
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
@@ -26,7 +29,8 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 		return 0, nil
 
 	// UE-associated procedures
-	case NGAPProcedureInitialUEMessage:
+	case NGAPProcedureInitialUEMessage, NGAPProcedureUplinkNASTransport,
+		NGAPProcedureInitialContextSetupResponse, NGAPProcedurePDUSessionResourceSetupResponse:
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("NGAP message type (%s) not supported", msgType)
@@ -49,6 +53,33 @@ func (g *GnodeB) SendInitialUEMessage(opts *build.InitialUEMessageOpts) error {
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
+}
+
+func (g *GnodeB) SendUplinkNASTransport(opts *build.UplinkNasTransportOpts) error {
+	pdu, err := build.UplinkNasTransport(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build UplinkNasTransport: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedureUplinkNASTransport)
+}
+
+func (g *GnodeB) SendInitialContextSetupResponse(opts *build.InitialContextSetupResponseOpts) error {
+	pdu, err := build.InitialContextSetupResponse(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build InitialContextSetupResponse: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedureInitialContextSetupResponse)
+}
+
+func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *build.PDUSessionResourceSetupResponseOpts) error {
+	pdu, err := build.PDUSessionResourceSetupResponse(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build PDUSessionResourceSetupResponse: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedurePDUSessionResourceSetupResponse)
 }
 
 func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) error {

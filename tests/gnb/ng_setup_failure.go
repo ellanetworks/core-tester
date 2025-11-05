@@ -13,6 +13,10 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
+const (
+	NGAPFrameTimeout = 1 * time.Microsecond
+)
+
 type NGSetupFailure_UnknownPLMN struct{}
 
 func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
@@ -47,9 +51,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	timeout := 1 * time.Microsecond
-
-	fr, err := gNodeB.ReceiveFrame(timeout)
+	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
