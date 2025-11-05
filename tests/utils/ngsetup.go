@@ -5,13 +5,12 @@ import (
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
 func NGSetupProcedure(gNodeB *gnb.GnodeB) error {
-	opts := &build.NGSetupRequestOpts{
+	opts := &gnb.NGSetupRequestOpts{
 		Mcc: "001",
 		Mnc: "01",
 		Sst: "01",

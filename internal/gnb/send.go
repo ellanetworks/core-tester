@@ -3,7 +3,6 @@ package gnb
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/gnb/build"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/ishidawataru/sctp"
@@ -37,8 +36,8 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 	}
 }
 
-func (g *GnodeB) SendNGSetupRequest(opts *build.NGSetupRequestOpts) error {
-	pdu, err := build.NGSetupRequest(opts)
+func (g *GnodeB) SendNGSetupRequest(opts *NGSetupRequestOpts) error {
+	pdu, err := BuildNGSetupRequest(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build NGSetupRequest: %s", err.Error())
 	}
@@ -46,8 +45,8 @@ func (g *GnodeB) SendNGSetupRequest(opts *build.NGSetupRequestOpts) error {
 	return g.SendMessage(pdu, NGAPProcedureNGSetupRequest)
 }
 
-func (g *GnodeB) SendInitialUEMessage(opts *build.InitialUEMessageOpts) error {
-	pdu, err := build.InitialUEMessage(opts)
+func (g *GnodeB) SendInitialUEMessage(opts *InitialUEMessageOpts) error {
+	pdu, err := BuildInitialUEMessage(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
 	}
@@ -55,8 +54,8 @@ func (g *GnodeB) SendInitialUEMessage(opts *build.InitialUEMessageOpts) error {
 	return g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
 }
 
-func (g *GnodeB) SendUplinkNASTransport(opts *build.UplinkNasTransportOpts) error {
-	pdu, err := build.UplinkNasTransport(opts)
+func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {
+	pdu, err := BuildUplinkNasTransport(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build UplinkNasTransport: %s", err.Error())
 	}
@@ -64,8 +63,8 @@ func (g *GnodeB) SendUplinkNASTransport(opts *build.UplinkNasTransportOpts) erro
 	return g.SendMessage(pdu, NGAPProcedureUplinkNASTransport)
 }
 
-func (g *GnodeB) SendInitialContextSetupResponse(opts *build.InitialContextSetupResponseOpts) error {
-	pdu, err := build.InitialContextSetupResponse(opts)
+func (g *GnodeB) SendInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) error {
+	pdu, err := BuildInitialContextSetupResponse(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build InitialContextSetupResponse: %s", err.Error())
 	}
@@ -73,8 +72,8 @@ func (g *GnodeB) SendInitialContextSetupResponse(opts *build.InitialContextSetup
 	return g.SendMessage(pdu, NGAPProcedureInitialContextSetupResponse)
 }
 
-func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *build.PDUSessionResourceSetupResponseOpts) error {
-	pdu, err := build.PDUSessionResourceSetupResponse(opts)
+func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSetupResponseOpts) error {
+	pdu, err := BuildPDUSessionResourceSetupResponse(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build PDUSessionResourceSetupResponse: %s", err.Error())
 	}
