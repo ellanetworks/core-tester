@@ -66,7 +66,7 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator:     "0000",
-		Dnn:                  "internet",
+		DNN:                  "internet",
 		Sst:                  1,
 		Sd:                   "010203",
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),

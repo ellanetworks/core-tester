@@ -69,7 +69,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator:     "0000",
-		Dnn:                  "internet",
+		DNN:                  "internet",
 		Sst:                  1,
 		Sd:                   "102030",
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
@@ -335,7 +335,48 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	time.Sleep(1 * time.Second)
+	pduReqOpts := &ue.PduSessionEstablishmentRequestOpts{
+		PDUSessionID: 1,
+	}
+
+	pduReq, err := ue.BuildPduSessionEstablishmentRequest(pduReqOpts)
+	if err != nil {
+		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
+	}
+
+	uplinkNasTransportPDUOpts := &ue.UplinkNasTransportOpts{
+		PDUSessionID:     1,
+		PayloadContainer: pduReq,
+		DNN:              newUE.DNN,
+		SNSSAI:           newUE.Snssai,
+	}
+
+	pduUplink, err := ue.BuildUplinkNasTransport(uplinkNasTransportPDUOpts)
+	if err != nil {
+		return fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
+	}
+
+	encodedPdu, err = newUE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", newUE.UeSecurity.Supi)
+	}
+
+	uplinkNasTransportOpts = &build.UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID.Value,
+		RANUeNgapID: 1,
+		Mcc:         "001",
+		Mnc:         "01",
+		GnbID:       "000008",
+		Tac:         "000001",
+		NasPDU:      encodedPdu,
+	}
+
+	err = gNodeB.SendUplinkNASTransport(uplinkNasTransportOpts)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
 
 	return nil
 }

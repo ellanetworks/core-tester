@@ -56,7 +56,7 @@ type Amf struct {
 type UE struct {
 	UeSecurity UESecurity
 	StateMM    int
-	Dnn        string
+	DNN        string
 	Snssai     models.Snssai
 	amfInfo    Amf
 }
@@ -72,7 +72,7 @@ type UEOpts struct {
 	Mnc                  string
 	HomeNetworkPublicKey sidf.HomeNetworkPublicKey
 	RoutingIndicator     string
-	Dnn                  string
+	DNN                  string
 	Sst                  int32
 	Sd                   string
 }
@@ -106,7 +106,7 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.Snssai.Sd = opts.Sd
 	ue.Snssai.Sst = opts.Sst
 
-	ue.Dnn = opts.Dnn
+	ue.DNN = opts.DNN
 
 	suci, err := ue.EncodeSuci()
 	if err != nil {
