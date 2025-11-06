@@ -11,15 +11,13 @@ import (
 	"github.com/free5gc/nas/security"
 )
 
-type UEPDUSession struct{}
-
 type RegistrationRequestOpts struct {
 	RegistrationType  uint8
 	RequestedNSSAI    *nasType.RequestedNSSAI
 	UplinkDataStatus  *nasType.UplinkDataStatus
 	IncludeCapability bool
-	UESecurity        UESecurity
-	UEPDUSession      [16]*UEPDUSession
+	UESecurity        *UESecurity
+	PDUSessionStatus  *[16]bool
 }
 
 func BuildRegistrationRequest(opts *RegistrationRequestOpts) ([]byte, error) {
@@ -67,22 +65,25 @@ func BuildRegistrationRequest(opts *RegistrationRequestOpts) ([]byte, error) {
 	registrationRequest.SetFOR(1)
 
 	pduFlag := uint16(0)
-	for i, pduSession := range opts.UEPDUSession {
-		pduFlag = pduFlag + (boolToUint16(pduSession != nil) << (i + 1))
-	}
 
-	if pduFlag != 0 {
-		registrationRequest.UplinkDataStatus = new(nasType.UplinkDataStatus)
-		registrationRequest.UplinkDataStatus.SetIei(nasMessage.RegistrationRequestUplinkDataStatusType)
-		registrationRequest.UplinkDataStatus.SetLen(2)
+	if opts.PDUSessionStatus != nil {
+		for i, pduSession := range opts.PDUSessionStatus {
+			pduFlag = pduFlag + (boolToUint16(pduSession) << (i + 1))
+		}
 
-		registrationRequest.UplinkDataStatus.Buffer = make([]byte, 2)
-		binary.LittleEndian.PutUint16(registrationRequest.UplinkDataStatus.Buffer, pduFlag)
+		if pduFlag != 0 {
+			registrationRequest.UplinkDataStatus = new(nasType.UplinkDataStatus)
+			registrationRequest.UplinkDataStatus.SetIei(nasMessage.RegistrationRequestUplinkDataStatusType)
+			registrationRequest.UplinkDataStatus.SetLen(2)
 
-		registrationRequest.PDUSessionStatus = new(nasType.PDUSessionStatus)
-		registrationRequest.PDUSessionStatus.SetIei(nasMessage.RegistrationRequestPDUSessionStatusType)
-		registrationRequest.PDUSessionStatus.SetLen(2)
-		registrationRequest.PDUSessionStatus.Buffer = registrationRequest.UplinkDataStatus.Buffer
+			registrationRequest.UplinkDataStatus.Buffer = make([]byte, 2)
+			binary.LittleEndian.PutUint16(registrationRequest.UplinkDataStatus.Buffer, pduFlag)
+
+			registrationRequest.PDUSessionStatus = new(nasType.PDUSessionStatus)
+			registrationRequest.PDUSessionStatus.SetIei(nasMessage.RegistrationRequestPDUSessionStatusType)
+			registrationRequest.PDUSessionStatus.SetLen(2)
+			registrationRequest.PDUSessionStatus.Buffer = registrationRequest.UplinkDataStatus.Buffer
+		}
 	}
 
 	m.RegistrationRequest = registrationRequest

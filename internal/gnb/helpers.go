@@ -19,11 +19,8 @@ func GetTacInBytes(tacStr string) ([]byte, error) {
 	return resu, nil
 }
 
-func GetSliceInBytes(sst string, sd string) ([]byte, []byte, error) {
-	sstBytes, err := hex.DecodeString(sst)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not decode sst to bytes: %v", err)
-	}
+func GetSliceInBytes(sst int32, sd string) ([]byte, []byte, error) {
+	sstBytes := []byte{byte(sst)}
 
 	if sd != "" {
 		sdBytes, err := hex.DecodeString(sd)

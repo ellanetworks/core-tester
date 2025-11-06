@@ -11,7 +11,7 @@ type NGSetupRequestOpts struct {
 	Mcc string
 	Mnc string
 	Tac string
-	Sst string
+	Sst int32
 	Sd  string
 }
 
@@ -29,7 +29,7 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 		return ngapType.NGAPPDU{}, fmt.Errorf("could not get plmnID in octets: %v", err)
 	}
 
-	if opts.Sst == "" {
+	if opts.Sst == 0 {
 		return ngapType.NGAPPDU{}, fmt.Errorf("SST is required to build NGSetupRequest")
 	}
 

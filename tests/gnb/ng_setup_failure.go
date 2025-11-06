@@ -36,7 +36,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
 	opts := &gnb.NGSetupRequestOpts{
 		Mcc: "002", // Unknown MCC to trigger NGSetupFailure
 		Mnc: "01",
-		Sst: "01",
+		Sst: 1,
 		Tac: "000001",
 	}
 
