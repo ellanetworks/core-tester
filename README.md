@@ -27,11 +27,14 @@ sudo ./main --config config.yml -write results.json
 Example output:
 
 ```shell
-guillaume@courge:~/code/core-tester$ sudo ./main --config config.yml -write results.json
-gnb/sctp                             PASSED
+guillaume@courge:~/code/core-tester$ ./main --config config.yml -write results.json
 gnb/ngap/setup_response              PASSED
 gnb/ngap/setup_failure/unknown_plmn  PASSED
 ue/registration_reject/unknown_ue    PASSED
+ue/registration_success              PASSED
+ue/registration_periodic_update      PASSED
+ue/deregistration                    PASSED
+gnb/sctp                             PASSED
 ```
 
 ## How-to add a new test
