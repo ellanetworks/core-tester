@@ -11,12 +11,17 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
-func SecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (int32, models.ScType, error) {
-	if nasPDU == nil {
+type SecurityModeCommandOpts struct {
+	NASPDU *ngapType.NASPDU
+	UE     *ue.UE
+}
+
+func SecurityModeCommand(opts *SecurityModeCommandOpts) (int32, models.ScType, error) {
+	if opts.NASPDU == nil {
 		return 0, "", fmt.Errorf("NAS PDU is nil")
 	}
 
-	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
 	if err != nil {
 		return 0, "", fmt.Errorf("could not decode NAS PDU: %v", err)
 	}
@@ -67,6 +72,10 @@ func SecurityModeCommand(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (int32, models.S
 
 	if reflect.ValueOf(msg.SecurityModeCommand.ReplayedUESecurityCapabilities).IsZero() {
 		return 0, "", fmt.Errorf("replayed ue security capabilities is missing")
+	}
+
+	if msg.IMEISVRequest == nil {
+		return 0, "", fmt.Errorf("imeisv request is missing")
 	}
 
 	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())

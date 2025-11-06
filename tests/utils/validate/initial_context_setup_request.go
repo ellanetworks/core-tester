@@ -9,13 +9,17 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func InitialContextSetupRequest(frame gnb.SCTPFrame) (*ngapType.InitialContextSetupRequest, error) {
-	err := utils.ValidateSCTP(frame.Info, 60, 1)
+type InitialContextSetupRequestOpts struct {
+	Frame gnb.SCTPFrame
+}
+
+func InitialContextSetupRequest(opts *InitialContextSetupRequestOpts) (*ngapType.InitialContextSetupRequest, error) {
+	err := utils.ValidateSCTP(opts.Frame.Info, 60, 1)
 	if err != nil {
 		return nil, fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	pdu, err := ngap.Decoder(frame.Data)
+	pdu, err := ngap.Decoder(opts.Frame.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode NGAP: %v", err)
 	}

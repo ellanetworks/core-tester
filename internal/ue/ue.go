@@ -54,11 +54,12 @@ type Amf struct {
 }
 
 type UE struct {
-	UeSecurity UESecurity
+	UeSecurity *UESecurity
 	StateMM    int
 	DNN        string
 	Snssai     models.Snssai
 	amfInfo    Amf
+	IMEISV     string
 }
 
 type UEOpts struct {
@@ -75,11 +76,12 @@ type UEOpts struct {
 	DNN                  string
 	Sst                  int32
 	Sd                   string
+	IMEISV               string
 }
 
 func NewUE(opts *UEOpts) (*UE, error) {
 	ue := UE{}
-
+	ue.UeSecurity = &UESecurity{}
 	ue.UeSecurity.Msin = opts.Msin
 	ue.UeSecurity.UeSecurityCapability = opts.UeSecurityCapability
 
@@ -107,6 +109,8 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.Snssai.Sst = opts.Sst
 
 	ue.DNN = opts.DNN
+
+	ue.IMEISV = opts.IMEISV
 
 	suci, err := ue.EncodeSuci()
 	if err != nil {
@@ -380,4 +384,8 @@ func (ue *UE) deriveSNN() string {
 
 func (ue *UE) Set5gGuti(guti *nasType.GUTI5G) {
 	ue.UeSecurity.Guti = guti
+}
+
+func (ue *UE) Get5gGuti() *nasType.GUTI5G {
+	return ue.UeSecurity.Guti
 }

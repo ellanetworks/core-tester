@@ -3,7 +3,7 @@ package validate
 import (
 	"bytes"
 	"fmt"
-	"net"
+	"net/netip"
 	"reflect"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -15,20 +15,22 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func PDUSessionResourceSetupRequest(
-	frame gnb.SCTPFrame,
-	expectedPDUSessionID int64,
-	expectedSST string,
-	expectedSD string,
-	ueIns *ue.UE,
-	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
-) error {
-	err := utils.ValidateSCTP(frame.Info, 60, 1)
+type PDUSessionResourceSetupRequestOpts struct {
+	Frame                                 gnb.SCTPFrame
+	ExpectedPDUSessionID                  uint8
+	ExpectedSST                           int32
+	ExpectedSD                            string
+	UEIns                                 *ue.UE
+	ExpectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept
+}
+
+func PDUSessionResourceSetupRequest(opts *PDUSessionResourceSetupRequestOpts) error {
+	err := utils.ValidateSCTP(opts.Frame.Info, 60, 1)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	pdu, err := ngap.Decoder(frame.Data)
+	pdu, err := ngap.Decoder(opts.Frame.Data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
 	}
@@ -84,7 +86,7 @@ func PDUSessionResourceSetupRequest(
 		return fmt.Errorf("UEAggregateMaximumBitRate is missing in PDUSessionResourceSetupRequest")
 	}
 
-	err = validatePDUSessionResourceSetupListSUReq(protocolIEIDPDUSessionResourceSetupListSUReq, expectedPDUSessionID, expectedSST, expectedSD, ueIns, expectedPDUSessionEstablishmentAccept)
+	err = pduSessionResourceSetupListSUReq(protocolIEIDPDUSessionResourceSetupListSUReq, opts.ExpectedPDUSessionID, opts.ExpectedSST, opts.ExpectedSD, opts.UEIns, opts.ExpectedPDUSessionEstablishmentAccept)
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupListSUReq validation failed: %v", err)
 	}
@@ -92,10 +94,10 @@ func PDUSessionResourceSetupRequest(
 	return nil
 }
 
-func validatePDUSessionResourceSetupListSUReq(
+func pduSessionResourceSetupListSUReq(
 	pDUSessionResourceSetupListSUReq *ngapType.PDUSessionResourceSetupListSUReq,
-	expectedPDUSessionID int64,
-	expectedSST string,
+	expectedPDUSessionID uint8,
+	expectedSST int32,
 	expectedSD string,
 	ueIns *ue.UE,
 	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
@@ -105,7 +107,7 @@ func validatePDUSessionResourceSetupListSUReq(
 	}
 
 	item := pDUSessionResourceSetupListSUReq.List[0]
-	if item.PDUSessionID.Value != expectedPDUSessionID {
+	if item.PDUSessionID.Value != int64(expectedPDUSessionID) {
 		return fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
 	}
 
@@ -189,7 +191,7 @@ func validatePDUSessionResourceSetupListSUReq(
 		return fmt.Errorf("PDU Session Establishment Accept message type is not correct, expected: %d, got: %d", nas.MsgTypePDUSessionEstablishmentAccept, pcMsgType)
 	}
 
-	err = validatePDUSessionEstablishmentAccept(payloadContainer.PDUSessionEstablishmentAccept, expectedPDUSessionEstablishmentAccept)
+	err = pduSessionEstablishmentAccept(payloadContainer.PDUSessionEstablishmentAccept, expectedPDUSessionEstablishmentAccept)
 	if err != nil {
 		return fmt.Errorf("could not validate PDU Session Establishment Accept: %v", err)
 	}
@@ -199,15 +201,15 @@ func validatePDUSessionResourceSetupListSUReq(
 
 type ExpectedPDUSessionEstablishmentAccept struct {
 	PDUSessionID uint8
-	UeIP         *net.IP
+	UeIPSubnet   netip.Prefix
 	Dnn          string
-	Sst          uint8
+	Sst          int32
 	Sd           string
 	Qfi          uint8
 	FiveQI       uint8
 }
 
-func validatePDUSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishmentAccept, opts *ExpectedPDUSessionEstablishmentAccept) error {
+func pduSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishmentAccept, opts *ExpectedPDUSessionEstablishmentAccept) error {
 	// check the mandatory fields
 	if reflect.ValueOf(msg.ExtendedProtocolDiscriminator).IsZero() {
 		return fmt.Errorf("extended protocol discriminator is missing")
@@ -259,8 +261,8 @@ func validatePDUSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishme
 		return fmt.Errorf("could not get UE IP from NAS PDU Address Information: %v", err)
 	}
 
-	if ueIP.String() != opts.UeIP.String() {
-		return fmt.Errorf("unexpected UE IP: %s, expected: %s", ueIP, opts.UeIP)
+	if !opts.UeIPSubnet.Contains(ueIP) {
+		return fmt.Errorf("UE IP %s is not contained in expected subnet %s", ueIP.String(), opts.UeIPSubnet.String())
 	}
 
 	qosRulesBytes := msg.GetQosRule()
@@ -320,7 +322,7 @@ func validatePDUSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishme
 
 	sd := msg.GetSD()
 
-	if sst != opts.Sst {
+	if sst != uint8(opts.Sst) {
 		return fmt.Errorf("unexpected SNSSAI SST: %d", sst)
 	}
 

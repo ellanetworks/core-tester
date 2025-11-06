@@ -30,7 +30,7 @@ func (t SCTPBasic) Run(env engine.Env) error {
 	opts := &gnb.NGSetupRequestOpts{
 		Mcc: "001",
 		Mnc: "01",
-		Sst: "01",
+		Sst: 1,
 		Tac: "000001",
 	}
 

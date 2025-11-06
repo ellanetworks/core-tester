@@ -7,8 +7,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/ue/validate"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
@@ -31,7 +32,14 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = utils.NGSetupProcedure(gNodeB)
+	err = procedure.NGSetup(&procedure.NGSetupOpts{
+		Mcc:              MCC,
+		Mnc:              MNC,
+		Sst:              SST,
+		Tac:              TAC,
+		GnodeB:           gNodeB,
+		NGAPFrameTimeout: NGAPFrameTimeout,
+	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
 	}
@@ -52,16 +60,16 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		OpC:  "E8ED289DEBA952E4283B54E88E6183CA",
 		Amf:  "80000000000000000000000000000000",
 		Sqn:  "000000000001",
-		Mcc:  "001",
-		Mnc:  "01",
+		Mcc:  MCC,
+		Mnc:  MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator:     "0000",
-		DNN:                  "internet",
-		Sst:                  1,
-		Sd:                   "010203",
+		DNN:                  DNN,
+		Sst:                  SST,
+		Sd:                   SD,
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
 	}
 
@@ -84,11 +92,11 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 	}
 
 	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:         "001",
-		Mnc:         "01",
-		GnbID:       "000008",
-		Tac:         "000001",
-		RanUENGAPID: 1,
+		Mcc:         MCC,
+		Mnc:         MNC,
+		GnbID:       GNBID,
+		Tac:         TAC,
+		RanUENGAPID: RANUENGAPID,
 		NasPDU:      nasPDU,
 		Guti5g:      newUE.UeSecurity.Guti,
 	}
@@ -132,7 +140,11 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
 	}
 
-	err = validate.RegistrationReject(receivedNASPDU, newUE)
+	err = validate.RegistrationReject(&validate.RegistrationRejectOpts{
+		NASPDU: receivedNASPDU,
+		UE:     newUE,
+		Cause:  nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork,
+	})
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}

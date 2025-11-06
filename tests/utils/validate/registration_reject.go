@@ -5,16 +5,21 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func RegistrationReject(nasPDU *ngapType.NASPDU, ueIns *ue.UE) error {
-	if nasPDU == nil {
+type RegistrationRejectOpts struct {
+	NASPDU *ngapType.NASPDU
+	UE     *ue.UE
+	Cause  uint8
+}
+
+func RegistrationReject(opts *RegistrationRejectOpts) error {
+	if opts.NASPDU == nil {
 		return fmt.Errorf("NAS PDU is nil")
 	}
 
-	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
 	if err != nil {
 		return fmt.Errorf("could not decode NAS PDU: %v", err)
 	}
@@ -35,8 +40,8 @@ func RegistrationReject(nasPDU *ngapType.NASPDU, ueIns *ue.UE) error {
 		return fmt.Errorf("NAS Registration Reject message is nil")
 	}
 
-	if msg.RegistrationReject.GetCauseValue() != nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork {
-		return fmt.Errorf("NAS Registration Reject Cause is not Unknown UE (%x), received (%x)", nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork, msg.RegistrationReject.GetCauseValue())
+	if msg.RegistrationReject.GetCauseValue() != opts.Cause {
+		return fmt.Errorf("NAS Registration Reject Cause is not Unknown UE (%x), received (%x)", opts.Cause, msg.RegistrationReject.GetCauseValue())
 	}
 
 	return nil

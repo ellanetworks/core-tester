@@ -2,7 +2,6 @@ package ue
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -12,29 +11,16 @@ import (
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 )
 
-const (
-	NGAPFrameTimeout = 50 * time.Microsecond
-	RANUENGAPID      = 1
-	MCC              = "001"
-	MNC              = "01"
-	DNN              = "internet"
-	SST              = 1
-	SD               = "102030"
-	TAC              = "000001"
-	GNBID            = "000008"
-	PDUSessionID     = 1
-)
+type Deregistration struct{}
 
-type RegistrationSuccess struct{}
-
-func (RegistrationSuccess) Meta() engine.Meta {
+func (Deregistration) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success",
-		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
+		ID:      "ue/deregistration",
+		Summary: "UE deregistration test validating the Deregistration Request and Response procedures",
 	}
 }
 
-func (t RegistrationSuccess) Run(env engine.Env) error {
+func (t Deregistration) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -100,10 +86,9 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
-		return fmt.Errorf("initial registration procedure failed: %v", err)
+		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:           gNodeB,
 		UE:               newUE,

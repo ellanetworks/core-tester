@@ -13,19 +13,7 @@ import (
 type GnbPDUSession struct {
 	PDUSessionId int64
 	DownlinkTeid uint32
-	QosId        int64
-}
-
-func (pduSession *GnbPDUSession) GetPduSessionId() int64 {
-	return pduSession.PDUSessionId
-}
-
-func (pduSession *GnbPDUSession) GetTeidDownlink() uint32 {
-	return pduSession.DownlinkTeid
-}
-
-func (pduSession *GnbPDUSession) GetQosId() int64 {
-	return pduSession.QosId
+	QFI          int64
 }
 
 type InitialContextSetupResponseOpts struct {
@@ -48,6 +36,8 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentInitialContextSetupResponse
 	successfulOutcome.Value.InitialContextSetupResponse = new(ngapType.InitialContextSetupResponse)
 
+	ies := &successfulOutcome.Value.InitialContextSetupResponse.ProtocolIEs
+
 	amfIE := ngapType.InitialContextSetupResponseIEs{}
 	amfIE.Id.Value = ngapType.ProtocolIEIDAMFUENGAPID
 	amfIE.Criticality.Value = ngapType.CriticalityPresentReject
@@ -57,6 +47,8 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 	aMFUENGAPID := amfIE.Value.AMFUENGAPID
 	aMFUENGAPID.Value = opts.AMFUENGAPID
 
+	ies.List = append(ies.List, amfIE)
+
 	ranIE := ngapType.InitialContextSetupResponseIEs{}
 	ranIE.Id.Value = ngapType.ProtocolIEIDRANUENGAPID
 	ranIE.Criticality.Value = ngapType.CriticalityPresentReject
@@ -65,6 +57,8 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 
 	rANUENGAPID := ranIE.Value.RANUENGAPID
 	rANUENGAPID.Value = opts.RANUENGAPID
+
+	ies.List = append(ies.List, ranIE)
 
 	setupListIE := ngapType.InitialContextSetupResponseIEs{}
 	setupListIE.Id.Value = ngapType.ProtocolIEIDPDUSessionResourceSetupListCxtRes
@@ -81,14 +75,18 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 
 		pDUSessionResourceSetupItemCxtRes := ngapType.PDUSessionResourceSetupItemCxtRes{}
 
-		transferData, err := GetPDUSessionResourceSetupResponseTransfer(opts.N3GnbIp, pduSession.GetTeidDownlink(), pduSession.GetQosId())
+		transferData, err := GetPDUSessionResourceSetupResponseTransfer(opts.N3GnbIp, pduSession.DownlinkTeid, pduSession.QFI)
 		if err != nil {
 			return pdu, fmt.Errorf("failed to get PDUSessionResourceSetupResponseTransfer: %v", err)
 		}
 
-		pDUSessionResourceSetupItemCxtRes.PDUSessionID.Value = pduSession.GetPduSessionId()
+		pDUSessionResourceSetupItemCxtRes.PDUSessionID.Value = pduSession.PDUSessionId
 		pDUSessionResourceSetupItemCxtRes.PDUSessionResourceSetupResponseTransfer = transferData
 		PDUSessionResourceSetupListCxtRes.List = append(PDUSessionResourceSetupListCxtRes.List, pDUSessionResourceSetupItemCxtRes)
+	}
+
+	if len(PDUSessionResourceSetupListCxtRes.List) > 0 {
+		ies.List = append(ies.List, setupListIE)
 	}
 
 	return pdu, nil

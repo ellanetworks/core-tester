@@ -1,35 +1,41 @@
-package utils
+package procedure
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func NGSetupProcedure(gNodeB *gnb.GnodeB) error {
-	opts := &gnb.NGSetupRequestOpts{
-		Mcc: "001",
-		Mnc: "01",
-		Sst: "01",
-		Tac: "000001",
-	}
+type NGSetupOpts struct {
+	Mcc              string
+	Mnc              string
+	Sst              int32
+	Tac              string
+	GnodeB           *gnb.GnodeB
+	NGAPFrameTimeout time.Duration
+}
 
-	err := gNodeB.SendNGSetupRequest(opts)
+func NGSetup(opts *NGSetupOpts) error {
+	err := opts.GnodeB.SendNGSetupRequest(&gnb.NGSetupRequestOpts{
+		Mcc: opts.Mcc,
+		Mnc: opts.Mnc,
+		Sst: opts.Sst,
+		Tac: opts.Tac,
+	})
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	timeout := 1 * time.Microsecond
-
-	fr, err := gNodeB.ReceiveFrame(timeout)
+	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = ValidateSCTP(fr.Info, 60, 0)
+	err = utils.ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}

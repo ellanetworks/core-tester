@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
@@ -59,15 +59,15 @@ func GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport *ngapType.Downl
 	return nil
 }
 
-func UEIPFromNAS(ip [12]uint8) (*net.IP, error) {
+func UEIPFromNAS(ip [12]uint8) (netip.Addr, error) {
 	ueIPString := fmt.Sprintf("%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3])
 
-	ueIP := net.ParseIP(ueIPString)
-	if ueIP == nil {
-		return nil, fmt.Errorf("could not parse UE IP: %s", ueIPString)
+	ueIP, err := netip.ParseAddr(ueIPString)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("could not parse UE IP: %s, %v", ueIPString, err)
 	}
 
-	return &ueIP, nil
+	return ueIP, nil
 }
 
 func SDFromNAS(sd [3]uint8) string {
