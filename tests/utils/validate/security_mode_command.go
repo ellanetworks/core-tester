@@ -78,10 +78,6 @@ func SecurityModeCommand(opts *SecurityModeCommandOpts) (int32, models.ScType, e
 		return 0, "", fmt.Errorf("imeisv request is missing")
 	}
 
-	if msg.GetIMEISVRequestValue() != nasMessage.IMEISVRequested {
-		return 0, "", fmt.Errorf("imeisv request value not the expected value")
-	}
-
 	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())
 
 	var tsc models.ScType

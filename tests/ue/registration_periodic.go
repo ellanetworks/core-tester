@@ -2,7 +2,6 @@ package ue
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -176,7 +175,21 @@ func (t RegistrationPeriodicUpdate) Run(env engine.Env) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	time.Sleep(1 * time.Second)
+	// Cleanup
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		GnodeB:           gNodeB,
+		UE:               newUE,
+		AMFUENGAPID:      resp.AMFUENGAPID,
+		RANUENGAPID:      RANUENGAPID,
+		MCC:              MCC,
+		MNC:              MNC,
+		GNBID:            GNBID,
+		TAC:              TAC,
+		NGAPFrameTimeout: NGAPFrameTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
 
 	return nil
 }

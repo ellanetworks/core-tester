@@ -85,7 +85,7 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	resp, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		Mcc:              MCC,
 		Mnc:              MNC,
 		Sst:              SST,
@@ -101,6 +101,22 @@ func (t RegistrationSuccess) Run(env engine.Env) error {
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
+	}
+
+	// Cleanup
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		GnodeB:           gNodeB,
+		UE:               newUE,
+		AMFUENGAPID:      resp.AMFUENGAPID,
+		RANUENGAPID:      RANUENGAPID,
+		MCC:              MCC,
+		MNC:              MNC,
+		GNBID:            GNBID,
+		TAC:              TAC,
+		NGAPFrameTimeout: NGAPFrameTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
 	}
 
 	return nil

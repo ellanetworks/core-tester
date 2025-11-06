@@ -9,7 +9,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
-	"github.com/free5gc/nas"
 )
 
 type Deregistration struct{}
@@ -90,40 +89,19 @@ func (t Deregistration) Run(env engine.Env) error {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	deregBytes, err := ue.BuildDeregistrationRequest(&ue.DeregistrationRequestOpts{
-		Guti: newUE.UeSecurity.Guti,
-		Ksi:  newUE.UeSecurity.NgKsi.Ksi,
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		GnodeB:           gNodeB,
+		UE:               newUE,
+		AMFUENGAPID:      resp.AMFUENGAPID,
+		RANUENGAPID:      RANUENGAPID,
+		MCC:              MCC,
+		MNC:              MNC,
+		GNBID:            GNBID,
+		TAC:              TAC,
+		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
-	}
-
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Deregistration Msg", newUE.UeSecurity.Supi)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: resp.AMFUENGAPID,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		NasPDU:      encodedPdu,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
-	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
 	}
 
 	return nil
