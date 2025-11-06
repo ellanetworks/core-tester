@@ -45,6 +45,7 @@ func BuildDeregistrationRequest(opts *DeregistrationRequestOpts) ([]byte, error)
 		if opts.Suci == nil {
 			return nil, fmt.Errorf("either Guti or Suci must be provided")
 		}
+
 		deregistrationRequest.MobileIdentity5GS = *opts.Suci
 	}
 
