@@ -11,12 +11,19 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func RegistrationAcceptInitialContextSetupRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) (*nasType.GUTI5G, error) {
-	if nasPDU == nil {
+type RegistrationAcceptOpts struct {
+	NASPDU *ngapType.NASPDU
+	UE     *ue.UE
+	Sst    int32
+	Sd     string
+}
+
+func RegistrationAcceptInitialContextSetupRequest(opts *RegistrationAcceptOpts) (*nasType.GUTI5G, error) {
+	if opts.NASPDU == nil {
 		return nil, fmt.Errorf("NAS PDU is nil")
 	}
 
-	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode NAS PDU: %v", err)
 	}
@@ -82,12 +89,12 @@ func RegistrationAcceptInitialContextSetupRequest(nasPDU *ngapType.NASPDU, ueIns
 	sst := int32(snssai[1])
 	sd := fmt.Sprintf("%x%x%x", snssai[2], snssai[3], snssai[4])
 
-	if sst != ueIns.Snssai.Sst {
-		return nil, fmt.Errorf("allowed NSSAI SST not the expected value, got: %d, want: %d", sst, ueIns.Snssai.Sst)
+	if sst != opts.Sst {
+		return nil, fmt.Errorf("allowed NSSAI SST not the expected value, got: %d, want: %d", sst, opts.Sst)
 	}
 
-	if sd != ueIns.Snssai.Sd {
-		return nil, fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, ueIns.Snssai.Sd)
+	if sd != opts.Sd {
+		return nil, fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, opts.Sd)
 	}
 
 	if msg.T3512Value == nil {

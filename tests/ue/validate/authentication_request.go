@@ -9,12 +9,17 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func AuthenticationRequest(nasPDU *ngapType.NASPDU, ueIns *ue.UE) ([16]uint8, [16]uint8, error) {
-	if nasPDU == nil {
+type AuthenticationRequestOpts struct {
+	NASPDU *ngapType.NASPDU
+	UE     *ue.UE
+}
+
+func AuthenticationRequest(opts *AuthenticationRequestOpts) ([16]uint8, [16]uint8, error) {
+	if opts.NASPDU == nil {
 		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS PDU is nil")
 	}
 
-	msg, err := ueIns.DecodeNAS(nasPDU.Value)
+	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
 	if err != nil {
 		return [16]uint8{}, [16]uint8{}, fmt.Errorf("could not decode NAS PDU: %v", err)
 	}

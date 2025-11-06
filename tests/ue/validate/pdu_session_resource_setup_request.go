@@ -15,20 +15,22 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func PDUSessionResourceSetupRequest(
-	frame gnb.SCTPFrame,
-	expectedPDUSessionID int64,
-	expectedSST string,
-	expectedSD string,
-	ueIns *ue.UE,
-	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
-) error {
-	err := utils.ValidateSCTP(frame.Info, 60, 1)
+type PDUSessionResourceSetupRequestOpts struct {
+	Frame                                 gnb.SCTPFrame
+	ExpectedPDUSessionID                  int64
+	ExpectedSST                           int
+	ExpectedSD                            string
+	UEIns                                 *ue.UE
+	ExpectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept
+}
+
+func PDUSessionResourceSetupRequest(opts *PDUSessionResourceSetupRequestOpts) error {
+	err := utils.ValidateSCTP(opts.Frame.Info, 60, 1)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	pdu, err := ngap.Decoder(frame.Data)
+	pdu, err := ngap.Decoder(opts.Frame.Data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
 	}
@@ -84,7 +86,7 @@ func PDUSessionResourceSetupRequest(
 		return fmt.Errorf("UEAggregateMaximumBitRate is missing in PDUSessionResourceSetupRequest")
 	}
 
-	err = validatePDUSessionResourceSetupListSUReq(protocolIEIDPDUSessionResourceSetupListSUReq, expectedPDUSessionID, expectedSST, expectedSD, ueIns, expectedPDUSessionEstablishmentAccept)
+	err = pduSessionResourceSetupListSUReq(protocolIEIDPDUSessionResourceSetupListSUReq, opts.ExpectedPDUSessionID, opts.ExpectedSST, opts.ExpectedSD, opts.UEIns, opts.ExpectedPDUSessionEstablishmentAccept)
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupListSUReq validation failed: %v", err)
 	}
@@ -92,10 +94,10 @@ func PDUSessionResourceSetupRequest(
 	return nil
 }
 
-func validatePDUSessionResourceSetupListSUReq(
+func pduSessionResourceSetupListSUReq(
 	pDUSessionResourceSetupListSUReq *ngapType.PDUSessionResourceSetupListSUReq,
 	expectedPDUSessionID int64,
-	expectedSST string,
+	expectedSST int,
 	expectedSD string,
 	ueIns *ue.UE,
 	expectedPDUSessionEstablishmentAccept *ExpectedPDUSessionEstablishmentAccept,
@@ -109,7 +111,9 @@ func validatePDUSessionResourceSetupListSUReq(
 		return fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
 	}
 
-	expectedSSTBytes, expectedSDBytes, err := gnb.GetSliceInBytes(expectedSST, expectedSD)
+	expectedSSTStr := fmt.Sprintf("%02x", expectedSST)
+
+	expectedSSTBytes, expectedSDBytes, err := gnb.GetSliceInBytes(expectedSSTStr, expectedSD)
 	if err != nil {
 		return fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
 	}
@@ -189,7 +193,7 @@ func validatePDUSessionResourceSetupListSUReq(
 		return fmt.Errorf("PDU Session Establishment Accept message type is not correct, expected: %d, got: %d", nas.MsgTypePDUSessionEstablishmentAccept, pcMsgType)
 	}
 
-	err = validatePDUSessionEstablishmentAccept(payloadContainer.PDUSessionEstablishmentAccept, expectedPDUSessionEstablishmentAccept)
+	err = pduSessionEstablishmentAccept(payloadContainer.PDUSessionEstablishmentAccept, expectedPDUSessionEstablishmentAccept)
 	if err != nil {
 		return fmt.Errorf("could not validate PDU Session Establishment Accept: %v", err)
 	}
@@ -207,7 +211,7 @@ type ExpectedPDUSessionEstablishmentAccept struct {
 	FiveQI       uint8
 }
 
-func validatePDUSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishmentAccept, opts *ExpectedPDUSessionEstablishmentAccept) error {
+func pduSessionEstablishmentAccept(msg *nasMessage.PDUSessionEstablishmentAccept, opts *ExpectedPDUSessionEstablishmentAccept) error {
 	// check the mandatory fields
 	if reflect.ValueOf(msg.ExtendedProtocolDiscriminator).IsZero() {
 		return fmt.Errorf("extended protocol discriminator is missing")
