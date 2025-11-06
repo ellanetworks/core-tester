@@ -15,8 +15,9 @@ func RegisterAll() error {
 		gnb.NGSetupFailure_UnknownPLMN{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
-		ue.RegistrationPeriodicUpdate{},
+		ue.RegistrationPeriodicUpdateSignalling{},
 		ue.Deregistration{},
+		ue.UEContextRelease{},
 	}
 
 	for _, test := range allTests {

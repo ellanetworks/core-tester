@@ -92,13 +92,14 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 	}
 
 	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		RanUENGAPID: RANUENGAPID,
-		NasPDU:      nasPDU,
-		Guti5g:      newUE.UeSecurity.Guti,
+		Mcc:                   MCC,
+		Mnc:                   MNC,
+		GnbID:                 GNBID,
+		Tac:                   TAC,
+		RanUENGAPID:           RANUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                newUE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
 	}
 
 	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)

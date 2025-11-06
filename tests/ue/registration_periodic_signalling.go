@@ -12,18 +12,19 @@ import (
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
-type RegistrationPeriodicUpdate struct{}
+type RegistrationPeriodicUpdateSignalling struct{}
 
-func (RegistrationPeriodicUpdate) Meta() engine.Meta {
+func (RegistrationPeriodicUpdateSignalling) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_periodic_update",
-		Summary: "UE registration periodic test validating the Registration Request and Authentication procedures",
+		ID:      "ue/registration/periodic/signalling",
+		Summary: "UE registration periodic test validating the Registration Request procedure for periodic update",
 	}
 }
 
-func (t RegistrationPeriodicUpdate) Run(env engine.Env) error {
+func (t RegistrationPeriodicUpdateSignalling) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -113,13 +114,14 @@ func (t RegistrationPeriodicUpdate) Run(env engine.Env) error {
 	}
 
 	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		RanUENGAPID: RANUENGAPID,
-		NasPDU:      encodedPdu,
-		Guti5g:      newUE.UeSecurity.Guti,
+		Mcc:                   MCC,
+		Mnc:                   MNC,
+		GnbID:                 GNBID,
+		Tac:                   TAC,
+		RanUENGAPID:           RANUENGAPID,
+		NasPDU:                encodedPdu,
+		Guti5g:                newUE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
 	})
 	if err != nil {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)

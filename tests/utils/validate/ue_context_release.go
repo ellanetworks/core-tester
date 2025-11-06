@@ -9,12 +9,12 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type UEContextReleaseOpts struct {
+type UEContextReleaseCommandOpts struct {
 	Frame gnb.SCTPFrame
 	Cause *ngapType.Cause
 }
 
-func UEContextRelease(opts *UEContextReleaseOpts) error {
+func UEContextReleaseCommand(opts *UEContextReleaseCommandOpts) error {
 	err := utils.ValidateSCTP(opts.Frame.Info, 60, 1)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
@@ -60,7 +60,7 @@ func UEContextRelease(opts *UEContextReleaseOpts) error {
 
 	switch cause.Present {
 	case ngapType.CausePresentRadioNetwork:
-		if cause.RadioNetwork != opts.Cause.RadioNetwork {
+		if cause.RadioNetwork.Value != opts.Cause.RadioNetwork.Value {
 			return fmt.Errorf("unexpected RadioNetwork Cause value: got %d, want %d", cause.RadioNetwork.Value, opts.Cause.RadioNetwork.Value)
 		}
 	case ngapType.CausePresentNas:

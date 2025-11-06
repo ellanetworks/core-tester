@@ -55,7 +55,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = validate.UEContextRelease(&validate.UEContextReleaseOpts{
+	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
 		Frame: fr,
 		Cause: &ngapType.Cause{
 			Present: ngapType.CausePresentNas,

@@ -11,6 +11,7 @@ import (
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type InitialRegistrationOpts struct {
@@ -47,13 +48,14 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 	}
 
 	err = opts.GnodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:         opts.Mcc,
-		Mnc:         opts.Mnc,
-		GnbID:       opts.GNBID,
-		Tac:         opts.Tac,
-		RanUENGAPID: opts.RANUENGAPID,
-		NasPDU:      nasPDU,
-		Guti5g:      opts.UE.UeSecurity.Guti,
+		Mcc:                   opts.Mcc,
+		Mnc:                   opts.Mnc,
+		GnbID:                 opts.GNBID,
+		Tac:                   opts.Tac,
+		RanUENGAPID:           opts.RANUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                opts.UE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
