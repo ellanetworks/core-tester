@@ -11,11 +11,12 @@ import (
 )
 
 type NGSetupOpts struct {
-	Mcc    string
-	Mnc    string
-	Sst    int32
-	Tac    string
-	GnodeB *gnb.GnodeB
+	Mcc              string
+	Mnc              string
+	Sst              int32
+	Tac              string
+	GnodeB           *gnb.GnodeB
+	NGAPFrameTimeout time.Duration
 }
 
 func NGSetup(opts *NGSetupOpts) error {
@@ -29,9 +30,7 @@ func NGSetup(opts *NGSetupOpts) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	timeout := 1 * time.Microsecond
-
-	fr, err := opts.GnodeB.ReceiveFrame(timeout)
+	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

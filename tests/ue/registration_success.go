@@ -2,18 +2,14 @@ package ue
 
 import (
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/ue/validate"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
 )
 
 const (
@@ -38,7 +34,7 @@ func (RegistrationSuccess) Meta() engine.Meta {
 	}
 }
 
-func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
+func (t RegistrationSuccess) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -47,11 +43,12 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:    MCC,
-		Mnc:    MNC,
-		Sst:    SST,
-		Tac:    TAC,
-		GnodeB: gNodeB,
+		Mcc:              MCC,
+		Mnc:              MNC,
+		Sst:              SST,
+		Tac:              TAC,
+		GnodeB:           gNodeB,
+		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -88,279 +85,22 @@ func (t RegistrationSuccess) Run(env engine.Env) error { // nolint:gocognit
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	regReqOpts := &ue.RegistrationRequestOpts{
-		RegistrationType:  nasMessage.RegistrationType5GSInitialRegistration,
-		RequestedNSSAI:    nil,
-		UplinkDataStatus:  nil,
-		IncludeCapability: false,
-		UESecurity:        newUE.UeSecurity,
-	}
-
-	nasPDU, err := ue.BuildRegistrationRequest(regReqOpts)
-	if err != nil {
-		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
-	}
-
-	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		RanUENGAPID: RANUENGAPID,
-		NasPDU:      nasPDU,
-		Guti5g:      newUE.UeSecurity.Guti,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
-	}
-
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
-	}
-
-	amfUENGAPID := utils.GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport)
-	if amfUENGAPID == nil {
-		return fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
-	}
-
-	receivedNASPDU := utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
-	rand, autn, err := validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
-		NASPDU: receivedNASPDU,
-		UE:     newUE,
-	})
-	if err != nil {
-		return fmt.Errorf("NAS PDU validation failed: %v", err)
-	}
-
-	paramAutn, err := newUE.DeriveRESstarAndSetKey(newUE.UeSecurity.AuthenticationSubs, rand[:], newUE.UeSecurity.Snn, autn[:])
-	if err != nil {
-		return fmt.Errorf("could not derive RES* and set key: %v", err)
-	}
-
-	authResp, err := ue.BuildAuthenticationResponse(&ue.AuthenticationResponseOpts{
-		AuthenticationResponseParam: paramAutn,
-		EapMsg:                      "",
-	})
-	if err != nil {
-		return fmt.Errorf("could not build authentication response: %v", err)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: amfUENGAPID.Value,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		NasPDU:      authResp,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
-	}
-
-	receivedNASPDU = utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
-	ksi, tsc, err := validate.SecurityModeCommand(&validate.SecurityModeCommandOpts{
-		NASPDU: receivedNASPDU,
-		UE:     newUE,
-	})
-	if err != nil {
-		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
-	}
-
-	newUE.UeSecurity.NgKsi.Ksi = ksi
-	newUE.UeSecurity.NgKsi.Tsc = tsc
-
-	securityModeComplete, err := ue.BuildSecurityModeComplete(&ue.SecurityModeCompleteOpts{
-		UESecurity: newUE.UeSecurity,
-		IMEISV:     newUE.IMEISV,
-	})
-	if err != nil {
-		return fmt.Errorf("error sending Security Mode Complete: %w", err)
-	}
-
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: amfUENGAPID.Value,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		NasPDU:      encodedPdu,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("initial context setup request validation failed: %v", err)
-	}
-
-	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
-		AMFUENGAPID: amfUENGAPID.Value,
-		RANUENGAPID: RANUENGAPID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
-	}
-
-	receivedNASPDU = utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest)
-
-	guti5g, err := validate.RegistrationAcceptInitialContextSetupRequest(&validate.RegistrationAcceptOpts{
-		NASPDU: receivedNASPDU,
-		UE:     newUE,
-		Sst:    SST,
-		Sd:     SD,
-	})
-	if err != nil {
-		return fmt.Errorf("could not validate NAS PDU Registration Accept Initial Context Setup Request: %v", err)
-	}
-
-	newUE.Set5gGuti(guti5g)
-
-	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
-		SORTransparentContainer: nil,
-	})
-	if err != nil {
-		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
-	}
-
-	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", newUE.UeSecurity.Supi)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: amfUENGAPID.Value,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		NasPDU:      encodedPdu,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	pduReq, err := ue.BuildPduSessionEstablishmentRequest(&ue.PduSessionEstablishmentRequestOpts{
-		PDUSessionID: PDUSessionID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
-	}
-
-	pduUplink, err := ue.BuildUplinkNasTransport(&ue.UplinkNasTransportOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		Mcc:              MCC,
+		Mnc:              MNC,
+		Sst:              SST,
+		Sd:               SD,
+		Tac:              TAC,
+		DNN:              DNN,
+		GNBID:            GNBID,
+		RANUENGAPID:      RANUENGAPID,
 		PDUSessionID:     PDUSessionID,
-		PayloadContainer: pduReq,
-		DNN:              newUE.DNN,
-		SNSSAI:           newUE.Snssai,
+		UE:               newUE,
+		GnodeB:           gNodeB,
+		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
-	}
-
-	encodedPdu, err = newUE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", newUE.UeSecurity.Supi)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: amfUENGAPID.Value,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		NasPDU:      encodedPdu,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
-	}
-
-	fr, err = gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive NGAP frame: %v", err)
-	}
-
-	network, err := netip.ParsePrefix("10.45.0.0/16")
-	if err != nil {
-		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
-	}
-
-	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
-		Frame:                fr,
-		ExpectedPDUSessionID: PDUSessionID,
-		ExpectedSST:          SST,
-		ExpectedSD:           SD,
-		UEIns:                newUE,
-		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
-			PDUSessionID: PDUSessionID,
-			UeIPSubnet:   network,
-			Dnn:          DNN,
-			Sst:          SST,
-			Sd:           SD,
-			Qfi:          1,
-			FiveQI:       9,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
-	}
-
-	n3GnbIP, err := netip.ParseAddr("1.2.3.4")
-	if err != nil {
-		return fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
-	}
-
-	err = gNodeB.SendPDUSessionResourceSetupResponse(&gnb.PDUSessionResourceSetupResponseOpts{
-		AMFUENGAPID: amfUENGAPID.Value,
-		RANUENGAPID: RANUENGAPID,
-		N3GnbIp:     n3GnbIP,
-		PDUSessions: [16]*gnb.GnbPDUSession{
-			{
-				PDUSessionId: 1,
-				DownlinkTeid: 100,
-				QFI:          1,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
+		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
 	return nil

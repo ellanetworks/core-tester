@@ -7,9 +7,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/ue/validate"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
@@ -33,11 +33,12 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:    MCC,
-		Mnc:    MNC,
-		Sst:    SST,
-		Tac:    TAC,
-		GnodeB: gNodeB,
+		Mcc:              MCC,
+		Mnc:              MNC,
+		Sst:              SST,
+		Tac:              TAC,
+		GnodeB:           gNodeB,
+		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)

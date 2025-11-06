@@ -10,6 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 )
@@ -23,7 +24,7 @@ func (RegistrationPeriodicUpdate) Meta() engine.Meta {
 	}
 }
 
-func (t RegistrationPeriodicUpdate) Run(env engine.Env) error { // nolint:gocognit
+func (t RegistrationPeriodicUpdate) Run(env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -32,11 +33,12 @@ func (t RegistrationPeriodicUpdate) Run(env engine.Env) error { // nolint:gocogn
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:    MCC,
-		Mnc:    MNC,
-		Sst:    SST,
-		Tac:    TAC,
-		GnodeB: gNodeB,
+		Mcc:              MCC,
+		Mnc:              MNC,
+		Sst:              SST,
+		Tac:              TAC,
+		GnodeB:           gNodeB,
+		NGAPFrameTimeout: NGAPFrameTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -73,7 +75,7 @@ func (t RegistrationPeriodicUpdate) Run(env engine.Env) error { // nolint:gocogn
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	resp, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		Mcc:              MCC,
 		Mnc:              MNC,
 		Sst:              SST,
@@ -134,7 +136,47 @@ func (t RegistrationPeriodicUpdate) Run(env engine.Env) error { // nolint:gocogn
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	_, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("initial context setup request validation failed: %v", err)
+	}
+
+	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+	}
+
+	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
+		SORTransparentContainer: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
+	}
+
+	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg: %v", newUE.UeSecurity.Supi, err)
+	}
+
+	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
+		AMFUeNgapID: resp.AMFUENGAPID,
+		RANUeNgapID: RANUENGAPID,
+		Mcc:         MCC,
+		Mnc:         MNC,
+		GnbID:       GNBID,
+		Tac:         TAC,
+		NasPDU:      encodedPdu,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	time.Sleep(1 * time.Second)
 
 	return nil
 }

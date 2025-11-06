@@ -7,8 +7,8 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/tests/ue/validate"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 )
@@ -28,29 +28,22 @@ type InitialRegistrationOpts struct {
 	NGAPFrameTimeout time.Duration
 }
 
-func InitialRegistration(opts *InitialRegistrationOpts) error {
-	err := NGSetup(&NGSetupOpts{
-		Mcc:    opts.Mcc,
-		Mnc:    opts.Mnc,
-		Sst:    opts.Sst,
-		Tac:    opts.Tac,
-		GnodeB: opts.GnodeB,
-	})
-	if err != nil {
-		return fmt.Errorf("NGSetupProcedure failed: %v", err)
-	}
+type InitialRegistrationResp struct {
+	AMFUENGAPID int64
+}
 
-	regReqOpts := &ue.RegistrationRequestOpts{
+func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
+	initialRegistrationResp := &InitialRegistrationResp{}
+
+	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
 		RegistrationType:  nasMessage.RegistrationType5GSInitialRegistration,
 		RequestedNSSAI:    nil,
 		UplinkDataStatus:  nil,
 		IncludeCapability: false,
 		UESecurity:        opts.UE.UeSecurity,
-	}
-
-	nasPDU, err := ue.BuildRegistrationRequest(regReqOpts)
+	})
 	if err != nil {
-		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+		return nil, fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
 	err = opts.GnodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
@@ -63,39 +56,39 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		Guti5g:      opts.UE.UeSecurity.Guti,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
 	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
 		Frame: fr,
 	})
 	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+		return nil, fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
 	amfUENGAPID := utils.GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport)
 	if amfUENGAPID == nil {
-		return fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
+		return nil, fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
 	}
 
-	receivedNASPDU := utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport)
+	initialRegistrationResp.AMFUENGAPID = amfUENGAPID.Value
 
 	rand, autn, err := validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
-		NASPDU: receivedNASPDU,
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
 		UE:     opts.UE,
 	})
 	if err != nil {
-		return fmt.Errorf("NAS PDU validation failed: %v", err)
+		return nil, fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
 	paramAutn, err := opts.UE.DeriveRESstarAndSetKey(opts.UE.UeSecurity.AuthenticationSubs, rand[:], opts.UE.UeSecurity.Snn, autn[:])
 	if err != nil {
-		return fmt.Errorf("could not derive RES* and set key: %v", err)
+		return nil, fmt.Errorf("could not derive RES* and set key: %v", err)
 	}
 
 	authResp, err := ue.BuildAuthenticationResponse(&ue.AuthenticationResponseOpts{
@@ -103,7 +96,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		EapMsg:                      "",
 	})
 	if err != nil {
-		return fmt.Errorf("could not build authentication response: %v", err)
+		return nil, fmt.Errorf("could not build authentication response: %v", err)
 	}
 
 	err = opts.GnodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
@@ -116,29 +109,27 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		NasPDU:      authResp,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
 	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
 		Frame: fr,
 	})
 	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+		return nil, fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
-	receivedNASPDU = utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
 	ksi, tsc, err := validate.SecurityModeCommand(&validate.SecurityModeCommandOpts{
-		NASPDU: receivedNASPDU,
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
 		UE:     opts.UE,
 	})
 	if err != nil {
-		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
+		return nil, fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
 
 	opts.UE.UeSecurity.NgKsi.Ksi = ksi
@@ -149,12 +140,12 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		IMEISV:     opts.UE.IMEISV,
 	})
 	if err != nil {
-		return fmt.Errorf("error sending Security Mode Complete: %w", err)
+		return nil, fmt.Errorf("error sending Security Mode Complete: %w", err)
 	}
 
 	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
 	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
+		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
 	}
 
 	err = opts.GnodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
@@ -167,19 +158,19 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		NasPDU:      encodedPdu,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
 	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
 		Frame: fr,
 	})
 	if err != nil {
-		return fmt.Errorf("initial context setup request validation failed: %v", err)
+		return nil, fmt.Errorf("initial context setup request validation failed: %v", err)
 	}
 
 	err = opts.GnodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
@@ -187,19 +178,17 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		RANUENGAPID: opts.RANUENGAPID,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
-	receivedNASPDU = utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest)
-
 	guti5g, err := validate.RegistrationAcceptInitialContextSetupRequest(&validate.RegistrationAcceptOpts{
-		NASPDU: receivedNASPDU,
+		NASPDU: utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest),
 		UE:     opts.UE,
 		Sst:    opts.Sst,
 		Sd:     opts.Sd,
 	})
 	if err != nil {
-		return fmt.Errorf("could not validate NAS PDU Registration Accept Initial Context Setup Request: %v", err)
+		return nil, fmt.Errorf("could not validate NAS PDU Registration Accept Initial Context Setup Request: %v", err)
 	}
 
 	opts.UE.Set5gGuti(guti5g)
@@ -208,12 +197,12 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		SORTransparentContainer: nil,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
+		return nil, fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
 	}
 
 	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
 	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", opts.UE.UeSecurity.Supi)
+		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", opts.UE.UeSecurity.Supi)
 	}
 
 	err = opts.GnodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
@@ -226,14 +215,14 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		NasPDU:      encodedPdu,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
 	pduReq, err := ue.BuildPduSessionEstablishmentRequest(&ue.PduSessionEstablishmentRequestOpts{
 		PDUSessionID: opts.PDUSessionID,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
+		return nil, fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
 	}
 
 	pduUplink, err := ue.BuildUplinkNasTransport(&ue.UplinkNasTransportOpts{
@@ -243,12 +232,12 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		SNSSAI:           opts.UE.Snssai,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
+		return nil, fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
 	}
 
 	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
 	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", opts.UE.UeSecurity.Supi)
+		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", opts.UE.UeSecurity.Supi)
 	}
 
 	err = opts.GnodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
@@ -261,17 +250,17 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		NasPDU:      encodedPdu,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
+		return nil, fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
 	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
 	if err != nil {
-		return fmt.Errorf("could not receive NGAP frame: %v", err)
+		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")
 	if err != nil {
-		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+		return nil, fmt.Errorf("failed to parse UE IP subnet: %v", err)
 	}
 
 	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
@@ -291,12 +280,12 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+		return nil, fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
 	}
 
 	n3GnbIP, err := netip.ParseAddr("1.2.3.4")
 	if err != nil {
-		return fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
+		return nil, fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
 	}
 
 	err = opts.GnodeB.SendPDUSessionResourceSetupResponse(&gnb.PDUSessionResourceSetupResponseOpts{
@@ -312,8 +301,8 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
+		return nil, fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
 	}
 
-	return nil
+	return initialRegistrationResp, nil
 }
