@@ -102,8 +102,8 @@ func RegistrationAcceptInitialContextSetupRequest(opts *RegistrationAcceptOpts) 
 	}
 
 	timerInSeconds := utils.NasToGPRSTimer3(msg.T3512Value.Octet)
-	if timerInSeconds != 30 {
-		return nil, fmt.Errorf("T3512 timer in seconds not the expected value, got: %d, want: 30", timerInSeconds)
+	if timerInSeconds != 3600 {
+		return nil, fmt.Errorf("T3512 timer in seconds not the expected value, got: %d, want: 3600", timerInSeconds)
 	}
 
 	return msg.RegistrationAccept.GUTI5G, nil
