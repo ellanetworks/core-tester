@@ -72,7 +72,12 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
 
-	err = validateNGSetupResponse(nGSetupResponse)
+	err = validateNGSetupResponse(nGSetupResponse, &NGSetupResponseValidationOpts{
+		MCC: env.CoreConfig.MCC,
+		MNC: env.CoreConfig.MNC,
+		SST: env.CoreConfig.SST,
+		SD:  env.CoreConfig.SD,
+	})
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
@@ -80,7 +85,14 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 	return nil
 }
 
-func validateNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse) error {
+type NGSetupResponseValidationOpts struct {
+	MCC string
+	MNC string
+	SST int32
+	SD  string
+}
+
+func validateNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse, opts *NGSetupResponseValidationOpts) error {
 	var (
 		amfName             *ngapType.AMFName
 		guamiList           *ngapType.ServedGUAMIList
@@ -129,12 +141,12 @@ func validateNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse) error {
 	}
 
 	mcc, mnc := plmnIDToString(plmnSupportList.List[0].PLMNIdentity)
-	if mcc != "001" {
-		return fmt.Errorf("PLMN Identity MCC is incorrect, got: %s, want: 001", mcc)
+	if mcc != opts.MCC {
+		return fmt.Errorf("PLMN Identity MCC is incorrect, got: %s, want: %s", mcc, opts.MCC)
 	}
 
-	if mnc != "01" {
-		return fmt.Errorf("PLMN Identity MNC is incorrect, got: %s, want: 01", mnc)
+	if mnc != opts.MNC {
+		return fmt.Errorf("PLMN Identity MNC is incorrect, got: %s, want: %s", mnc, opts.MNC)
 	}
 
 	if len(plmnSupportList.List[0].SliceSupportList.List) != 1 {
@@ -142,12 +154,12 @@ func validateNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse) error {
 	}
 
 	sst, sd := snssaiToString(plmnSupportList.List[0].SliceSupportList.List[0].SNSSAI)
-	if sst != 1 {
-		return fmt.Errorf("SST is incorrect, got: %v, want: 1", sst)
+	if sst != opts.SST {
+		return fmt.Errorf("SST is incorrect, got: %v, want: %v", sst, opts.SST)
 	}
 
-	if sd != "102030" {
-		return fmt.Errorf("SD is incorrect, got: %s, want: 102030", sd)
+	if sd != opts.SD {
+		return fmt.Errorf("SD is incorrect, got: %s, want: %s", sd, opts.SD)
 	}
 
 	return nil
