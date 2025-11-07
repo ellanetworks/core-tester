@@ -28,15 +28,16 @@ Example output:
 
 ```shell
 guillaume@courge:~/code/core-tester$ go run cmd/core-tester/main.go --config config.yml
-gnb/sctp                             PASSED    (2ms)
-gnb/ngap/setup_response              PASSED    (2ms)
+gnb/sctp                             PASSED    (15ms)
 gnb/ngap/setup_failure/unknown_plmn  PASSED    (1ms)
-ue/registration_reject/unknown_ue    PASSED    (2ms)
-ue/deregistration                    PASSED    (427ms)
-ue/registration_success              PASSED    (425ms)
-ue/registration/periodic/signalling  PASSED    (838ms)
-ue/registration/periodic/data        PASSED    (840ms)
-ue/context/release                   PASSED    (434ms)
+ue/registration_reject/unknown_ue    PASSED    (3ms)
+ue/registration/periodic/signalling  PASSED    (841ms)
+ue/registration/periodic/data        PASSED    (844ms)
+gnb/ngap/setup_response              PASSED    (1ms)
+gnb/ngap/reset                       PASSED    (2ms)
+ue/registration_success              PASSED    (421ms)
+ue/deregistration                    PASSED    (426ms)
+ue/context/release                   PASSED    (432ms)
 ```
 
 ## How-to add a new test

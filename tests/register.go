@@ -13,6 +13,7 @@ func RegisterAll() error {
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
 		gnb.NGSetupFailure_UnknownPLMN{},
+		gnb.NGReset{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationPeriodicUpdateSignalling{},

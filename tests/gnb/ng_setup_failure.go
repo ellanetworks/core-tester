@@ -18,7 +18,7 @@ type NGSetupFailure_UnknownPLMN struct{}
 func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_failure/unknown_plmn",
-		Summary: "NGSetup failure test validating the NGSetupFailure message contents when unknown PLMN is provided",
+		Summary: "NGSetup failure test validating the NGSetupFailure message contents when unknown PLMN is provided part of the NGSetupRequest",
 		Timeout: 500 * time.Millisecond,
 	}
 }
