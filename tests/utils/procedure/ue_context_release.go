@@ -20,7 +20,7 @@ func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 		AMFUENGAPID: opts.AMFUENGAPID,
 		RANUENGAPID: opts.RANUENGAPID,
 		PDUSessionIDs: [16]bool{
-			true, false, false, false, false, false, false, false,
+			false, true, false, false, false, false, false, false,
 			false, false, false, false, false, false, false, false,
 		},
 	})
