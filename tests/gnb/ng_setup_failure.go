@@ -1,6 +1,7 @@
 package gnb
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -12,20 +13,17 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-const (
-	NGAPFrameTimeout = 1 * time.Microsecond
-)
-
 type NGSetupFailure_UnknownPLMN struct{}
 
 func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_failure/unknown_plmn",
 		Summary: "NGSetup failure test validating the NGSetupFailure message contents when unknown PLMN is provided",
+		Timeout: 500 * time.Millisecond,
 	}
 }
 
-func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
+func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -45,7 +43,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
+	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

@@ -1,9 +1,9 @@
 package procedure
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
@@ -11,28 +11,28 @@ import (
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type InitialRegistrationOpts struct {
-	Mcc              string
-	Mnc              string
-	Sst              int32
-	Sd               string
-	Tac              string
-	DNN              string
-	GNBID            string
-	RANUENGAPID      int64
-	PDUSessionID     uint8
-	UE               *ue.UE
-	GnodeB           *gnb.GnodeB
-	NGAPFrameTimeout time.Duration
+	Mcc          string
+	Mnc          string
+	Sst          int32
+	Sd           string
+	Tac          string
+	DNN          string
+	GNBID        string
+	RANUENGAPID  int64
+	PDUSessionID uint8
+	UE           *ue.UE
+	GnodeB       *gnb.GnodeB
 }
 
 type InitialRegistrationResp struct {
 	AMFUENGAPID int64
 }
 
-func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
+func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
 	initialRegistrationResp := &InitialRegistrationResp{}
 
 	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
@@ -47,19 +47,20 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 	}
 
 	err = opts.GnodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:         opts.Mcc,
-		Mnc:         opts.Mnc,
-		GnbID:       opts.GNBID,
-		Tac:         opts.Tac,
-		RanUENGAPID: opts.RANUENGAPID,
-		NasPDU:      nasPDU,
-		Guti5g:      opts.UE.UeSecurity.Guti,
+		Mcc:                   opts.Mcc,
+		Mnc:                   opts.Mnc,
+		GnbID:                 opts.GNBID,
+		Tac:                   opts.Tac,
+		RanUENGAPID:           opts.RANUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                opts.UE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -112,7 +113,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -143,7 +144,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("error sending Security Mode Complete: %w", err)
 	}
 
-	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
 	}
@@ -161,7 +162,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -200,7 +201,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
 	}
 
-	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", opts.UE.UeSecurity.Supi)
 	}
@@ -235,7 +236,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
 	}
 
-	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", opts.UE.UeSecurity.Supi)
 	}
@@ -253,7 +254,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
 	}

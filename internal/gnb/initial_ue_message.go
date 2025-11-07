@@ -9,13 +9,14 @@ import (
 )
 
 type InitialUEMessageOpts struct {
-	RanUENGAPID int64
-	NasPDU      []byte
-	Guti5g      *nasType.GUTI5G
-	Mcc         string
-	Mnc         string
-	Tac         string
-	GnbID       string
+	RanUENGAPID           int64
+	NasPDU                []byte
+	Guti5g                *nasType.GUTI5G
+	Mcc                   string
+	Mnc                   string
+	Tac                   string
+	GnbID                 string
+	RRCEstablishmentCause aper.Enumerated
 }
 
 func BuildInitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error) {
@@ -126,7 +127,7 @@ func BuildInitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error)
 	ie.Value.RRCEstablishmentCause = new(ngapType.RRCEstablishmentCause)
 
 	rRCEstablishmentCause := ie.Value.RRCEstablishmentCause
-	rRCEstablishmentCause.Value = ngapType.RRCEstablishmentCausePresentMoSignalling
+	rRCEstablishmentCause.Value = opts.RRCEstablishmentCause
 
 	initialUEMessageIEs.List = append(initialUEMessageIEs.List, ie)
 

@@ -1,7 +1,9 @@
 package ue
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -17,10 +19,11 @@ func (Deregistration) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/deregistration",
 		Summary: "UE deregistration test validating the Deregistration Request and Response procedures",
+		Timeout: 1 * time.Second,
 	}
 }
 
-func (t Deregistration) Run(env engine.Env) error {
+func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -28,13 +31,12 @@ func (t Deregistration) Run(env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Tac:              TAC,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
+		Mcc:    MCC,
+		Mnc:    MNC,
+		Sst:    SST,
+		Tac:    TAC,
+		GnodeB: gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -71,34 +73,32 @@ func (t Deregistration) Run(env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	resp, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Sd:               SD,
-		Tac:              TAC,
-		DNN:              DNN,
-		GNBID:            GNBID,
-		RANUENGAPID:      RANUENGAPID,
-		PDUSessionID:     PDUSessionID,
-		UE:               newUE,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+		Mcc:          MCC,
+		Mnc:          MNC,
+		Sst:          SST,
+		Sd:           SD,
+		Tac:          TAC,
+		DNN:          DNN,
+		GNBID:        GNBID,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
+		GnodeB:       gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:           gNodeB,
-		UE:               newUE,
-		AMFUENGAPID:      resp.AMFUENGAPID,
-		RANUENGAPID:      RANUENGAPID,
-		MCC:              MCC,
-		MNC:              MNC,
-		GNBID:            GNBID,
-		TAC:              TAC,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		MCC:         MCC,
+		MNC:         MNC,
+		GNBID:       GNBID,
+		TAC:         TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)

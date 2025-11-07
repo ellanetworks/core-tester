@@ -1,9 +1,9 @@
 package gnb
 
 import (
+	"context"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/ishidawataru/sctp"
 )
@@ -50,33 +50,46 @@ func Start(coreN2Address string, gnbN2Address string) (*GnodeB, error) {
 	return &GnodeB{Conn: conn}, nil
 }
 
-func (g *GnodeB) ReceiveFrame(timeout time.Duration) (SCTPFrame, error) {
+func (g *GnodeB) ReceiveFrame(ctx context.Context) (SCTPFrame, error) {
 	if g.Conn == nil {
 		return SCTPFrame{}, fmt.Errorf("SCTP connection is nil")
 	}
 
-	buf := make([]byte, SCTPReadBufferSize)
+	type res struct {
+		data []byte
+		info *sctp.SndRcvInfo
+		err  error
+	}
 
-	deadline := time.Now().Add(timeout)
+	ch := make(chan res, 1)
 
-	for {
-		if time.Now().After(deadline) {
-			return SCTPFrame{}, fmt.Errorf("timeout after %s", timeout)
-		}
+	go func() {
+		buf := make([]byte, SCTPReadBufferSize)
 
 		n, info, err := g.Conn.SCTPRead(buf)
 		if err != nil {
-			return SCTPFrame{}, fmt.Errorf("could not read SCTP frame: %w", err)
+			ch <- res{err: fmt.Errorf("could not read SCTP frame: %w", err)}
+			return
 		}
 
 		if n == 0 {
-			continue
+			ch <- res{err: fmt.Errorf("empty SCTP read")}
+			return
 		}
 
-		data := make([]byte, n)
-		copy(data, buf[:n])
+		cp := append([]byte(nil), buf[:n]...) // copy to isolate from buffer reuse
+		ch <- res{data: cp, info: info, err: nil}
+	}()
 
-		return SCTPFrame{Data: data, Info: info}, nil
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			return SCTPFrame{}, r.err
+		}
+
+		return SCTPFrame{Data: r.data, Info: r.info}, nil
+	case <-ctx.Done():
+		return SCTPFrame{}, ctx.Err()
 	}
 }
 

@@ -27,14 +27,16 @@ sudo ./main --config config.yml -write results.json
 Example output:
 
 ```shell
-guillaume@courge:~/code/core-tester$ ./main --config config.yml -write results.json
-gnb/ngap/setup_response              PASSED
-gnb/ngap/setup_failure/unknown_plmn  PASSED
-ue/registration_reject/unknown_ue    PASSED
-ue/registration_success              PASSED
-ue/registration_periodic_update      PASSED
-ue/deregistration                    PASSED
-gnb/sctp                             PASSED
+guillaume@courge:~/code/core-tester$ go run cmd/core-tester/main.go --config config.yml
+gnb/sctp                             PASSED    (2ms)
+gnb/ngap/setup_response              PASSED    (2ms)
+gnb/ngap/setup_failure/unknown_plmn  PASSED    (1ms)
+ue/registration_reject/unknown_ue    PASSED    (2ms)
+ue/deregistration                    PASSED    (427ms)
+ue/registration_success              PASSED    (425ms)
+ue/registration/periodic/signalling  PASSED    (838ms)
+ue/registration/periodic/data        PASSED    (840ms)
+ue/context/release                   PASSED    (434ms)
 ```
 
 ## How-to add a new test

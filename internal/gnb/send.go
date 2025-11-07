@@ -20,6 +20,7 @@ const (
 	NGAPProcedureInitialContextSetupResponse     NGAPProcedure = "InitialContextSetupResponse"
 	NGAPProcedurePDUSessionResourceSetupResponse NGAPProcedure = "PDUSessionResourceSetupResponse"
 	NGAPProcedureUEContextReleaseComplete        NGAPProcedure = "UEContextReleaseComplete"
+	NGAPProcedureUEContextReleaseRequest         NGAPProcedure = "UEContextReleaseRequest"
 )
 
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
@@ -31,7 +32,7 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 	// UE-associated procedures
 	case NGAPProcedureInitialUEMessage, NGAPProcedureUplinkNASTransport,
 		NGAPProcedureInitialContextSetupResponse, NGAPProcedurePDUSessionResourceSetupResponse,
-		NGAPProcedureUEContextReleaseComplete:
+		NGAPProcedureUEContextReleaseComplete, NGAPProcedureUEContextReleaseRequest:
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("NGAP message type (%s) not supported", msgType)
@@ -54,6 +55,15 @@ func (g *GnodeB) SendInitialUEMessage(opts *InitialUEMessageOpts) error {
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
+}
+
+func (g *GnodeB) SendUEContextReleaseRequest(opts *UEContextReleaseRequestOpts) error {
+	pdu, err := BuildUEContextReleaseRequest(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build UEContextReleaseRequest: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedureUEContextReleaseRequest)
 }
 
 func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {

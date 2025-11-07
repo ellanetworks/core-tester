@@ -1,7 +1,9 @@
 package ue
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -21,10 +23,11 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_reject/unknown_ue",
 		Summary: "UE registration reject test for unknown UE",
+		Timeout: 1 * time.Second,
 	}
 }
 
-func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
+func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -32,13 +35,12 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Tac:              TAC,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
+		Mcc:    MCC,
+		Mnc:    MNC,
+		Sst:    SST,
+		Tac:    TAC,
+		GnodeB: gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -92,13 +94,14 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 	}
 
 	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:         MCC,
-		Mnc:         MNC,
-		GnbID:       GNBID,
-		Tac:         TAC,
-		RanUENGAPID: RANUENGAPID,
-		NasPDU:      nasPDU,
-		Guti5g:      newUE.UeSecurity.Guti,
+		Mcc:                   MCC,
+		Mnc:                   MNC,
+		GnbID:                 GNBID,
+		Tac:                   TAC,
+		RanUENGAPID:           RANUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                newUE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
 	}
 
 	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)
@@ -106,7 +109,7 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
+	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

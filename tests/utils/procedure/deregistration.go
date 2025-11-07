@@ -1,8 +1,8 @@
 package procedure
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
@@ -12,18 +12,17 @@ import (
 )
 
 type DeregistrationOpts struct {
-	GnodeB           *gnb.GnodeB
-	UE               *ue.UE
-	AMFUENGAPID      int64
-	RANUENGAPID      int64
-	MCC              string
-	MNC              string
-	GNBID            string
-	TAC              string
-	NGAPFrameTimeout time.Duration
+	GnodeB      *gnb.GnodeB
+	UE          *ue.UE
+	AMFUENGAPID int64
+	RANUENGAPID int64
+	MCC         string
+	MNC         string
+	GNBID       string
+	TAC         string
 }
 
-func Deregistration(opts *DeregistrationOpts) error {
+func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 	deregBytes, err := ue.BuildDeregistrationRequest(&ue.DeregistrationRequestOpts{
 		Guti: opts.UE.UeSecurity.Guti,
 		Ksi:  opts.UE.UeSecurity.NgKsi.Ksi,
@@ -32,7 +31,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
 	}
 
-	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return fmt.Errorf("error encoding %s IMSI UE NAS Deregistration Msg", opts.UE.UeSecurity.Supi)
 	}
@@ -50,12 +49,12 @@ func Deregistration(opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = validate.UEContextRelease(&validate.UEContextReleaseOpts{
+	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
 		Frame: fr,
 		Cause: &ngapType.Cause{
 			Present: ngapType.CausePresentNas,

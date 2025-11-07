@@ -1,8 +1,8 @@
 package procedure
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -11,15 +11,14 @@ import (
 )
 
 type NGSetupOpts struct {
-	Mcc              string
-	Mnc              string
-	Sst              int32
-	Tac              string
-	GnodeB           *gnb.GnodeB
-	NGAPFrameTimeout time.Duration
+	Mcc    string
+	Mnc    string
+	Sst    int32
+	Tac    string
+	GnodeB *gnb.GnodeB
 }
 
-func NGSetup(opts *NGSetupOpts) error {
+func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 	err := opts.GnodeB.SendNGSetupRequest(&gnb.NGSetupRequestOpts{
 		Mcc: opts.Mcc,
 		Mnc: opts.Mnc,
@@ -30,7 +29,7 @@ func NGSetup(opts *NGSetupOpts) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

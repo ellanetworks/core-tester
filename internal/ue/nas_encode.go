@@ -12,7 +12,7 @@ import (
 	"github.com/free5gc/nas/security"
 )
 
-func (ue *UE) EncodeNasPduWithSecurity(pdu []byte, securityHeaderType uint8, securityContextAvailable, newSecurityContext bool) ([]byte, error) {
+func (ue *UE) EncodeNasPduWithSecurity(pdu []byte, securityHeaderType uint8) ([]byte, error) {
 	m := nas.NewMessage()
 
 	err := m.PlainNasDecode(&pdu)
@@ -25,10 +25,10 @@ func (ue *UE) EncodeNasPduWithSecurity(pdu []byte, securityHeaderType uint8, sec
 		SecurityHeaderType:    securityHeaderType,
 	}
 
-	return ue.NASEncode(m, securityContextAvailable, newSecurityContext)
+	return ue.NASEncode(m, securityHeaderType)
 }
 
-func (ue *UE) NASEncode(msg *nas.Message, securityContextAvailable bool, newSecurityContext bool) ([]byte, error) {
+func (ue *UE) NASEncode(msg *nas.Message, securityHeaderType uint8) ([]byte, error) {
 	if ue == nil {
 		return nil, fmt.Errorf("amfUe is nil")
 	}
@@ -37,11 +37,7 @@ func (ue *UE) NASEncode(msg *nas.Message, securityContextAvailable bool, newSecu
 		return nil, fmt.Errorf("nas message is nil")
 	}
 
-	if !securityContextAvailable {
-		return msg.PlainNasEncode()
-	}
-
-	if newSecurityContext {
+	if securityHeaderType == nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext {
 		ue.UeSecurity.ULCount.Set(0, 0)
 		ue.UeSecurity.DLCount.Set(0, 0)
 	}
