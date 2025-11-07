@@ -13,6 +13,7 @@ type NGAPProcedure string
 const (
 	// Non-UE associated NGAP procedures
 	NGAPProcedureNGSetupRequest NGAPProcedure = "NGSetupRequest"
+	NGAPProcedureNGReset        NGAPProcedure = "NGReset"
 
 	// UE-associated NGAP procedures
 	NGAPProcedureInitialUEMessage                NGAPProcedure = "InitialUEMessage"
@@ -26,7 +27,7 @@ const (
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 	switch msgType {
 	// Non-UE procedures
-	case NGAPProcedureNGSetupRequest:
+	case NGAPProcedureNGSetupRequest, NGAPProcedureNGReset:
 		return 0, nil
 
 	// UE-associated procedures
@@ -46,6 +47,15 @@ func (g *GnodeB) SendNGSetupRequest(opts *NGSetupRequestOpts) error {
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureNGSetupRequest)
+}
+
+func (g *GnodeB) SendNGReset(opts *NGResetOpts) error {
+	pdu, err := BuildNGReset(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build NGReset: %s", err.Error())
+	}
+
+	return g.SendMessage(pdu, NGAPProcedureNGReset)
 }
 
 func (g *GnodeB) SendInitialUEMessage(opts *InitialUEMessageOpts) error {
