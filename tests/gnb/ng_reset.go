@@ -8,6 +8,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -70,7 +71,12 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
 
-	err = validateNGSetupResponse(nGSetupResponse)
+	err = validate.NGSetupResponse(nGSetupResponse, &validate.NGSetupResponseValidationOpts{
+		MCC: env.CoreConfig.MCC,
+		MNC: env.CoreConfig.MNC,
+		SST: env.CoreConfig.SST,
+		SD:  env.CoreConfig.SD,
+	})
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
