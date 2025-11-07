@@ -75,7 +75,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
 
-	resetOpts := &gnb.NGResetOpts{
+	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
 		Cause: &ngapType.Cause{
 			Present: ngapType.CausePresentMisc,
 			Misc: &ngapType.CauseMisc{
@@ -83,8 +83,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 			},
 		},
 		ResetAll: true,
-	}
-	err = gNodeB.SendNGReset(resetOpts)
+	})
 	if err != nil {
 		return fmt.Errorf("could not send NGReset: %v", err)
 	}
