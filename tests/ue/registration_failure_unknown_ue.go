@@ -28,7 +28,7 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 }
 
 func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -36,10 +36,10 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    MCC,
-		Mnc:    MNC,
-		Sst:    SST,
-		Tac:    TAC,
+		Mcc:    env.CoreConfig.MCC,
+		Mnc:    env.CoreConfig.MNC,
+		Sst:    env.CoreConfig.SST,
+		Tac:    env.CoreConfig.TAC,
 		GnodeB: gNodeB,
 	})
 	if err != nil {
@@ -62,16 +62,16 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		OpC:  "E8ED289DEBA952E4283B54E88E6183CA",
 		Amf:  "80000000000000000000000000000000",
 		Sqn:  "000000000001",
-		Mcc:  MCC,
-		Mnc:  MNC,
+		Mcc:  env.CoreConfig.MCC,
+		Mnc:  env.CoreConfig.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator:     "0000",
-		DNN:                  DNN,
-		Sst:                  SST,
-		Sd:                   SD,
+		DNN:                  env.CoreConfig.DNN,
+		Sst:                  env.CoreConfig.SST,
+		Sd:                   env.CoreConfig.SD,
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
 	}
 
@@ -94,10 +94,10 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:                   MCC,
-		Mnc:                   MNC,
+		Mcc:                   env.CoreConfig.MCC,
+		Mnc:                   env.CoreConfig.MNC,
 		GnbID:                 GNBID,
-		Tac:                   TAC,
+		Tac:                   env.CoreConfig.TAC,
 		RanUENGAPID:           RANUENGAPID,
 		NasPDU:                nasPDU,
 		Guti5g:                newUE.UeSecurity.Guti,

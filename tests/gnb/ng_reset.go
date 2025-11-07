@@ -23,7 +23,7 @@ func (NGReset) Meta() engine.Meta {
 }
 
 func (t NGReset) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -31,10 +31,10 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: "001",
-		Mnc: "01",
-		Sst: 1,
-		Tac: "000001",
+		Mcc: env.CoreConfig.MCC,
+		Mnc: env.CoreConfig.MNC,
+		Sst: env.CoreConfig.SST,
+		Tac: env.CoreConfig.TAC,
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)

@@ -24,7 +24,7 @@ func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 }
 
 func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -33,9 +33,9 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 
 	opts := &gnb.NGSetupRequestOpts{
 		Mcc: "002", // Unknown MCC to trigger NGSetupFailure
-		Mnc: "01",
-		Sst: 1,
-		Tac: "000001",
+		Mnc: env.CoreConfig.MNC,
+		Sst: env.CoreConfig.SST,
+		Tac: env.CoreConfig.TAC,
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)

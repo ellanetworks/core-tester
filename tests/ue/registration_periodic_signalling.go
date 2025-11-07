@@ -28,7 +28,7 @@ func (RegistrationPeriodicUpdateSignalling) Meta() engine.Meta {
 }
 
 func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
+	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -36,10 +36,10 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    MCC,
-		Mnc:    MNC,
-		Sst:    SST,
-		Tac:    TAC,
+		Mcc:    env.CoreConfig.MCC,
+		Mnc:    env.CoreConfig.MNC,
+		Sst:    env.CoreConfig.SST,
+		Tac:    env.CoreConfig.TAC,
 		GnodeB: gNodeB,
 	})
 	if err != nil {
@@ -52,16 +52,16 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		OpC:  "34e89843fe0683dc961873ebc05b8a35",
 		Amf:  "80000000000000000000000000000000",
 		Sqn:  "000000000001",
-		Mcc:  MCC,
-		Mnc:  MNC,
+		Mcc:  env.CoreConfig.MCC,
+		Mnc:  env.CoreConfig.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              DNN,
-		Sst:              SST,
-		Sd:               SD,
+		DNN:              env.CoreConfig.DNN,
+		Sst:              env.CoreConfig.SST,
+		Sd:               env.CoreConfig.SD,
 		IMEISV:           "3569380356438091",
 		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
 			Integrity: utils.IntegrityAlgorithms{
@@ -78,12 +78,12 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	}
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		Mcc:          MCC,
-		Mnc:          MNC,
-		Sst:          SST,
-		Sd:           SD,
-		Tac:          TAC,
-		DNN:          DNN,
+		Mcc:          env.CoreConfig.MCC,
+		Mnc:          env.CoreConfig.MNC,
+		Sst:          env.CoreConfig.SST,
+		Sd:           env.CoreConfig.SD,
+		Tac:          env.CoreConfig.TAC,
+		DNN:          env.CoreConfig.DNN,
 		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
@@ -124,10 +124,10 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	}
 
 	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:                   MCC,
-		Mnc:                   MNC,
+		Mcc:                   env.CoreConfig.MCC,
+		Mnc:                   env.CoreConfig.MNC,
 		GnbID:                 GNBID,
-		Tac:                   TAC,
+		Tac:                   env.CoreConfig.TAC,
 		RanUENGAPID:           RANUENGAPID,
 		NasPDU:                encodedPdu,
 		Guti5g:                newUE.UeSecurity.Guti,
@@ -177,10 +177,10 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
 		AMFUeNgapID: resp.AMFUENGAPID,
 		RANUeNgapID: RANUENGAPID,
-		Mcc:         MCC,
-		Mnc:         MNC,
+		Mcc:         env.CoreConfig.MCC,
+		Mnc:         env.CoreConfig.MNC,
 		GnbID:       GNBID,
-		Tac:         TAC,
+		Tac:         env.CoreConfig.TAC,
 		NasPDU:      encodedPdu,
 	})
 	if err != nil {
@@ -193,10 +193,10 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		UE:          newUE,
 		AMFUENGAPID: resp.AMFUENGAPID,
 		RANUENGAPID: RANUENGAPID,
-		MCC:         MCC,
-		MNC:         MNC,
+		MCC:         env.CoreConfig.MCC,
+		MNC:         env.CoreConfig.MNC,
 		GNBID:       GNBID,
-		TAC:         TAC,
+		TAC:         env.CoreConfig.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)

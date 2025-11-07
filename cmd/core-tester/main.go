@@ -33,8 +33,16 @@ func main() {
 	}
 
 	testEnv := engine.Env{
-		CoreN2Address: cfg.EllaCore.N2Address,
-		GnbN2Address:  cfg.Gnb.N2Address,
+		CoreConfig: engine.CoreConfig{
+			N2Address: cfg.EllaCore.N2Address,
+			MCC:       cfg.EllaCore.MCC,
+			MNC:       cfg.EllaCore.MNC,
+			SST:       cfg.EllaCore.SST,
+			SD:        cfg.EllaCore.SD,
+			TAC:       cfg.EllaCore.TAC,
+			DNN:       cfg.EllaCore.DNN,
+		},
+		GnbN2Address: cfg.Gnb.N2Address,
 	}
 
 	allPassed, testResults := engine.Run(context.Background(), testEnv)
