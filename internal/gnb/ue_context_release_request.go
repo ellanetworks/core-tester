@@ -90,10 +90,12 @@ func (builder *UeContextReleaseRequestBuilder) SetPduSessionResourceListCxtRelRe
 			if !pduSessionID {
 				continue
 			}
+
 			pDUSessionResourceItem := ngapType.PDUSessionResourceItemCxtRelReq{}
 			pDUSessionResourceItem.PDUSessionID.Value = int64(i)
 			pDUSessionResourceListCxtRelReq.List = append(pDUSessionResourceListCxtRelReq.List, pDUSessionResourceItem)
 		}
+
 		builder.ies.List = append(builder.ies.List, ie)
 	}
 

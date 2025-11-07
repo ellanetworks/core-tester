@@ -1,6 +1,7 @@
 package gnb
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
@@ -19,7 +20,7 @@ func (SCTPBasic) Meta() engine.Meta {
 	}
 }
 
-func (t SCTPBasic) Run(env engine.Env) error {
+func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -39,7 +40,7 @@ func (t SCTPBasic) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
+	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

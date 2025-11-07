@@ -16,6 +16,7 @@ func RegisterAll() error {
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationPeriodicUpdateSignalling{},
+		// ue.RegistrationPeriodicUpdateData{},
 		ue.Deregistration{},
 		ue.UEContextRelease{},
 	}

@@ -1,6 +1,7 @@
 package ue
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
@@ -9,8 +10,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/tests/utils/validate"
-	"github.com/free5gc/ngap/ngapType"
 )
 
 type UEContextRelease struct{}
@@ -22,7 +21,7 @@ func (UEContextRelease) Meta() engine.Meta {
 	}
 }
 
-func (t UEContextRelease) Run(env engine.Env) error {
+func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -30,13 +29,12 @@ func (t UEContextRelease) Run(env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Tac:              TAC,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
+		Mcc:    MCC,
+		Mnc:    MNC,
+		Sst:    SST,
+		Tac:    TAC,
+		GnodeB: gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -73,77 +71,31 @@ func (t UEContextRelease) Run(env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	resp, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Sd:               SD,
-		Tac:              TAC,
-		DNN:              DNN,
-		GNBID:            GNBID,
-		RANUENGAPID:      RANUENGAPID,
-		PDUSessionID:     PDUSessionID,
-		UE:               newUE,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+		Mcc:          MCC,
+		Mnc:          MNC,
+		Sst:          SST,
+		Sd:           SD,
+		Tac:          TAC,
+		DNN:          DNN,
+		GNBID:        GNBID,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
+		GnodeB:       gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	err = gNodeB.SendUEContextReleaseRequest(&gnb.UEContextReleaseRequestOpts{
+	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
 		AMFUENGAPID: resp.AMFUENGAPID,
 		RANUENGAPID: RANUENGAPID,
-		PDUSessionIDs: [16]bool{
-			true, false, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-		},
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
+		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
-
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
-		Frame: fr,
-		Cause: &ngapType.Cause{
-			Present: ngapType.CausePresentRadioNetwork,
-			RadioNetwork: &ngapType.CauseRadioNetwork{
-				Value: ngapType.CauseRadioNetworkPresentUserInactivity,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("UEContextRelease validation failed: %v", err)
-	}
-
-	err = gNodeB.SendUEContextReleaseComplete(&gnb.UEContextReleaseCompleteOpts{
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
-	}
-
-	// // Cleanup
-	// err = procedure.Deregistration(&procedure.DeregistrationOpts{
-	// 	GnodeB:           gNodeB,
-	// 	UE:               newUE,
-	// 	AMFUENGAPID:      resp.AMFUENGAPID,
-	// 	RANUENGAPID:      RANUENGAPID,
-	// 	MCC:              MCC,
-	// 	MNC:              MNC,
-	// 	GNBID:            GNBID,
-	// 	TAC:              TAC,
-	// 	NGAPFrameTimeout: NGAPFrameTimeout,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("DeregistrationProcedure failed: %v", err)
-	// }
 
 	return nil
 }

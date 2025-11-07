@@ -1,9 +1,9 @@
 package procedure
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
@@ -15,25 +15,24 @@ import (
 )
 
 type InitialRegistrationOpts struct {
-	Mcc              string
-	Mnc              string
-	Sst              int32
-	Sd               string
-	Tac              string
-	DNN              string
-	GNBID            string
-	RANUENGAPID      int64
-	PDUSessionID     uint8
-	UE               *ue.UE
-	GnodeB           *gnb.GnodeB
-	NGAPFrameTimeout time.Duration
+	Mcc          string
+	Mnc          string
+	Sst          int32
+	Sd           string
+	Tac          string
+	DNN          string
+	GNBID        string
+	RANUENGAPID  int64
+	PDUSessionID uint8
+	UE           *ue.UE
+	GnodeB       *gnb.GnodeB
 }
 
 type InitialRegistrationResp struct {
 	AMFUENGAPID int64
 }
 
-func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
+func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
 	initialRegistrationResp := &InitialRegistrationResp{}
 
 	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
@@ -61,7 +60,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	fr, err := opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -114,7 +113,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -163,7 +162,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -255,7 +254,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*InitialRegistrationRes
 		return nil, fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
-	fr, err = opts.GnodeB.ReceiveFrame(opts.NGAPFrameTimeout)
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
 	}

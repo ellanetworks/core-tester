@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -36,7 +37,7 @@ func main() {
 		GnbN2Address:  cfg.Gnb.N2Address,
 	}
 
-	allPassed, testResults := engine.Run(testEnv)
+	allPassed, testResults := engine.Run(context.Background(), testEnv)
 
 	err = writeResultsToFile(*outputFilePtr, testResults)
 	if err != nil {

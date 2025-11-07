@@ -1,6 +1,7 @@
 package ue
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
@@ -24,7 +25,7 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	}
 }
 
-func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
+func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -32,13 +33,12 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(&procedure.NGSetupOpts{
-		Mcc:              MCC,
-		Mnc:              MNC,
-		Sst:              SST,
-		Tac:              TAC,
-		GnodeB:           gNodeB,
-		NGAPFrameTimeout: NGAPFrameTimeout,
+	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
+		Mcc:    MCC,
+		Mnc:    MNC,
+		Sst:    SST,
+		Tac:    TAC,
+		GnodeB: gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
@@ -107,7 +107,7 @@ func (t RegistrationReject_UnknownUE) Run(env engine.Env) error {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
+	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

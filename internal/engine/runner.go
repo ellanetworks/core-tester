@@ -1,10 +1,16 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
 	"time"
+)
+
+const (
+	DefaultTestTimeout = 1 * time.Second
 )
 
 type Meta struct {
@@ -20,14 +26,15 @@ type Env struct {
 }
 
 type Test interface {
-	Run(env Env) error
+	Run(ctx context.Context, env Env) error
 	Meta() Meta
 }
 
 type TestResult struct {
-	Meta    Meta
-	Success bool
-	Details string
+	Meta     Meta
+	Success  bool
+	Details  string
+	Duration time.Duration
 }
 
 var tests map[string]Test
@@ -63,33 +70,61 @@ func getSuccessString(success bool) string {
 
 // Run all registered tests and print the results to stdout.
 // Returns true if all tests passed, false otherwise.
-func Run(env Env) (bool, []TestResult) {
+func Run(ctx context.Context, env Env) (bool, []TestResult) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	aTestFailed := false
 
-	t := List()
-
 	var testResults []TestResult
 
-	for _, v := range t {
-		success := true
-		details := ""
+	for _, v := range List() {
+		meta := v.Meta()
 
-		err := v.Run(env)
-		if err != nil {
+		timeout := meta.Timeout
+		if timeout <= 0 {
+			timeout = DefaultTestTimeout
+		}
+
+		tctx, cancel := context.WithTimeout(ctx, timeout)
+		start := time.Now()
+		err := v.Run(tctx, env)
+		dur := time.Since(start)
+
+		// Determine success
+		success := (err == nil)
+
+		// If the context timed out, override
+		if errors.Is(tctx.Err(), context.DeadlineExceeded) {
 			success = false
+
+			if err == nil {
+				err = fmt.Errorf("timeout after %s", timeout)
+			}
+		}
+
+		cancel()
+
+		details := ""
+		if err != nil {
 			details = err.Error()
 			aTestFailed = true
 		}
 
 		testResults = append(testResults, TestResult{
-			Meta:    v.Meta(),
-			Success: success,
-			Details: details,
+			Meta:     meta,
+			Success:  success,
+			Details:  details,
+			Duration: dur,
 		})
 
-		fmt.Fprintf(w, "%s\t%s\t%s\n", v.Meta().ID, getSuccessString(success), details)
+		fmt.Fprintf(
+			w,
+			"%s\t%s\t%s\t(%s)\n",
+			meta.ID,
+			getSuccessString(success),
+			details,
+			dur.Round(time.Millisecond),
+		)
 	}
 
 	w.Flush()

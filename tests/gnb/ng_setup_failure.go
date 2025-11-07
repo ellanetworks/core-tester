@@ -1,8 +1,8 @@
 package gnb
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -10,10 +10,6 @@ import (
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-)
-
-const (
-	NGAPFrameTimeout = 1 * time.Microsecond
 )
 
 type NGSetupFailure_UnknownPLMN struct{}
@@ -25,7 +21,7 @@ func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 	}
 }
 
-func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
+func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreN2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -45,7 +41,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	fr, err := gNodeB.ReceiveFrame(NGAPFrameTimeout)
+	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
