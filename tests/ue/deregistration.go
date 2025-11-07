@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -18,6 +19,7 @@ func (Deregistration) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/deregistration",
 		Summary: "UE deregistration test validating the Deregistration Request and Response procedures",
+		Timeout: 1 * time.Second,
 	}
 }
 

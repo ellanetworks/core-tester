@@ -144,7 +144,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("error sending Security Mode Complete: %w", err)
 	}
 
-	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
 	}
@@ -201,7 +201,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
 	}
 
-	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", opts.UE.UeSecurity.Supi)
 	}
@@ -236,7 +236,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
 	}
 
-	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err = opts.UE.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", opts.UE.UeSecurity.Supi)
 	}

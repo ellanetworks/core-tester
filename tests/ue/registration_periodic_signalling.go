@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -22,6 +23,7 @@ func (RegistrationPeriodicUpdateSignalling) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration/periodic/signalling",
 		Summary: "UE registration periodic test validating the Registration Request procedure for periodic update",
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -92,6 +94,15 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
+	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		GnodeB:      gNodeB,
+	})
+	if err != nil {
+		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+	}
+
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
@@ -107,7 +118,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(nasPDU, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	encodedPdu, err := newUE.EncodeNasPduWithSecurity(nasPDU, nas.SecurityHeaderTypeIntegrityProtected)
 	if err != nil {
 		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
 	}
@@ -158,7 +169,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
 	}
 
-	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg: %v", newUE.UeSecurity.Supi, err)
 	}

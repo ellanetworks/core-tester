@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -22,6 +23,7 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_reject/unknown_ue",
 		Summary: "UE registration reject test for unknown UE",
+		Timeout: 1 * time.Second,
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
@@ -22,6 +23,7 @@ func (RegistrationPeriodicUpdateData) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration/periodic/data",
 		Summary: "UE registration periodic test validating the Registration Request procedure for periodic update",
+		Timeout: 1 * time.Second,
 	}
 }
 
@@ -75,7 +77,7 @@ func (t RegistrationPeriodicUpdateData) Run(ctx context.Context, env engine.Env)
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	_, err = procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
 		Mcc:          MCC,
 		Mnc:          MNC,
 		Sst:          SST,
@@ -90,6 +92,15 @@ func (t RegistrationPeriodicUpdateData) Run(ctx context.Context, env engine.Env)
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
+	}
+
+	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		GnodeB:      gNodeB,
+	})
+	if err != nil {
+		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
 	pduSessionStatus := [16]bool{}
@@ -107,7 +118,7 @@ func (t RegistrationPeriodicUpdateData) Run(ctx context.Context, env engine.Env)
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(nasPDU, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext, true, true)
+	encodedPdu, err := newUE.EncodeNasPduWithSecurity(nasPDU, nas.SecurityHeaderTypeIntegrityProtected)
 	if err != nil {
 		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
 	}
@@ -136,63 +147,60 @@ func (t RegistrationPeriodicUpdateData) Run(ctx context.Context, env engine.Env)
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	// _, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-	// 	Frame: fr,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("initial context setup request validation failed: %v", err)
-	// }
+	_, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("initial context setup request validation failed: %v", err)
+	}
 
-	// err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
-	// 	AMFUENGAPID: resp.AMFUENGAPID,
-	// 	RANUENGAPID: RANUENGAPID,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
-	// }
+	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+	}
 
-	// regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
-	// 	SORTransparentContainer: nil,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
-	// }
+	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
+		SORTransparentContainer: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
+	}
 
-	// encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
-	// if err != nil {
-	// 	return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg: %v", newUE.UeSecurity.Supi, err)
-	// }
+	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg: %v", newUE.UeSecurity.Supi, err)
+	}
 
-	// err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-	// 	AMFUeNgapID: resp.AMFUENGAPID,
-	// 	RANUeNgapID: RANUENGAPID,
-	// 	Mcc:         MCC,
-	// 	Mnc:         MNC,
-	// 	GnbID:       GNBID,
-	// 	Tac:         TAC,
-	// 	NasPDU:      encodedPdu,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	// }
+	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
+		AMFUeNgapID: resp.AMFUENGAPID,
+		RANUeNgapID: RANUENGAPID,
+		Mcc:         MCC,
+		Mnc:         MNC,
+		GnbID:       GNBID,
+		Tac:         TAC,
+		NasPDU:      encodedPdu,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
 
-	// // Cleanup
-	// err = procedure.Deregistration(&procedure.DeregistrationOpts{
-	// 	GnodeB:           gNodeB,
-	// 	UE:               newUE,
-	// 	AMFUENGAPID:      resp.AMFUENGAPID,
-	// 	RANUENGAPID:      RANUENGAPID,
-	// 	MCC:              MCC,
-	// 	MNC:              MNC,
-	// 	GNBID:            GNBID,
-	// 	TAC:              TAC,
-	// 	NGAPFrameTimeout: NGAPFrameTimeout,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("DeregistrationProcedure failed: %v", err)
-	// }
-
-	time.Sleep(5 * time.Second)
+	// Cleanup
+	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		MCC:         MCC,
+		MNC:         MNC,
+		GNBID:       GNBID,
+		TAC:         TAC,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
 
 	return nil
 }

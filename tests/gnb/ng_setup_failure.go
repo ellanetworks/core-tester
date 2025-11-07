@@ -3,6 +3,7 @@ package gnb
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -18,6 +19,7 @@ func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_failure/unknown_plmn",
 		Summary: "NGSetup failure test validating the NGSetupFailure message contents when unknown PLMN is provided",
+		Timeout: 500 * time.Millisecond,
 	}
 }
 

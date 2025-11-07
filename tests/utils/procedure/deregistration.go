@@ -31,7 +31,7 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
 	}
 
-	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered, true, false)
+	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
 	if err != nil {
 		return fmt.Errorf("error encoding %s IMSI UE NAS Deregistration Msg", opts.UE.UeSecurity.Supi)
 	}

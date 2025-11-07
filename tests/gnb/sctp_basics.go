@@ -3,6 +3,7 @@ package gnb
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -17,6 +18,7 @@ func (SCTPBasic) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/sctp",
 		Summary: "SCTP connectivity test validating SCTP Stream Identifier and PPID for NGSetup procedure",
+		Timeout: 500 * time.Millisecond,
 	}
 }
 

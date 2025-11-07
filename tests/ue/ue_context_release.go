@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -18,6 +19,7 @@ func (UEContextRelease) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/context/release",
 		Summary: "UE context release test validating the Context Release Request and Response procedures",
+		Timeout: 1 * time.Second,
 	}
 }
 

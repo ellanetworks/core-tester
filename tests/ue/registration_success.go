@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -30,6 +31,7 @@ func (RegistrationSuccess) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_success",
 		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
+		Timeout: 1 * time.Second,
 	}
 }
 

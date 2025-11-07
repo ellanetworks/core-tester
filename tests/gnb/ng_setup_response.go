@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -19,6 +20,7 @@ func (NGSetupResponse) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_response",
 		Summary: "NGSetup request/response test validating the NGSetupResponse message contents",
+		Timeout: 500 * time.Millisecond,
 	}
 }
 
