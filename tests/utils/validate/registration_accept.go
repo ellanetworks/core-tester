@@ -1,8 +1,10 @@
 package validate
 
 import (
+	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -18,7 +20,7 @@ type RegistrationAcceptOpts struct {
 	Sd     string
 }
 
-func RegistrationAcceptInitialContextSetupRequest(opts *RegistrationAcceptOpts) (*nasType.GUTI5G, error) {
+func RegistrationAccept(opts *RegistrationAcceptOpts) (*nasType.GUTI5G, error) {
 	if opts.NASPDU == nil {
 		return nil, fmt.Errorf("NAS PDU is nil")
 	}
@@ -80,6 +82,12 @@ func RegistrationAcceptInitialContextSetupRequest(opts *RegistrationAcceptOpts) 
 		return nil, fmt.Errorf("GUTI5G is nil")
 	}
 
+	guti5GStr := buildGUTI5G(*msg.RegistrationAccept.GUTI5G)
+
+	if !strings.HasPrefix(guti5GStr, "00101cafe") {
+		return nil, fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, "00101cafe")
+	}
+
 	snssai := msg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
 
 	if len(snssai) == 0 {
@@ -107,4 +115,37 @@ func RegistrationAcceptInitialContextSetupRequest(opts *RegistrationAcceptOpts) 
 	}
 
 	return msg.RegistrationAccept.GUTI5G, nil
+}
+
+func buildGUTI5G(gutiNas nasType.GUTI5G) string {
+	mcc1 := gutiNas.GetMCCDigit1()
+	mcc2 := gutiNas.GetMCCDigit2()
+	mcc3 := gutiNas.GetMCCDigit3()
+	mnc1 := gutiNas.GetMNCDigit1()
+	mnc2 := gutiNas.GetMNCDigit2()
+	mnc3 := gutiNas.GetMNCDigit3()
+
+	amfRegionID := gutiNas.GetAMFRegionID()
+	amfSetID := gutiNas.GetAMFSetID()
+	amfPointer := gutiNas.GetAMFPointer()
+	amfID := nasToAmfId(amfRegionID, amfSetID, amfPointer)
+
+	tmsi := hex.EncodeToString(gutiNas.Octet[7:11])
+
+	if mnc3 == 0x0F {
+		return fmt.Sprintf("%d%d%d%d%d%s%s", mcc1, mcc2, mcc3, mnc1, mnc2, amfID, tmsi)
+	}
+
+	return fmt.Sprintf("%d%d%d%d%d%d%s%s", mcc1, mcc2, mcc3, mnc1, mnc2, mnc3, amfID, tmsi)
+}
+
+func nasToAmfId(regionID uint8, setID uint16, pointer uint8) string {
+	setID &= 0x03FF // 10 bits
+	pointer &= 0x3F // 6 bits
+
+	b0 := regionID
+	b1 := uint8(setID >> 2)
+	b2 := uint8((setID&0x3)<<6) | (pointer & 0x3F)
+
+	return fmt.Sprintf("%02x%02x%02x", b0, b1, b2)
 }

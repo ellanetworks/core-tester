@@ -77,6 +77,7 @@ type UEOpts struct {
 	Sst                  int32
 	Sd                   string
 	IMEISV               string
+	Guti                 *nasType.GUTI5G
 }
 
 func NewUE(opts *UEOpts) (*UE, error) {
@@ -120,6 +121,10 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.SetAmfMccAndMnc(opts.Mcc, opts.Mnc)
 
 	ue.UeSecurity.Suci = suci
+
+	if opts.Guti != nil {
+		ue.Set5gGuti(opts.Guti)
+	}
 
 	ue.StateMM = MM5G_NULL
 
@@ -388,4 +393,24 @@ func (ue *UE) Set5gGuti(guti *nasType.GUTI5G) {
 
 func (ue *UE) Get5gGuti() *nasType.GUTI5G {
 	return ue.UeSecurity.Guti
+}
+
+func (ue *UE) GetAmfSetId() uint16 {
+	return ue.UeSecurity.Guti.GetAMFSetID()
+}
+
+func (ue *UE) GetAmfPointer() uint8 {
+	return ue.UeSecurity.Guti.GetAMFPointer()
+}
+
+func (ue *UE) GetTMSI5G() [4]uint8 {
+	if ue.UeSecurity.Guti != nil {
+		return ue.UeSecurity.Guti.GetTMSI5G()
+	}
+
+	return [4]uint8{}
+}
+
+func (ue *UE) GetSuci() nasType.MobileIdentity5GS {
+	return ue.UeSecurity.Suci
 }

@@ -94,17 +94,18 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
+	pduSessionStatus := [16]bool{}
+	pduSessionStatus[PDUSessionID] = true
+
 	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-		GnodeB:      gNodeB,
+		AMFUENGAPID:   resp.AMFUENGAPID,
+		RANUENGAPID:   RANUENGAPID,
+		GnodeB:        gNodeB,
+		PDUSessionIDs: pduSessionStatus,
 	})
 	if err != nil {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
-
-	pduSessionStatus := [16]bool{}
-	pduSessionStatus[PDUSessionID] = true
 
 	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
 		RegistrationType:  nasMessage.RegistrationType5GSPeriodicRegistrationUpdating,

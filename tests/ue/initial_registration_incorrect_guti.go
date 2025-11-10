@@ -11,19 +11,21 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/nasType"
 )
 
-type UEContextRelease struct{}
+type RegistrationIncorrectGUTI struct{}
 
-func (UEContextRelease) Meta() engine.Meta {
+func (RegistrationIncorrectGUTI) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/context/release",
-		Summary: "UE context release test validating the Context Release Request and Response procedures",
+		ID:      "ue/registration/incorrect_guti",
+		Summary: "UE registration test validating the Registration Request procedure with incorrect GUTI",
 		Timeout: 1 * time.Second,
 	}
 }
 
-func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -42,7 +44,18 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
 	}
 
+	// Create a random GUTI
+	guti := &nasType.GUTI5G{}
+	guti.SetAMFRegionID(205)
+	guti.SetAMFSetID(1018)
+	guti.SetAMFPointer(1)
+	guti.SetTMSI5G([4]uint8{0x21, 0x43, 0x65, 0x84})
+	guti.SetLen(11)
+	guti.SetTypeOfIdentity(nasMessage.MobileIdentity5GSType5gGuti)
+	guti.SetIei(nasMessage.RegistrationAcceptGUTI5GType)
+
 	newUE, err := ue.NewUE(&ue.UEOpts{
+		Guti: guti,
 		Msin: "2989077253",
 		K:    "369f7bd3067faec142c47ed9132e942a",
 		OpC:  "34e89843fe0683dc961873ebc05b8a35",
@@ -73,7 +86,7 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
 		Mcc:          env.CoreConfig.MCC,
 		Mnc:          env.CoreConfig.MNC,
 		Sst:          env.CoreConfig.SST,
@@ -87,20 +100,7 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		GnodeB:       gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
-	}
-
-	pduSessionStatus := [16]bool{}
-	pduSessionStatus[PDUSessionID] = true
-
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
-		RANUENGAPID:   RANUENGAPID,
-		GnodeB:        gNodeB,
-		PDUSessionIDs: pduSessionStatus,
-	})
-	if err != nil {
-		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
 	return nil
