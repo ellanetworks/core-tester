@@ -17,9 +17,10 @@ func RegisterAll() error {
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationPeriodicUpdateSignalling{},
-		ue.RegistrationPeriodicUpdateData{},
+		ue.RegistrationIncorrectGUTI{},
 		ue.Deregistration{},
 		ue.UEContextRelease{},
+		ue.ServiceRequestData{},
 	}
 
 	for _, test := range allTests {

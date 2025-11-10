@@ -7,8 +7,9 @@ import (
 )
 
 type UEContextReleaseCompleteOpts struct {
-	AMFUENGAPID int64
-	RANUENGAPID int64
+	AMFUENGAPID   int64
+	RANUENGAPID   int64
+	PDUSessionIDs [16]bool
 }
 
 func BuildUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) (ngapType.NGAPPDU, error) {
@@ -27,8 +28,8 @@ func BuildUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) (ngapType
 	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentUEContextReleaseComplete
 	successfulOutcome.Value.UEContextReleaseComplete = new(ngapType.UEContextReleaseComplete)
 
-	initialContextSetupResponse := successfulOutcome.Value.UEContextReleaseComplete
-	initialContextSetupResponseIEs := &initialContextSetupResponse.ProtocolIEs
+	ueContextReleaseComplete := successfulOutcome.Value.UEContextReleaseComplete
+	ueContextReleaseCompleteIEs := &ueContextReleaseComplete.ProtocolIEs
 
 	// AMF UE NGAP ID
 	ie := ngapType.UEContextReleaseCompleteIEs{}
@@ -40,7 +41,7 @@ func BuildUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) (ngapType
 	aMFUENGAPID := ie.Value.AMFUENGAPID
 	aMFUENGAPID.Value = opts.AMFUENGAPID
 
-	initialContextSetupResponseIEs.List = append(initialContextSetupResponseIEs.List, ie)
+	ueContextReleaseCompleteIEs.List = append(ueContextReleaseCompleteIEs.List, ie)
 
 	// RAN UE NGAP ID
 	ie = ngapType.UEContextReleaseCompleteIEs{}
@@ -52,7 +53,29 @@ func BuildUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) (ngapType
 	rANUENGAPID := ie.Value.RANUENGAPID
 	rANUENGAPID.Value = opts.RANUENGAPID
 
-	initialContextSetupResponseIEs.List = append(initialContextSetupResponseIEs.List, ie)
+	ueContextReleaseCompleteIEs.List = append(ueContextReleaseCompleteIEs.List, ie)
+
+	ie = ngapType.UEContextReleaseCompleteIEs{}
+	ie.Id.Value = ngapType.ProtocolIEIDPDUSessionResourceListCxtRelCpl
+	ie.Criticality.Value = ngapType.CriticalityPresentReject
+	ie.Value.Present = ngapType.UEContextReleaseCompleteIEsPresentPDUSessionResourceListCxtRelCpl
+	ie.Value.PDUSessionResourceListCxtRelCpl = new(ngapType.PDUSessionResourceListCxtRelCpl)
+
+	pDUSessionResourceListCxtRelCompl := ie.Value.PDUSessionResourceListCxtRelCpl
+
+	for i, pduSessionID := range opts.PDUSessionIDs {
+		if !pduSessionID {
+			continue
+		}
+
+		pDUSessionResourceItem := ngapType.PDUSessionResourceItemCxtRelCpl{}
+		pDUSessionResourceItem.PDUSessionID.Value = int64(i)
+		pDUSessionResourceListCxtRelCompl.List = append(pDUSessionResourceListCxtRelCompl.List, pDUSessionResourceItem)
+	}
+
+	if len(pDUSessionResourceListCxtRelCompl.List) > 0 {
+		ueContextReleaseCompleteIEs.List = append(ueContextReleaseCompleteIEs.List, ie)
+	}
 
 	return pdu, nil
 }

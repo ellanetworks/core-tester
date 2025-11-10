@@ -20,9 +20,19 @@ type Meta struct {
 	Timeout time.Duration
 }
 
+type CoreConfig struct {
+	N2Address string
+	MCC       string
+	MNC       string
+	SST       int32
+	SD        string
+	DNN       string
+	TAC       string
+}
+
 type Env struct {
-	CoreN2Address string
-	GnbN2Address  string
+	CoreConfig   CoreConfig
+	GnbN2Address string
 }
 
 type Test interface {

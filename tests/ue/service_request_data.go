@@ -11,19 +11,23 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/tests/utils/validate"
+	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
-type UEContextRelease struct{}
+type ServiceRequestData struct{}
 
-func (UEContextRelease) Meta() engine.Meta {
+func (ServiceRequestData) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/context/release",
-		Summary: "UE context release test validating the Context Release Request and Response procedures",
+		ID:      "ue/service_request/data",
+		Summary: "UE service request test validating the Service Request procedure for data",
 		Timeout: 1 * time.Second,
 	}
 }
 
-func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
+func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -87,7 +91,7 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		GnodeB:       gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
+		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
 	pduSessionStatus := [16]bool{}
@@ -101,6 +105,65 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	})
 	if err != nil {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+	}
+
+	serviceRequest, err := ue.BuildServiceRequest(&ue.ServiceRequestOpts{
+		ServiceType:      nasMessage.ServiceTypeData,
+		AMFSetID:         newUE.GetAmfSetId(),
+		AMFPointer:       newUE.GetAmfPointer(),
+		TMSI5G:           newUE.GetTMSI5G(),
+		PDUSessionStatus: &pduSessionStatus,
+		UESecurity:       newUE.UeSecurity,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Service Request NAS PDU: %v", err)
+	}
+
+	encodedPdu, err := newUE.EncodeNasPduWithSecurity(serviceRequest, nas.SecurityHeaderTypeIntegrityProtected)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
+	}
+
+	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
+		Mcc:                   env.CoreConfig.MCC,
+		Mnc:                   env.CoreConfig.MNC,
+		GnbID:                 GNBID,
+		Tac:                   env.CoreConfig.TAC,
+		RanUENGAPID:           RANUENGAPID,
+		NasPDU:                encodedPdu,
+		Guti5g:                newUE.UeSecurity.Guti,
+		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoData,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+	}
+
+	fr, err := gNodeB.ReceiveFrame(ctx)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
+	}
+
+	err = validate.ServiceAccept(&validate.ServiceAcceptOpts{
+		NASPDU: utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest),
+		UE:     newUE,
+	})
+	if err != nil {
+		return fmt.Errorf("validation failed for registration accept: %v", err)
+	}
+
+	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
 	return nil

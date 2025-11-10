@@ -14,7 +14,7 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type InitialRegistrationOpts struct {
+type InitialRegistrationWithIdentityRequestOpts struct {
 	Mcc          string
 	Mnc          string
 	Sst          int32
@@ -28,12 +28,12 @@ type InitialRegistrationOpts struct {
 	GnodeB       *gnb.GnodeB
 }
 
-type InitialRegistrationResp struct {
+type InitialRegistration2Resp struct {
 	AMFUENGAPID int64
 }
 
-func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
-	initialRegistrationResp := &InitialRegistrationResp{}
+func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRegistrationWithIdentityRequestOpts) (*InitialRegistration2Resp, error) { //nolint: gocognit
+	initialRegistrationResp := &InitialRegistration2Resp{}
 
 	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
 		RegistrationType:  nasMessage.RegistrationType5GSInitialRegistration,
@@ -78,6 +78,46 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	}
 
 	initialRegistrationResp.AMFUENGAPID = amfUENGAPID.Value
+
+	err = validate.IdentityRequest(&validate.IdentityRequestOpts{
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		UE:     opts.UE,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	identityResp, err := ue.BuildIdentityResponse(&ue.IdentityResponseOpts{
+		Suci: opts.UE.GetSuci(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not build Identity Response NAS PDU: %v", err)
+	}
+
+	err = opts.GnodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID.Value,
+		RANUeNgapID: opts.RANUENGAPID,
+		Mcc:         opts.Mcc,
+		Mnc:         opts.Mnc,
+		GnbID:       opts.GNBID,
+		Tac:         opts.Tac,
+		NasPDU:      identityResp,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
 
 	rand, autn, err := validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
 		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),

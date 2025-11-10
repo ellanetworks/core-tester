@@ -14,13 +14,14 @@ type UEContextReleaseRequestOpts struct {
 	AMFUENGAPID   int64
 	RANUENGAPID   int64
 	PDUSessionIDs [16]bool
+	Cause         aper.Enumerated
 }
 
 func BuildUEContextReleaseRequest(opts *UEContextReleaseRequestOpts) (ngapType.NGAPPDU, error) {
 	return NewUeContextReleaseRequestBuilder().
 		SetAmfUeNgapId(opts.AMFUENGAPID).SetRanUeNgapId(opts.RANUENGAPID).
 		SetPduSessionResourceListCxtRelReq(opts.PDUSessionIDs).
-		SetCause(ngapType.CauseRadioNetworkPresentUserInactivity).
+		SetCause(opts.Cause).
 		Build()
 }
 

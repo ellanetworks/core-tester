@@ -10,19 +10,18 @@ import (
 )
 
 type UEContextReleaseOpts struct {
-	AMFUENGAPID int64
-	RANUENGAPID int64
-	GnodeB      *gnb.GnodeB
+	AMFUENGAPID   int64
+	RANUENGAPID   int64
+	GnodeB        *gnb.GnodeB
+	PDUSessionIDs [16]bool
 }
 
 func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 	err := opts.GnodeB.SendUEContextReleaseRequest(&gnb.UEContextReleaseRequestOpts{
-		AMFUENGAPID: opts.AMFUENGAPID,
-		RANUENGAPID: opts.RANUENGAPID,
-		PDUSessionIDs: [16]bool{
-			false, true, false, false, false, false, false, false,
-			false, false, false, false, false, false, false, false,
-		},
+		AMFUENGAPID:   opts.AMFUENGAPID,
+		RANUENGAPID:   opts.RANUENGAPID,
+		PDUSessionIDs: opts.PDUSessionIDs,
+		Cause:         ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
 	})
 	if err != nil {
 		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
@@ -38,7 +37,7 @@ func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 		Cause: &ngapType.Cause{
 			Present: ngapType.CausePresentRadioNetwork,
 			RadioNetwork: &ngapType.CauseRadioNetwork{
-				Value: ngapType.CauseRadioNetworkPresentUserInactivity,
+				Value: ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
 			},
 		},
 	})
@@ -49,6 +48,7 @@ func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 	err = opts.GnodeB.SendUEContextReleaseComplete(&gnb.UEContextReleaseCompleteOpts{
 		AMFUENGAPID: opts.AMFUENGAPID,
 		RANUENGAPID: opts.RANUENGAPID,
+		// PDUSessionIDs: opts.PDUSessionIDs,
 	})
 	if err != nil {
 		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
