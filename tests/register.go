@@ -20,6 +20,7 @@ func RegisterAll() error {
 		ue.RegistrationIncorrectGUTI{},
 		ue.Deregistration{},
 		ue.UEContextRelease{},
+		ue.ServiceRequestData{},
 	}
 
 	for _, test := range allTests {
