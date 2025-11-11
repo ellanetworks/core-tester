@@ -335,7 +335,7 @@ func (ue *UE) DerivateKamf(key []byte, snName string, SQN, AK []byte) error {
 	P0 := []byte(snName)
 	SQNxorAK := make([]byte, 6)
 
-	for i := 0; i < len(SQN); i++ {
+	for i := range SQN {
 		SQNxorAK[i] = SQN[i] ^ AK[i]
 	}
 
