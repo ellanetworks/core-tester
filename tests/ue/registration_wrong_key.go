@@ -44,7 +44,7 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		Msin: "2989077253",
-		K:    "369f7bd3067faec142c47ed9132e942b", // Wrong key
+		K:    "369f7bd3067faec142c47ed9132e942a",
 		OpC:  "34e89843fe0683dc961873ebc05b8a35",
 		Amf:  "80000000000000000000000000000000",
 		Sqn:  "000000000001",
