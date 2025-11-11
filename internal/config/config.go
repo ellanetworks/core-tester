@@ -8,7 +8,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type EllaCoreAPIConfig struct {
+	Address string
+	Token   string
+}
+
 type EllaCoreConfig struct {
+	API       EllaCoreAPIConfig
 	N2Address string
 	MCC       string
 	MNC       string
@@ -27,14 +33,20 @@ type Config struct {
 	Gnb      GnbConfig
 }
 
+type EllaCoreAPIConfigYAML struct {
+	Address string `yaml:"address"`
+	Token   string `yaml:"token"`
+}
+
 type EllaCoreYAML struct {
-	N2Address string `yaml:"n2-address"`
-	MCC       string `yaml:"mcc"`
-	MNC       string `yaml:"mnc"`
-	SST       int32  `yaml:"sst"`
-	SD        string `yaml:"sd"`
-	TAC       string `yaml:"tac"`
-	DNN       string `yaml:"dnn"`
+	API       EllaCoreAPIConfigYAML `yaml:"api"`
+	N2Address string                `yaml:"n2-address"`
+	MCC       string                `yaml:"mcc"`
+	MNC       string                `yaml:"mnc"`
+	SST       int32                 `yaml:"sst"`
+	SD        string                `yaml:"sd"`
+	TAC       string                `yaml:"tac"`
+	DNN       string                `yaml:"dnn"`
 }
 
 type GnbYAML struct {
@@ -68,11 +80,25 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, errors.New("ella-core.n2-address is empty")
 	}
 
+	if c.EllaCore.API == (EllaCoreAPIConfigYAML{}) {
+		return Config{}, errors.New("ella-core.api section is missing")
+	}
+
+	if c.EllaCore.API.Address == "" {
+		return Config{}, errors.New("ella-core.api.address is empty")
+	}
+
+	if c.EllaCore.API.Token == "" {
+		return Config{}, errors.New("ella-core.api.token is empty")
+	}
+
 	if c.Gnb == (GnbYAML{}) {
 		return Config{}, errors.New("gnb section is missing")
 	}
 
 	config.EllaCore.N2Address = c.EllaCore.N2Address
+	config.EllaCore.API.Address = c.EllaCore.API.Address
+	config.EllaCore.API.Token = c.EllaCore.API.Token
 	config.Gnb.N2Address = c.Gnb.N2Address
 	config.EllaCore.MCC = c.EllaCore.MCC
 	config.EllaCore.MNC = c.EllaCore.MNC

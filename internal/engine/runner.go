@@ -7,6 +7,8 @@ import (
 	"os"
 	"text/tabwriter"
 	"time"
+
+	"github.com/ellanetworks/core/client"
 )
 
 const (
@@ -31,8 +33,9 @@ type CoreConfig struct {
 }
 
 type Env struct {
-	CoreConfig   CoreConfig
-	GnbN2Address string
+	CoreConfig     CoreConfig
+	GnbN2Address   string
+	EllaCoreClient *client.Client
 }
 
 type Test interface {

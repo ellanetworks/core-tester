@@ -10,6 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/tests/utils/core"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
@@ -21,11 +22,38 @@ func (RegistrationIncorrectGUTI) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration/incorrect_guti",
 		Summary: "UE registration test validating the Registration Request procedure with incorrect GUTI",
-		Timeout: 1 * time.Second,
+		Timeout: 2 * time.Second,
 	}
 }
 
 func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) error {
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
+		Policies: []core.PolicyConfig{
+			{
+				Name:            PolicyName,
+				BitrateUplink:   "100 Mbps",
+				BitrateDownlink: "100 Mbps",
+				Var5qi:          9,
+				Arp:             15,
+				DataNetworkName: env.CoreConfig.DNN,
+			},
+		},
+		Subscribers: []core.SubscriberConfig{
+			{
+				Imsi:           IMSI,
+				Key:            Key,
+				SequenceNumber: SQN,
+				OPc:            OPC,
+				PolicyName:     PolicyName,
+			},
+		},
+	})
+
+	err := ellaCoreEnv.Create(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create EllaCore environment: %v", err)
+	}
+
 	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -56,11 +84,11 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		Guti: guti,
-		Msin: "2989077253",
-		K:    "369f7bd3067faec142c47ed9132e942a",
-		OpC:  "34e89843fe0683dc961873ebc05b8a35",
+		Msin: IMSI[5:],
+		K:    Key,
+		OpC:  OPC,
 		Amf:  "80000000000000000000000000000000",
-		Sqn:  "000000000001",
+		Sqn:  SQN,
 		Mcc:  env.CoreConfig.MCC,
 		Mnc:  env.CoreConfig.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
@@ -101,6 +129,12 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
+	}
+
+	// Cleanup
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
 
 	return nil

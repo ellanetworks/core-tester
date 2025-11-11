@@ -11,6 +11,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/tests"
+	"github.com/ellanetworks/core/client"
 )
 
 func main() {
@@ -32,6 +33,16 @@ func main() {
 		log.Fatalf("Could not register tests: %v\n", err)
 	}
 
+	clientConfig := &client.Config{
+		BaseURL:  cfg.EllaCore.API.Address,
+		APIToken: cfg.EllaCore.API.Token,
+	}
+
+	ellaClient, err := client.New(clientConfig)
+	if err != nil {
+		log.Fatalf("failed to create ella client: %v", err)
+	}
+
 	testEnv := engine.Env{
 		CoreConfig: engine.CoreConfig{
 			N2Address: cfg.EllaCore.N2Address,
@@ -42,7 +53,8 @@ func main() {
 			TAC:       cfg.EllaCore.TAC,
 			DNN:       cfg.EllaCore.DNN,
 		},
-		GnbN2Address: cfg.Gnb.N2Address,
+		GnbN2Address:   cfg.Gnb.N2Address,
+		EllaCoreClient: ellaClient,
 	}
 
 	allPassed, testResults := engine.Run(context.Background(), testEnv)

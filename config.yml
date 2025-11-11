@@ -1,4 +1,7 @@
 ella-core:
+  api:
+    address: "http://127.0.0.1:5002"
+    token: "ellacore_p7tCb1IjGGbj_rWT4tq6PJcF1p3r1deL6xyhn"
   n2-address: "192.168.40.6:38412"
   mcc: "001"
   mnc: "01"
