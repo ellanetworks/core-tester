@@ -9,7 +9,7 @@
 
 Ella Core Tester is a tool for testing [Ella Core](https://github.com/ellanetworks/core)'s functionality, reliability, and performance. It acts as a 5G radio (gNodeB) and User Equipment (UE) to simulate real-world 3GPP-compliant interactions between the radio/UE and Ella Core.
 
-## Usage
+## Prerequisites
 
 Build the project:
 ```shell
@@ -18,29 +18,50 @@ go build cmd/core-tester/main.go
 
 Create a configuration file (`config.yml`). Look at the example configuration file for details.
 
-Run Ella Core Tester:
+## CLI Reference
 
-```shell
-sudo ./main --config config.yml -write results.json
-```
+Ella Core Tester provides a command-line interface (CLI) with the following commands:
+
+### `test`
+
+The `test` command will run all the available tests against the Ella Core instance specified in the configuration file. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions.
 
 Example output:
 
 ```shell
-guillaume@courge:~/code/core-tester$ go run cmd/core-tester/main.go --config config.yml
-gnb/sctp                             PASSED    (15ms)
-gnb/ngap/setup_failure/unknown_plmn  PASSED    (1ms)
-ue/registration_reject/unknown_ue    PASSED    (3ms)
-ue/registration/periodic/signalling  PASSED    (841ms)
-ue/registration/periodic/data        PASSED    (844ms)
-gnb/ngap/setup_response              PASSED    (1ms)
-gnb/ngap/reset                       PASSED    (2ms)
-ue/registration_success              PASSED    (421ms)
-ue/deregistration                    PASSED    (426ms)
-ue/context/release                   PASSED    (432ms)
+guillaume@courge:~/code/core-tester$ ./main test --config config.yml
+PASSED  gnb/sctp  (2ms)
+PASSED  gnb/ngap/setup_failure/unknown_plmn  (1ms)
+PASSED  gnb/ngap/reset  (1ms)
+PASSED  ue/registration/incorrect_guti  (366ms)
+PASSED  ue/deregistration  (644ms)
+PASSED  ue/context/release  (669ms)
+PASSED  ue/service_request/data  (874ms)
+PASSED  gnb/ngap/setup_response  (1ms)
+PASSED  ue/registration_reject/unknown_ue  (228ms)
+PASSED  ue/registration_success  (668ms)
+PASSED  ue/authentication/wrong_key  (234ms)
+PASSED  ue/registration/periodic/signalling  (1.061s)
 ```
 
-## How-to add a new test
+### `register`
+
+The `register` command will register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
+
+> note: This command requires superuser privileges to create the tunnel interface.
+
+Example output:
+
+```shell
+guillaume@courge:~/code/core-tester$ sudo ./main register --config config.yml
+2025/11/11 14:14:01 GTP tunnel created on interface ellatester0
+```
+
+### `help`
+
+Display help information about Ella Core Tester or a specific command.
+
+## How-to: add a new test
 
 To add a new test, follow these steps:
 

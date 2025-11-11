@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 var runCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Run the complete test suite",
-	Long:  "Run all registered tests against the Ella Core instance specified in the config file.",
+	Long:  "Run all registered tests against the Ella Core instance specified in the config file. This procedure is intrusive and will create and delete resources in Ella Core.",
 	Args:  cobra.NoArgs,
 	Run:   Test,
 }
@@ -38,7 +38,7 @@ var runCmd = &cobra.Command{
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register a subscriber in Ella Core and create a GTP tunnel",
-	Long:  "Register a subscriber in Ella Core and create a GTP tunnel.",
+	Long:  "Register a subscriber in Ella Core and create a GTP tunnel. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ela Core.",
 	Args:  cobra.NoArgs,
 	Run:   Register,
 }
@@ -49,10 +49,10 @@ func main() {
 
 	runCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
 	runCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
-	runCmd.MarkFlagRequired("config")
+	_ = runCmd.MarkFlagRequired("config")
 
 	registerCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
-	registerCmd.MarkFlagRequired("config")
+	_ = registerCmd.MarkFlagRequired("config")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
@@ -85,17 +85,7 @@ func Test(cmd *cobra.Command, args []string) {
 	}
 
 	testEnv := engine.Env{
-		CoreConfig: engine.CoreConfig{
-			N2Address: cfg.EllaCore.N2Address,
-			MCC:       cfg.EllaCore.MCC,
-			MNC:       cfg.EllaCore.MNC,
-			SST:       cfg.EllaCore.SST,
-			SD:        cfg.EllaCore.SD,
-			TAC:       cfg.EllaCore.TAC,
-			DNN:       cfg.EllaCore.DNN,
-		},
-		GnbN2Address:   cfg.Gnb.N2Address,
-		GnbN3Address:   cfg.Gnb.N3Address,
+		Config:         cfg,
 		EllaCoreClient: ellaClient,
 	}
 

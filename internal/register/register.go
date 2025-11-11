@@ -22,19 +22,11 @@ const (
 )
 
 const (
-	IMSI       = "001012989077253"
-	Key        = "369f7bd3067faec142c47ed9132e942a"
-	OPC        = "34e89843fe0683dc961873ebc05b8a35"
-	SQN        = "000000000001"
-	PolicyName = "default"
-)
-
-const (
 	GTPInterfaceName = "ellatester0"
 )
 
 func Register(ctx context.Context, cfg config.Config) error {
-	gNodeB, err := gnb.Start(cfg.Gnb.N2Address, cfg.Gnb.N3Address)
+	gNodeB, err := gnb.Start(cfg.EllaCore.N2Address, cfg.Gnb.N2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -53,11 +45,11 @@ func Register(ctx context.Context, cfg config.Config) error {
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Msin: IMSI[5:],
-		K:    Key,
-		OpC:  OPC,
+		Msin: cfg.Subscriber.IMSI[5:],
+		K:    cfg.Subscriber.Key,
+		OpC:  cfg.Subscriber.OPC,
 		Amf:  "80000000000000000000000000000000",
-		Sqn:  SQN,
+		Sqn:  cfg.Subscriber.SequenceNumber,
 		Mcc:  cfg.EllaCore.MCC,
 		Mnc:  cfg.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
@@ -119,5 +111,7 @@ func Register(ctx context.Context, cfg config.Config) error {
 		return fmt.Errorf("failed to create GTP tunnel: %v", err)
 	}
 
-	return nil
+	log.Printf("GTP tunnel created on interface %s", GTPInterfaceName)
+
+	select {}
 }

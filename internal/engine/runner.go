@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core/client"
 )
 
@@ -31,9 +32,7 @@ type CoreConfig struct {
 }
 
 type Env struct {
-	CoreConfig     CoreConfig
-	GnbN2Address   string
-	GnbN3Address   string
+	Config         config.Config
 	EllaCoreClient *client.Client
 }
 

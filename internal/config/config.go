@@ -29,9 +29,18 @@ type GnbConfig struct {
 	N3Address string
 }
 
+type SubscriberConfig struct {
+	IMSI           string
+	Key            string
+	OPC            string
+	SequenceNumber string
+	PolicyName     string
+}
+
 type Config struct {
-	EllaCore EllaCoreConfig
-	Gnb      GnbConfig
+	EllaCore   EllaCoreConfig
+	Gnb        GnbConfig
+	Subscriber SubscriberConfig
 }
 
 type EllaCoreAPIConfigYAML struct {
@@ -55,9 +64,18 @@ type GnbYAML struct {
 	N3Address string `yaml:"n3-address"`
 }
 
+type SubscriberYAML struct {
+	IMSI           string `yaml:"imsi"`
+	Key            string `yaml:"key"`
+	OPC            string `yaml:"opc"`
+	SequenceNumber string `yaml:"sqn"`
+	PolicyName     string `yaml:"policy-name"`
+}
+
 type ConfigYAML struct {
-	EllaCore EllaCoreYAML `yaml:"ella-core"`
-	Gnb      GnbYAML      `yaml:"gnb"`
+	EllaCore   EllaCoreYAML   `yaml:"ella-core"`
+	Gnb        GnbYAML        `yaml:"gnb"`
+	Subscriber SubscriberYAML `yaml:"subscriber"`
 }
 
 func Validate(filePath string) (Config, error) {
@@ -98,6 +116,10 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, errors.New("gnb section is missing")
 	}
 
+	if c.Subscriber == (SubscriberYAML{}) {
+		return Config{}, errors.New("subscriber section is missing")
+	}
+
 	config.EllaCore.N2Address = c.EllaCore.N2Address
 	config.EllaCore.API.Address = c.EllaCore.API.Address
 	config.EllaCore.API.Token = c.EllaCore.API.Token
@@ -109,6 +131,11 @@ func Validate(filePath string) (Config, error) {
 	config.EllaCore.SD = c.EllaCore.SD
 	config.EllaCore.TAC = c.EllaCore.TAC
 	config.EllaCore.DNN = c.EllaCore.DNN
+	config.Subscriber.IMSI = c.Subscriber.IMSI
+	config.Subscriber.Key = c.Subscriber.Key
+	config.Subscriber.OPC = c.Subscriber.OPC
+	config.Subscriber.SequenceNumber = c.Subscriber.SequenceNumber
+	config.Subscriber.PolicyName = c.Subscriber.PolicyName
 
 	return config, nil
 }
