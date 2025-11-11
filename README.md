@@ -9,22 +9,20 @@
 
 Ella Core Tester is a tool for testing [Ella Core](https://github.com/ellanetworks/core)'s functionality, reliability, and performance. It acts as a 5G radio (gNodeB) and User Equipment (UE) to simulate real-world 3GPP-compliant interactions between the radio/UE and Ella Core.
 
-## Prerequisites
+## Getting Started
 
 Build the project:
 ```shell
 go build cmd/core-tester/main.go
 ```
 
-Create a configuration file (`config.yml`). Look at the example configuration file for details.
+Create a configuration file (`config.yml`). Look at the example configuration under `config/config.yaml` and modify it to fit your Ella Core instance.
 
-## CLI Reference
+Run all tests:
 
-Ella Core Tester provides a command-line interface (CLI) with the following commands:
-
-### `test`
-
-The `test` command will run all the available tests against the Ella Core instance specified in the configuration file. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions.
+```shell
+./main test --config config.yml
+```
 
 Example output:
 
@@ -44,24 +42,9 @@ PASSED  ue/authentication/wrong_key  (234ms)
 PASSED  ue/registration/periodic/signalling  (1.061s)
 ```
 
-### `register`
+## How-to Guides
 
-The `register` command will register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
-
-> note: This command requires superuser privileges to create the tunnel interface.
-
-Example output:
-
-```shell
-guillaume@courge:~/code/core-tester$ sudo ./main register --config config.yml
-2025/11/11 14:14:01 GTP tunnel created on interface ellatester0
-```
-
-### `help`
-
-Display help information about Ella Core Tester or a specific command.
-
-## How-to: add a new test
+## Add a new test
 
 To add a new test, follow these steps:
 
@@ -73,7 +56,17 @@ To add a new test, follow these steps:
 
 > Note: Use the existing tests as references for how to structure your test.
 
-## Acknowledgements
+## Reference
+
+### CLI
+
+Ella Core Tester provides a command-line interface (CLI) with the following commands:
+
+- `test`: run all the available tests against the Ella Core instance specified in the configuration file. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions.
+- `register`: register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
+- `help`: display help information about Ella Core Tester or a specific command.
+
+### Acknowledgements
 
 Ella Core tester could not have been possible without the following open-source projects:
 - [PacketRusher](https://github.com/HewlettPackard/PacketRusher)
