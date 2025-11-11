@@ -3,27 +3,68 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/register"
 	"github.com/ellanetworks/core-tester/tests"
 	"github.com/ellanetworks/core/client"
+	"github.com/spf13/cobra"
 )
 
+var (
+	configFile string
+	outputFile string
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "ella-core-tester [command]",
+	Short: "A tool for testing Ella Core",
+	Long:  `Ella Core Tester is a tool for testing Ella Core. It can validate functionality, connectivity, and performance.`,
+	Args:  cobra.ArbitraryArgs,
+}
+
+var runCmd = &cobra.Command{
+	Use:   "test",
+	Short: "Run the complete test suite",
+	Long:  "Run all registered tests against the Ella Core instance specified in the config file.",
+	Args:  cobra.NoArgs,
+	Run:   Test,
+}
+
+var registerCmd = &cobra.Command{
+	Use:   "register",
+	Short: "Register a subscriber in Ella Core and create a GTP tunnel",
+	Long:  "Register a subscriber in Ella Core and create a GTP tunnel.",
+	Args:  cobra.NoArgs,
+	Run:   Register,
+}
+
 func main() {
-	configPath := flag.String("config", "", "Path to config file (mandatory)")
-	outputFilePtr := flag.String("write", "", "The output file to write test results to (in JSON format)")
-	flag.Parse()
+	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(registerCmd)
 
-	if *configPath == "" {
-		log.Fatal("No config file provided. Use `-config` to provide a config file")
+	runCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
+	runCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
+	runCmd.MarkFlagRequired("config")
+
+	registerCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
+	registerCmd.MarkFlagRequired("config")
+
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+}
 
-	cfg, err := config.Validate(*configPath)
+func Test(cmd *cobra.Command, args []string) {
+	cfg, err := config.Validate(configFile)
 	if err != nil {
 		log.Fatalf("Couldn't validate config: %v\n", err)
 	}
@@ -54,18 +95,33 @@ func main() {
 			DNN:       cfg.EllaCore.DNN,
 		},
 		GnbN2Address:   cfg.Gnb.N2Address,
+		GnbN3Address:   cfg.Gnb.N3Address,
 		EllaCoreClient: ellaClient,
 	}
 
 	allPassed, testResults := engine.Run(context.Background(), testEnv)
 
-	err = writeResultsToFile(*outputFilePtr, testResults)
+	err = writeResultsToFile(outputFile, testResults)
 	if err != nil {
 		log.Fatalf("Could not write test results to file: %v\n", err)
 	}
 
 	if !allPassed {
-		os.Exit(1)
+		log.Fatalf("Some tests failed\n")
+	}
+}
+
+func Register(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+
+	cfg, err := config.Validate(configFile)
+	if err != nil {
+		log.Fatalf("Couldn't validate config: %v\n", err)
+	}
+
+	err = register.Register(ctx, cfg)
+	if err != nil {
+		log.Fatalf("Could not register: %v\n", err)
 	}
 }
 

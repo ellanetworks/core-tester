@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
@@ -101,6 +102,11 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
+	gnbN3Address, err := netip.ParseAddr(env.GnbN3Address)
+	if err != nil {
+		return fmt.Errorf("could not parse gNB N3 address: %v", err)
+	}
+
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
 		Mcc:          env.CoreConfig.MCC,
 		Mnc:          env.CoreConfig.MNC,
@@ -112,6 +118,7 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
+		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
 	})
 	if err != nil {

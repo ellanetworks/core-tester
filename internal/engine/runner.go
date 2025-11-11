@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"text/tabwriter"
 	"time"
 
 	"github.com/ellanetworks/core/client"
@@ -35,6 +33,7 @@ type CoreConfig struct {
 type Env struct {
 	CoreConfig     CoreConfig
 	GnbN2Address   string
+	GnbN3Address   string
 	EllaCoreClient *client.Client
 }
 
@@ -84,8 +83,6 @@ func getSuccessString(success bool) string {
 // Run all registered tests and print the results to stdout.
 // Returns true if all tests passed, false otherwise.
 func Run(ctx context.Context, env Env) (bool, []TestResult) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
 	aTestFailed := false
 
 	var testResults []TestResult
@@ -130,17 +127,14 @@ func Run(ctx context.Context, env Env) (bool, []TestResult) {
 			Duration: dur,
 		})
 
-		fmt.Fprintf(
-			w,
-			"%s\t%s\t%s\t(%s)\n",
-			meta.ID,
+		fmt.Printf(
+			"%s\t%s %s (%s)\n",
 			getSuccessString(success),
+			meta.ID,
 			details,
 			dur.Round(time.Millisecond),
 		)
 	}
-
-	w.Flush()
 
 	return !aTestFailed, testResults
 }

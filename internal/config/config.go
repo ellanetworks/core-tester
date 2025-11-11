@@ -26,6 +26,7 @@ type EllaCoreConfig struct {
 
 type GnbConfig struct {
 	N2Address string
+	N3Address string
 }
 
 type Config struct {
@@ -51,6 +52,7 @@ type EllaCoreYAML struct {
 
 type GnbYAML struct {
 	N2Address string `yaml:"n2-address"`
+	N3Address string `yaml:"n3-address"`
 }
 
 type ConfigYAML struct {
@@ -100,6 +102,7 @@ func Validate(filePath string) (Config, error) {
 	config.EllaCore.API.Address = c.EllaCore.API.Address
 	config.EllaCore.API.Token = c.EllaCore.API.Token
 	config.Gnb.N2Address = c.Gnb.N2Address
+	config.Gnb.N3Address = c.Gnb.N3Address
 	config.EllaCore.MCC = c.EllaCore.MCC
 	config.EllaCore.MNC = c.EllaCore.MNC
 	config.EllaCore.SST = c.EllaCore.SST
