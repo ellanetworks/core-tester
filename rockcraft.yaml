@@ -1,0 +1,29 @@
+name: ella-core-tester
+base: bare
+build-base: ubuntu@24.04
+version: '0.0.1'
+summary: Ella Core Tester - A tool for testing Ella Core.
+description: |
+  Ella Core Tester is a tool for testing Ella Core's functionality, reliability, and performance.
+  It acts as a 5G radio (gNodeB) and User Equipment (UE) to simulate real-world 3GPP-compliant interactions between the radio/UE and Ella Core.
+license: Apache-2.0
+platforms:
+  amd64:
+  arm64:
+
+parts:
+  ella-core-tester:
+    plugin: go
+    source: .
+    source-type: local
+    build-packages:
+      - git
+    build-snaps:
+      - go/1.24/stable
+    stage-packages:
+      - iproute2
+
+  config:
+    plugin: dump
+    source: config/
+    source-type: local
