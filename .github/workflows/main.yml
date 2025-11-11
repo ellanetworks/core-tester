@@ -27,5 +27,5 @@ jobs:
     uses: ./.github/workflows/build.yaml
   publish-ueransim-rock:
     needs: build-rock
-    # if: github.ref_name == 'main'
+    if: github.ref_name == 'main'
     uses: ./.github/workflows/publish.yaml
