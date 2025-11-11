@@ -21,7 +21,9 @@ parts:
     build-snaps:
       - go/1.24/stable
     stage-packages:
+      - iptables
       - iproute2
+      - iputils-ping
 
   config:
     plugin: dump
