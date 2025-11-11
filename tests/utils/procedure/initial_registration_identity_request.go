@@ -304,7 +304,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		return nil, fmt.Errorf("failed to parse UE IP subnet: %v", err)
 	}
 
-	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
+	_, err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
 		Frame:                fr,
 		ExpectedPDUSessionID: opts.PDUSessionID,
 		ExpectedSST:          opts.Sst,

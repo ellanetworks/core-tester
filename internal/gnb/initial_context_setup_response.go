@@ -93,7 +93,10 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 }
 
 func GetPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) ([]byte, error) {
-	data := buildPDUSessionResourceSetupResponseTransfer(ipv4, teid, qosId)
+	data, err := buildPDUSessionResourceSetupResponseTransfer(ipv4, teid, qosId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build PDUSessionResourceSetupResponseTransfer: %v", err)
+	}
 
 	encodeData, err := aper.MarshalWithParams(data, "valueExt")
 	if err != nil {
@@ -135,8 +138,12 @@ type PDUSessionResourceSetupResponseTransfer struct {
 	IEExtensions                       *ngapType.ProtocolExtensionContainerPDUSessionResourceSetupResponseTransferExtIEs `aper:"optional"`
 }
 
-func buildPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) (data PDUSessionResourceSetupResponseTransfer) {
+func buildPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, qosId int64) (data PDUSessionResourceSetupResponseTransfer, err error) {
 	// QoS Flow per TNL Information
+	if !ipv4.IsValid() {
+		return data, fmt.Errorf("invalid IPv4 address: %s", ipv4)
+	}
+
 	qosFlowPerTNLInformation := &data.QosFlowPerTNLInformation
 	qosFlowPerTNLInformation.UPTransportLayerInformation.Present = ngapType.UPTransportLayerInformationPresentGTPTunnel
 
@@ -147,6 +154,7 @@ func buildPDUSessionResourceSetupResponseTransfer(ipv4 netip.Addr, teid uint32, 
 
 	dowlinkTeid := binary.BigEndian.AppendUint32(nil, teid)
 	upTransportLayerInformation.GTPTunnel.GTPTEID.Value = dowlinkTeid
+
 	upTransportLayerInformation.GTPTunnel.TransportLayerAddress = ngapConvert.IPAddressToNgap(ipv4.String(), "")
 
 	// Associated QoS Flow List in QoS Flow per TNL Information

@@ -23,7 +23,7 @@ func (SCTPBasic) Meta() engine.Meta {
 }
 
 func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
+	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -31,10 +31,10 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: env.CoreConfig.MCC,
-		Mnc: env.CoreConfig.MNC,
-		Sst: env.CoreConfig.SST,
-		Tac: env.CoreConfig.TAC,
+		Mcc: env.Config.EllaCore.MCC,
+		Mnc: env.Config.EllaCore.MNC,
+		Sst: env.Config.EllaCore.SST,
+		Tac: env.Config.EllaCore.TAC,
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)

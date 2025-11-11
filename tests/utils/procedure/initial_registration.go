@@ -25,11 +25,13 @@ type InitialRegistrationOpts struct {
 	RANUENGAPID  int64
 	PDUSessionID uint8
 	UE           *ue.UE
+	N3GNBAddress netip.Addr
 	GnodeB       *gnb.GnodeB
 }
 
 type InitialRegistrationResp struct {
-	AMFUENGAPID int64
+	AMFUENGAPID                    int64
+	PDUSessionResourceSetupRequest *validate.PDUSessionResourceSetupRequestResult
 }
 
 func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*InitialRegistrationResp, error) { //nolint: gocognit
@@ -264,7 +266,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("failed to parse UE IP subnet: %v", err)
 	}
 
-	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
+	resp, err := validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
 		Frame:                fr,
 		ExpectedPDUSessionID: opts.PDUSessionID,
 		ExpectedSST:          opts.Sst,
@@ -284,15 +286,12 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
 	}
 
-	n3GnbIP, err := netip.ParseAddr("1.2.3.4")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse N3 GNB IP address: %v", err)
-	}
+	initialRegistrationResp.PDUSessionResourceSetupRequest = resp
 
 	err = opts.GnodeB.SendPDUSessionResourceSetupResponse(&gnb.PDUSessionResourceSetupResponseOpts{
 		AMFUENGAPID: amfUENGAPID.Value,
 		RANUENGAPID: opts.RANUENGAPID,
-		N3GnbIp:     n3GnbIP,
+		N3GnbIp:     opts.N3GNBAddress,
 		PDUSessions: [16]*gnb.GnbPDUSession{
 			{
 				PDUSessionId: 1,

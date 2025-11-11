@@ -10,6 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/tests/utils/core"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas/nasMessage"
@@ -23,12 +24,39 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_reject/unknown_ue",
 		Summary: "UE registration reject test for unknown UE",
-		Timeout: 1 * time.Second,
+		Timeout: 2 * time.Second,
 	}
 }
 
 func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.CoreConfig.N2Address, env.GnbN2Address)
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
+		Policies: []core.PolicyConfig{
+			{
+				Name:            env.Config.Subscriber.PolicyName,
+				BitrateUplink:   "100 Mbps",
+				BitrateDownlink: "100 Mbps",
+				Var5qi:          9,
+				Arp:             15,
+				DataNetworkName: env.Config.EllaCore.DNN,
+			},
+		},
+		Subscribers: []core.SubscriberConfig{
+			{
+				Imsi:           env.Config.Subscriber.IMSI,
+				Key:            env.Config.Subscriber.Key,
+				SequenceNumber: env.Config.Subscriber.SequenceNumber,
+				OPc:            env.Config.Subscriber.OPC,
+				PolicyName:     env.Config.Subscriber.PolicyName,
+			},
+		},
+	})
+
+	err := ellaCoreEnv.Create(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create EllaCore environment: %v", err)
+	}
+
+	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -36,10 +64,10 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    env.CoreConfig.MCC,
-		Mnc:    env.CoreConfig.MNC,
-		Sst:    env.CoreConfig.SST,
-		Tac:    env.CoreConfig.TAC,
+		Mcc:    env.Config.EllaCore.MCC,
+		Mnc:    env.Config.EllaCore.MNC,
+		Sst:    env.Config.EllaCore.SST,
+		Tac:    env.Config.EllaCore.TAC,
 		GnodeB: gNodeB,
 	})
 	if err != nil {
@@ -57,21 +85,21 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	newUEOpts := &ue.UEOpts{
-		Msin: "1234567890",
-		K:    "465B5CE8B199B49FAA5F0A2EE238A6BC",
-		OpC:  "E8ED289DEBA952E4283B54E88E6183CA",
+		Msin: "1234567890", // Unknown MSIN
+		K:    env.Config.Subscriber.Key,
+		OpC:  env.Config.Subscriber.OPC,
 		Amf:  "80000000000000000000000000000000",
-		Sqn:  "000000000001",
-		Mcc:  env.CoreConfig.MCC,
-		Mnc:  env.CoreConfig.MNC,
+		Sqn:  env.Config.Subscriber.SequenceNumber,
+		Mcc:  env.Config.EllaCore.MCC,
+		Mnc:  env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator:     "0000",
-		DNN:                  env.CoreConfig.DNN,
-		Sst:                  env.CoreConfig.SST,
-		Sd:                   env.CoreConfig.SD,
+		DNN:                  env.Config.EllaCore.DNN,
+		Sst:                  env.Config.EllaCore.SST,
+		Sd:                   env.Config.EllaCore.SD,
 		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
 	}
 
@@ -94,10 +122,10 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:                   env.CoreConfig.MCC,
-		Mnc:                   env.CoreConfig.MNC,
+		Mcc:                   env.Config.EllaCore.MCC,
+		Mnc:                   env.Config.EllaCore.MNC,
 		GnbID:                 GNBID,
-		Tac:                   env.CoreConfig.TAC,
+		Tac:                   env.Config.EllaCore.TAC,
 		RanUENGAPID:           RANUENGAPID,
 		NasPDU:                nasPDU,
 		Guti5g:                newUE.UeSecurity.Guti,
@@ -150,6 +178,12 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	})
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	// Cleanup
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
 
 	return nil
