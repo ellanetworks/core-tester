@@ -23,3 +23,9 @@ jobs:
     uses: ./.github/workflows/go-sec.yaml
   go-build:
     uses: ./.github/workflows/go-build.yaml
+  build-rock:
+    uses: ./.github/workflows/build.yaml
+  publish-ueransim-rock:
+    needs: build-rock
+    if: github.ref_name == 'main'
+    uses: ./.github/workflows/publish.yaml

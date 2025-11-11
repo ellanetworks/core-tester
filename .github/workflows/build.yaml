@@ -1,0 +1,36 @@
+name: Rock Build
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+
+jobs:
+  build-rock:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ (matrix.arch == 'arm64' && 'ubuntu-24.04-arm') || 'ubuntu-24.04' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - uses: canonical/craft-actions/rockcraft-pack@91513c1bae43bc871c85ea2fdf2ac7eed91034f9 # main
+        id: rockcraft
+        with:
+          rockcraft-channel: edge
+
+      - name: Save container image to file
+        run: |
+          rock_file=$(ls *.rock | tail -n 1)
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:"${rock_file}" docker-daemon:ella-core-tester:latest
+          docker save -o ella-core-tester-${{ matrix.arch }}.tar ella-core-tester:latest
+
+      - name: Upload container image to GitHub Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: ella-core-tester-${{ matrix.arch }}
+          path: ella-core-tester-${{ matrix.arch }}.tar
