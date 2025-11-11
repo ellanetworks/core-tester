@@ -29,6 +29,3 @@ jobs:
     needs: build-rock
     # if: github.ref_name == 'main'
     uses: ./.github/workflows/publish.yaml
-    with:
-      artifact-name: ueransim
-      path: ueransim
