@@ -16,30 +16,32 @@ Build the project:
 go build cmd/core-tester/main.go
 ```
 
-Create a configuration file (`config.yml`). Look at the example configuration under `config/config.yaml` and modify it to fit your Ella Core instance.
-
 Run all tests:
 
 ```shell
-./main test --config config.yml
+./main test \
+  --ella-core-api-address="http://127.0.0.1:5002" \
+  --ella-core-api-token="ellacore_RiUPGOgfaLI2_smqVyiHoR8V5vf3TyDUFKAhS" \
+  --ella-core-n2-address="192.168.40.6:38412" \
+  --gnb-n2-address="192.168.40.6" \
+  --gnb-n3-address="127.0.0.1"
 ```
 
 Example output:
 
 ```shell
-guillaume@courge:~/code/core-tester$ ./main test --config config.yml
-PASSED  gnb/sctp  (2ms)
-PASSED  gnb/ngap/setup_failure/unknown_plmn  (1ms)
-PASSED  gnb/ngap/reset  (1ms)
-PASSED  ue/registration/incorrect_guti  (366ms)
-PASSED  ue/deregistration  (644ms)
-PASSED  ue/context/release  (669ms)
-PASSED  ue/service_request/data  (874ms)
+PASSED  gnb/sctp  (1ms)
 PASSED  gnb/ngap/setup_response  (1ms)
-PASSED  ue/registration_reject/unknown_ue  (228ms)
-PASSED  ue/registration_success  (668ms)
-PASSED  ue/authentication/wrong_key  (234ms)
-PASSED  ue/registration/periodic/signalling  (1.061s)
+PASSED  gnb/ngap/reset  (1ms)
+PASSED  ue/registration_reject/unknown_ue  (262ms)
+PASSED  ue/registration/periodic/signalling  (1.078s)
+PASSED  ue/deregistration  (695ms)
+PASSED  ue/service_request/data  (875ms)
+PASSED  gnb/ngap/setup_failure/unknown_plmn  (1ms)
+PASSED  ue/registration_success  (659ms)
+PASSED  ue/authentication/wrong_key  (225ms)
+PASSED  ue/registration/incorrect_guti  (430ms)
+PASSED  ue/context/release  (678ms)
 ```
 
 ## How-to Guides
@@ -62,7 +64,7 @@ To add a new test, follow these steps:
 
 Ella Core Tester provides a command-line interface (CLI) with the following commands:
 
-- `test`: run all the available tests against the Ella Core instance specified in the configuration file. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions.
+- `test`: run all the available tests against the Ella Core instance. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions. Do not use this command in a production environment.
 - `register`: register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
 - `help`: display help information about Ella Core Tester or a specific command.
 

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/register"
 	"github.com/ellanetworks/core-tester/tests"
@@ -16,22 +15,23 @@ import (
 )
 
 var (
-	configFile        string
-	outputFile        string
-	imsi              string
-	key               string
-	opc               string
-	sqn               string
-	policyName        string
-	mcc               string
-	mnc               string
-	sst               int32
-	sd                string
-	tac               string
-	dnn               string
-	gnbN2Address      string
-	gnbN3Address      string
-	ellaCoreN2Address string
+	outputFile         string
+	imsi               string
+	key                string
+	opc                string
+	sqn                string
+	policyName         string
+	mcc                string
+	mnc                string
+	sst                int32
+	sd                 string
+	tac                string
+	dnn                string
+	gnbN2Address       string
+	gnbN3Address       string
+	ellaCoreN2Address  string
+	ellaCoreAPIAddress string
+	ellaCoreAPIToken   string
 )
 
 var rootCmd = &cobra.Command{
@@ -41,10 +41,10 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ArbitraryArgs,
 }
 
-var runCmd = &cobra.Command{
+var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Run the complete test suite",
-	Long:  "Run all registered tests against the Ella Core instance specified in the config file. This procedure is intrusive and will create and delete resources in Ella Core.",
+	Long:  "Run all registered tests against the Ella Core instance. This procedure is intrusive and will create and delete resources in Ella Core.",
 	Args:  cobra.NoArgs,
 	Run:   Test,
 }
@@ -58,27 +58,35 @@ var registerCmd = &cobra.Command{
 }
 
 func main() {
-	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(registerCmd)
 
-	runCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
-	runCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
-	_ = runCmd.MarkFlagRequired("config")
+	testCmd.Flags().StringVar(&ellaCoreAPIAddress, "ella-core-api-address", "", "Ella Core API address")
+	testCmd.Flags().StringVar(&ellaCoreAPIToken, "ella-core-api-token", "", "Ella Core API token")
+	testCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
+	testCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
+	testCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
+	testCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
+	_ = testCmd.MarkFlagRequired("ella-core-api-address")
+	_ = testCmd.MarkFlagRequired("ella-core-api-token")
+	_ = testCmd.MarkFlagRequired("ella-core-n2-address")
+	_ = testCmd.MarkFlagRequired("gnb-n2-address")
+	_ = testCmd.MarkFlagRequired("gnb-n3-address")
 
-	registerCmd.Flags().StringVar(&imsi, "imsi", "imsi", "IMSI of the subscriber")
-	registerCmd.Flags().StringVar(&key, "key", "key", "Key of the subscriber")
-	registerCmd.Flags().StringVar(&opc, "opc", "opc", "OPC of the subscriber")
-	registerCmd.Flags().StringVar(&sqn, "sqn", "sqn", "SQN of the subscriber")
-	registerCmd.Flags().StringVar(&policyName, "policy-name", "policy-name", "Policy name of the subscriber")
-	registerCmd.Flags().StringVar(&mcc, "mcc", "mcc", "MCC of the subscriber")
-	registerCmd.Flags().StringVar(&mnc, "mnc", "mnc", "MNC of the subscriber")
+	registerCmd.Flags().StringVar(&imsi, "imsi", "", "IMSI of the subscriber")
+	registerCmd.Flags().StringVar(&key, "key", "", "Key of the subscriber")
+	registerCmd.Flags().StringVar(&opc, "opc", "", "OPC of the subscriber")
+	registerCmd.Flags().StringVar(&sqn, "sqn", "", "SQN of the subscriber")
+	registerCmd.Flags().StringVar(&policyName, "policy-name", "", "Policy name of the subscriber")
+	registerCmd.Flags().StringVar(&mcc, "mcc", "", "MCC of the subscriber")
+	registerCmd.Flags().StringVar(&mnc, "mnc", "", "MNC of the subscriber")
 	registerCmd.Flags().Int32Var(&sst, "sst", 0, "SST of the subscriber")
-	registerCmd.Flags().StringVar(&sd, "sd", "sd", "SD of the subscriber")
-	registerCmd.Flags().StringVar(&tac, "tac", "tac", "TAC of the subscriber")
+	registerCmd.Flags().StringVar(&sd, "sd", "", "SD of the subscriber")
+	registerCmd.Flags().StringVar(&tac, "tac", "", "TAC of the subscriber")
 	registerCmd.Flags().StringVar(&dnn, "dnn", "dnn", "DNN of the subscriber")
-	registerCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "gnb-n2-address", "gNB N2 address")
-	registerCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "gnb-n3-address", "gNB N3 address")
-	registerCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "ella-core-n2-address", "Ella Core N2 address")
+	registerCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
+	registerCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
+	registerCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
 	_ = registerCmd.MarkFlagRequired("imsi")
 	_ = registerCmd.MarkFlagRequired("key")
 	_ = registerCmd.MarkFlagRequired("opc")
@@ -103,19 +111,37 @@ func main() {
 }
 
 func Test(cmd *cobra.Command, args []string) {
-	cfg, err := config.Validate(configFile)
-	if err != nil {
-		log.Fatalf("Couldn't validate config: %v\n", err)
+	testConfig := engine.Config{
+		Subscriber: engine.SubscriberConfig{
+			IMSI:           "001017271246546",
+			Key:            "640f441067cd56f1474cbcacd7a0588f",
+			OPC:            "cb698a2341629c3241ae01de9d89de4f",
+			SequenceNumber: "000000000022",
+			PolicyName:     "bbb",
+		},
+		EllaCore: engine.EllaCoreConfig{
+			N2Address: ellaCoreN2Address,
+			MCC:       "001",
+			MNC:       "01",
+			SST:       1,
+			SD:        "102030",
+			TAC:       "000001",
+			DNN:       "internet",
+		},
+		Gnb: engine.GnbConfig{
+			N2Address: gnbN2Address,
+			N3Address: gnbN3Address,
+		},
 	}
 
-	err = tests.RegisterAll()
+	err := tests.RegisterAll()
 	if err != nil {
 		log.Fatalf("Could not register tests: %v\n", err)
 	}
 
 	clientConfig := &client.Config{
-		BaseURL:  cfg.EllaCore.API.Address,
-		APIToken: cfg.EllaCore.API.Token,
+		BaseURL:  ellaCoreAPIAddress,
+		APIToken: ellaCoreAPIToken,
 	}
 
 	ellaClient, err := client.New(clientConfig)
@@ -124,7 +150,7 @@ func Test(cmd *cobra.Command, args []string) {
 	}
 
 	testEnv := engine.Env{
-		Config:         cfg,
+		Config:         testConfig,
 		EllaCoreClient: ellaClient,
 	}
 
@@ -139,17 +165,6 @@ func Test(cmd *cobra.Command, args []string) {
 		log.Fatalf("Some tests failed\n")
 	}
 }
-
-// type EllaCoreConfig struct {
-// 	API       EllaCoreAPIConfig
-// 	N2Address string
-// 	MCC       string
-// 	MNC       string
-// 	SST       int32
-// 	SD        string
-// 	TAC       string
-// 	DNN       string
-// }
 
 func Register(cmd *cobra.Command, args []string) {
 	ctx := context.Background()

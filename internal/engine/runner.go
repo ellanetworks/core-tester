@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core/client"
 )
 
@@ -21,18 +20,37 @@ type Meta struct {
 	Timeout time.Duration
 }
 
-type CoreConfig struct {
+type EllaCoreConfig struct {
 	N2Address string
 	MCC       string
 	MNC       string
 	SST       int32
 	SD        string
-	DNN       string
 	TAC       string
+	DNN       string
+}
+
+type GnbConfig struct {
+	N2Address string
+	N3Address string
+}
+
+type SubscriberConfig struct {
+	IMSI           string
+	Key            string
+	OPC            string
+	SequenceNumber string
+	PolicyName     string
+}
+
+type Config struct {
+	EllaCore   EllaCoreConfig
+	Gnb        GnbConfig
+	Subscriber SubscriberConfig
 }
 
 type Env struct {
-	Config         config.Config
+	Config         Config
 	EllaCoreClient *client.Client
 }
 
