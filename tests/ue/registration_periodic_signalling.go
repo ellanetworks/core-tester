@@ -124,6 +124,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		UE:           newUE,
 		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)

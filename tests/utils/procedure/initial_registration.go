@@ -27,6 +27,7 @@ type InitialRegistrationOpts struct {
 	UE           *ue.UE
 	N3GNBAddress netip.Addr
 	GnodeB       *gnb.GnodeB
+	DownlinkTEID uint32
 }
 
 type InitialRegistrationResp struct {
@@ -295,7 +296,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		PDUSessions: [16]*gnb.GnbPDUSession{
 			{
 				PDUSessionId: 1,
-				DownlinkTeid: 100,
+				DownlinkTeid: opts.DownlinkTEID,
 				QFI:          1,
 			},
 		},

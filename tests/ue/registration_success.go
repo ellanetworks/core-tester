@@ -19,6 +19,7 @@ const (
 	RANUENGAPID  = 1
 	GNBID        = "000008"
 	PDUSessionID = 1
+	DownlinkTEID = 1
 )
 
 type RegistrationSuccess struct{}
@@ -126,6 +127,7 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		UE:           newUE,
 		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

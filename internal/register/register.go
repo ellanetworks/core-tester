@@ -22,6 +22,7 @@ const (
 
 const (
 	GTPInterfaceName = "ellatester0"
+	DownlinkTEID     = 1
 )
 
 type RegisterConfig struct {
@@ -109,6 +110,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		UE:           newUE,
 		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -121,7 +123,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		GTPUPort:         2152,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid,
-		Rteid:            1,
+		Rteid:            DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create GTP tunnel: %v", err)

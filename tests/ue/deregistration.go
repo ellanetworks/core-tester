@@ -120,6 +120,7 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		UE:           newUE,
 		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
