@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/netip"
 
-	"github.com/ellanetworks/core-tester/internal/config"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
@@ -25,8 +24,25 @@ const (
 	GTPInterfaceName = "ellatester0"
 )
 
-func Register(ctx context.Context, cfg config.Config) error {
-	gNodeB, err := gnb.Start(cfg.EllaCore.N2Address, cfg.Gnb.N2Address)
+type RegisterConfig struct {
+	IMSI              string
+	Key               string
+	OPC               string
+	SequenceNumber    string
+	PolicyName        string
+	MCC               string
+	MNC               string
+	SST               int32
+	SD                string
+	TAC               string
+	DNN               string
+	GnbN2Address      string
+	GnbN3Address      string
+	EllaCoreN2Address string
+}
+
+func Register(ctx context.Context, cfg RegisterConfig) error {
+	gNodeB, err := gnb.Start(cfg.EllaCoreN2Address, cfg.GnbN2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -34,10 +50,10 @@ func Register(ctx context.Context, cfg config.Config) error {
 	defer gNodeB.Close()
 
 	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    cfg.EllaCore.MCC,
-		Mnc:    cfg.EllaCore.MNC,
-		Sst:    cfg.EllaCore.SST,
-		Tac:    cfg.EllaCore.TAC,
+		Mcc:    cfg.MCC,
+		Mnc:    cfg.MNC,
+		Sst:    cfg.SST,
+		Tac:    cfg.TAC,
 		GnodeB: gNodeB,
 	})
 	if err != nil {
@@ -45,21 +61,21 @@ func Register(ctx context.Context, cfg config.Config) error {
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Msin: cfg.Subscriber.IMSI[5:],
-		K:    cfg.Subscriber.Key,
-		OpC:  cfg.Subscriber.OPC,
+		Msin: cfg.IMSI[5:],
+		K:    cfg.Key,
+		OpC:  cfg.OPC,
 		Amf:  "80000000000000000000000000000000",
-		Sqn:  cfg.Subscriber.SequenceNumber,
-		Mcc:  cfg.EllaCore.MCC,
-		Mnc:  cfg.EllaCore.MNC,
+		Sqn:  cfg.SequenceNumber,
+		Mcc:  cfg.MCC,
+		Mnc:  cfg.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              cfg.EllaCore.DNN,
-		Sst:              cfg.EllaCore.SST,
-		Sd:               cfg.EllaCore.SD,
+		DNN:              cfg.DNN,
+		Sst:              cfg.SST,
+		Sd:               cfg.SD,
 		IMEISV:           "3569380356438091",
 		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
 			Integrity: utils.IntegrityAlgorithms{
@@ -75,18 +91,18 @@ func Register(ctx context.Context, cfg config.Config) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gnbN3Address, err := netip.ParseAddr(cfg.Gnb.N3Address)
+	gnbN3Address, err := netip.ParseAddr(cfg.GnbN3Address)
 	if err != nil {
 		log.Fatalf("could not parse gNB N3 address: %v", err)
 	}
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		Mcc:          cfg.EllaCore.MCC,
-		Mnc:          cfg.EllaCore.MNC,
-		Sst:          cfg.EllaCore.SST,
-		Sd:           cfg.EllaCore.SD,
-		Tac:          cfg.EllaCore.TAC,
-		DNN:          cfg.EllaCore.DNN,
+		Mcc:          cfg.MCC,
+		Mnc:          cfg.MNC,
+		Sst:          cfg.SST,
+		Sd:           cfg.SD,
+		Tac:          cfg.TAC,
+		DNN:          cfg.DNN,
 		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
@@ -100,7 +116,7 @@ func Register(ctx context.Context, cfg config.Config) error {
 
 	_, err = gtp.NewTunnel(&gtp.TunnelOptions{
 		UEIP:             resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP,
-		GnbIP:            cfg.Gnb.N3Address,
+		GnbIP:            cfg.GnbN3Address,
 		UpfIP:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress,
 		GTPUPort:         2152,
 		TunInterfaceName: GTPInterfaceName,

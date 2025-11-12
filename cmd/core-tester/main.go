@@ -16,8 +16,22 @@ import (
 )
 
 var (
-	configFile string
-	outputFile string
+	configFile        string
+	outputFile        string
+	imsi              string
+	key               string
+	opc               string
+	sqn               string
+	policyName        string
+	mcc               string
+	mnc               string
+	sst               int32
+	sd                string
+	tac               string
+	dnn               string
+	gnbN2Address      string
+	gnbN3Address      string
+	ellaCoreN2Address string
 )
 
 var rootCmd = &cobra.Command{
@@ -51,8 +65,33 @@ func main() {
 	runCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
 	_ = runCmd.MarkFlagRequired("config")
 
-	registerCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to config file (required)")
-	_ = registerCmd.MarkFlagRequired("config")
+	registerCmd.Flags().StringVar(&imsi, "imsi", "imsi", "IMSI of the subscriber")
+	registerCmd.Flags().StringVar(&key, "key", "key", "Key of the subscriber")
+	registerCmd.Flags().StringVar(&opc, "opc", "opc", "OPC of the subscriber")
+	registerCmd.Flags().StringVar(&sqn, "sqn", "sqn", "SQN of the subscriber")
+	registerCmd.Flags().StringVar(&policyName, "policy-name", "policy-name", "Policy name of the subscriber")
+	registerCmd.Flags().StringVar(&mcc, "mcc", "mcc", "MCC of the subscriber")
+	registerCmd.Flags().StringVar(&mnc, "mnc", "mnc", "MNC of the subscriber")
+	registerCmd.Flags().Int32Var(&sst, "sst", 0, "SST of the subscriber")
+	registerCmd.Flags().StringVar(&sd, "sd", "sd", "SD of the subscriber")
+	registerCmd.Flags().StringVar(&tac, "tac", "tac", "TAC of the subscriber")
+	registerCmd.Flags().StringVar(&dnn, "dnn", "dnn", "DNN of the subscriber")
+	registerCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "gnb-n2-address", "gNB N2 address")
+	registerCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "gnb-n3-address", "gNB N3 address")
+	registerCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "ella-core-n2-address", "Ella Core N2 address")
+	_ = registerCmd.MarkFlagRequired("imsi")
+	_ = registerCmd.MarkFlagRequired("key")
+	_ = registerCmd.MarkFlagRequired("opc")
+	_ = registerCmd.MarkFlagRequired("sqn")
+	_ = registerCmd.MarkFlagRequired("policy-name")
+	_ = registerCmd.MarkFlagRequired("mcc")
+	_ = registerCmd.MarkFlagRequired("mnc")
+	_ = registerCmd.MarkFlagRequired("sst")
+	_ = registerCmd.MarkFlagRequired("tac")
+	_ = registerCmd.MarkFlagRequired("dnn")
+	_ = registerCmd.MarkFlagRequired("gnb-n2-address")
+	_ = registerCmd.MarkFlagRequired("gnb-n3-address")
+	_ = registerCmd.MarkFlagRequired("ella-core-n2-address")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
@@ -101,15 +140,38 @@ func Test(cmd *cobra.Command, args []string) {
 	}
 }
 
+// type EllaCoreConfig struct {
+// 	API       EllaCoreAPIConfig
+// 	N2Address string
+// 	MCC       string
+// 	MNC       string
+// 	SST       int32
+// 	SD        string
+// 	TAC       string
+// 	DNN       string
+// }
+
 func Register(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
-	cfg, err := config.Validate(configFile)
-	if err != nil {
-		log.Fatalf("Couldn't validate config: %v\n", err)
+	registerConfig := register.RegisterConfig{
+		IMSI:              imsi,
+		Key:               key,
+		OPC:               opc,
+		SequenceNumber:    sqn,
+		PolicyName:        policyName,
+		MCC:               mcc,
+		MNC:               mnc,
+		SST:               sst,
+		SD:                sd,
+		TAC:               tac,
+		DNN:               dnn,
+		GnbN2Address:      gnbN2Address,
+		GnbN3Address:      gnbN3Address,
+		EllaCoreN2Address: ellaCoreN2Address,
 	}
 
-	err = register.Register(ctx, cfg)
+	err := register.Register(ctx, registerConfig)
 	if err != nil {
 		log.Fatalf("Could not register: %v\n", err)
 	}
