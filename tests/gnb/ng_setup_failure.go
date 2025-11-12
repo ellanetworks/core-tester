@@ -7,10 +7,12 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type NGSetupFailure_UnknownPLMN struct{}
@@ -42,6 +44,14 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent NGSetupRequest",
+		zap.String("MCC", "002"),
+		zap.String("MNC", opts.Mnc),
+		zap.Int32("SST", opts.Sst),
+		zap.String("TAC", opts.Tac),
+	)
 
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
@@ -75,6 +85,10 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
+
+	logger.Logger.Debug("Received NGSetupFailure",
+		zap.String("Cause", "Unknown PLMN"),
+	)
 
 	return nil
 }

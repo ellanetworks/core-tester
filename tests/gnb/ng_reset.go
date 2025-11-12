@@ -7,10 +7,12 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type NGReset struct{}
@@ -42,6 +44,14 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent NGSetupRequest",
+		zap.String("MCC", opts.Mcc),
+		zap.String("MNC", opts.Mnc),
+		zap.Int32("SST", opts.Sst),
+		zap.String("TAC", opts.Tac),
+	)
 
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
@@ -81,6 +91,14 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received NGSetupResponse",
+		zap.String("MCC", env.Config.EllaCore.MCC),
+		zap.String("MNC", env.Config.EllaCore.MNC),
+		zap.Int32("SST", env.Config.EllaCore.SST),
+		zap.String("SD", env.Config.EllaCore.SD),
+	)
+
 	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
 		Cause: &ngapType.Cause{
 			Present: ngapType.CausePresentMisc,
@@ -93,6 +111,10 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("could not send NGReset: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent NGReset",
+	)
 
 	fr, err = gNodeB.ReceiveFrame(ctx)
 	if err != nil {
@@ -121,6 +143,8 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	if nGResetAcknowledge == nil {
 		return fmt.Errorf("NG Reset Acknowledge is nil")
 	}
+
+	logger.Logger.Debug("Received NGResetAcknowledge")
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -53,6 +54,8 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
@@ -126,6 +129,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

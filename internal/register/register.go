@@ -7,11 +7,13 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/procedure"
+	"go.uber.org/zap"
 )
 
 const (
@@ -22,6 +24,7 @@ const (
 
 const (
 	GTPInterfaceName = "ellatester0"
+	DownlinkTEID     = 1657545292
 )
 
 type RegisterConfig struct {
@@ -59,6 +62,16 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	if err != nil {
 		return fmt.Errorf("NGSetupProcedure failed: %v", err)
 	}
+
+	logger.Logger.Info(
+		"Completed NG Setup Procedure",
+		zap.String("MCC", cfg.MCC),
+		zap.String("MNC", cfg.MNC),
+		zap.Int32("SST", cfg.SST),
+		zap.String("TAC", cfg.TAC),
+		zap.String("gNodeBID", GNBID),
+		zap.Int64("RANUENGAPID", RANUENGAPID),
+	)
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		Msin: cfg.IMSI[5:],
@@ -109,10 +122,17 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		UE:           newUE,
 		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
+
+	logger.Logger.Info(
+		"Completed Initial Registration Procedure",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
 
 	_, err = gtp.NewTunnel(&gtp.TunnelOptions{
 		UEIP:             resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP,
@@ -121,13 +141,22 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		GTPUPort:         2152,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid,
-		Rteid:            1,
+		Rteid:            DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create GTP tunnel: %v", err)
 	}
 
-	log.Printf("GTP tunnel created on interface %s", GTPInterfaceName)
+	logger.Logger.Info(
+		"Created GTP tunnel",
+		zap.String("interface", GTPInterfaceName),
+		zap.String("UE IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String()),
+		zap.String("gNB IP", cfg.GnbN3Address),
+		zap.String("UPF IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
+		zap.Uint32("LTEID", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
+		zap.Uint32("RTEID", DownlinkTEID),
+		zap.Uint16("GTPU Port", 2152),
+	)
 
 	select {}
 }

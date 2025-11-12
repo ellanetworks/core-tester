@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type NGSetupOpts struct {
@@ -28,6 +30,14 @@ func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent NGSetupRequest",
+		zap.String("MCC", opts.Mcc),
+		zap.String("MNC", opts.Mnc),
+		zap.Int32("SST", opts.Sst),
+		zap.String("TAC", opts.Tac),
+	)
 
 	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
@@ -56,6 +66,8 @@ func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 	if nGSetupResponse == nil {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
+
+	logger.Logger.Debug("Received NGSetupResponse")
 
 	return nil
 }

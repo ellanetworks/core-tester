@@ -7,6 +7,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -16,6 +17,7 @@ import (
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type RegistrationReject_UnknownUE struct{}
@@ -55,6 +57,8 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
@@ -137,6 +141,12 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial UE Message for Registration Request",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -180,11 +190,20 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received DownlinkNASTransport with Registration Reject",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.String("Cause", "UE Identity Cannot Be Derived By The Network"),
+	)
+
 	// Cleanup
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

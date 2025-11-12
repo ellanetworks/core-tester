@@ -6,12 +6,14 @@ import (
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type InitialRegistrationOpts struct {
@@ -27,6 +29,7 @@ type InitialRegistrationOpts struct {
 	UE           *ue.UE
 	N3GNBAddress netip.Addr
 	GnodeB       *gnb.GnodeB
+	DownlinkTEID uint32
 }
 
 type InitialRegistrationResp struct {
@@ -62,6 +65,16 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial UE Message with Registration Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.String("MCC", opts.Mcc),
+		zap.String("MNC", opts.Mnc),
+		zap.String("TAC", opts.Tac),
+	)
+
 	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -89,6 +102,13 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received Downlink NAS Transport with Authentication Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	paramAutn, err := opts.UE.DeriveRESstarAndSetKey(opts.UE.UeSecurity.AuthenticationSubs, rand[:], opts.UE.UeSecurity.Snn, autn[:])
 	if err != nil {
 		return nil, fmt.Errorf("could not derive RES* and set key: %v", err)
@@ -115,6 +135,13 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport with Authentication Response",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -134,6 +161,13 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	if err != nil {
 		return nil, fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Received Downlink NAS Transport with Security Mode Command",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	opts.UE.UeSecurity.NgKsi.Ksi = ksi
 	opts.UE.UeSecurity.NgKsi.Tsc = tsc
@@ -164,6 +198,13 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport with Security Mode Complete",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -174,14 +215,6 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initial context setup request validation failed: %v", err)
-	}
-
-	err = opts.GnodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
-		AMFUENGAPID: amfUENGAPID.Value,
-		RANUENGAPID: opts.RANUENGAPID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
 	guti5g, err := validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
@@ -195,6 +228,29 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	}
 
 	opts.UE.Set5gGuti(guti5g)
+
+	logger.Logger.Debug(
+		"Received Initial Context Setup Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Any("5G GUTI", guti5g),
+	)
+
+	err = opts.GnodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
+		AMFUENGAPID: amfUENGAPID.Value,
+		RANUENGAPID: opts.RANUENGAPID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent Initial Context Setup Response",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
 		SORTransparentContainer: nil,
@@ -256,6 +312,14 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport for PDU Session Establishment Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Uint8("PDU Session ID", opts.PDUSessionID),
+	)
+
 	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
@@ -286,6 +350,17 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received PDU Session Resource Setup Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Uint8("PDU Session ID", opts.PDUSessionID),
+		zap.String("UE IP", resp.PDUSessionResourceSetupListValue.UEIP.String()),
+		zap.String("UPF Address", resp.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
+		zap.Uint32("UL TEID", resp.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
+	)
+
 	initialRegistrationResp.PDUSessionResourceSetupRequest = resp
 
 	err = opts.GnodeB.SendPDUSessionResourceSetupResponse(&gnb.PDUSessionResourceSetupResponseOpts{
@@ -295,7 +370,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		PDUSessions: [16]*gnb.GnbPDUSession{
 			{
 				PDUSessionId: 1,
-				DownlinkTeid: 100,
+				DownlinkTeid: opts.DownlinkTEID,
 				QFI:          1,
 			},
 		},
@@ -303,6 +378,15 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	if err != nil {
 		return nil, fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent PDUSession Resource Setup Response",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Uint8("PDU Session ID", opts.PDUSessionID),
+		zap.Uint32("Downlink TEID", opts.DownlinkTEID),
+	)
 
 	return initialRegistrationResp, nil
 }

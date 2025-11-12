@@ -15,6 +15,7 @@ require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.10.1
 	github.com/vishvananda/netlink v1.3.1
+	go.uber.org/zap v1.27.0
 )
 
 require (
@@ -26,6 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 )
