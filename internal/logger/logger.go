@@ -23,7 +23,6 @@ func Init(logLevel zapcore.Level) {
 
 	Logger = zap.New(core)
 	zap.ReplaceGlobals(Logger)
-
 }
 
 func Sync() {
