@@ -24,8 +24,3 @@ parts:
       - iptables
       - iproute2
       - iputils-ping
-
-  config:
-    plugin: dump
-    source: config/
-    source-type: local
