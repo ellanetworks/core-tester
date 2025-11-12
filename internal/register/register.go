@@ -25,6 +25,7 @@ const (
 const (
 	GTPInterfaceName = "ellatester0"
 	DownlinkTEID     = 1657545292
+	GTPUPort         = 2152
 )
 
 type RegisterConfig struct {
@@ -134,11 +135,13 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 	)
 
+	ueIP := resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String() + "/16"
+
 	_, err = gtp.NewTunnel(&gtp.TunnelOptions{
-		UEIP:             resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP,
+		UEIP:             ueIP,
 		GnbIP:            cfg.GnbN3Address,
 		UpfIP:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress,
-		GTPUPort:         2152,
+		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid,
 		Rteid:            DownlinkTEID,
@@ -150,12 +153,12 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	logger.Logger.Info(
 		"Created GTP tunnel",
 		zap.String("interface", GTPInterfaceName),
-		zap.String("UE IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String()),
+		zap.String("UE IP", ueIP),
 		zap.String("gNB IP", cfg.GnbN3Address),
 		zap.String("UPF IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
 		zap.Uint32("LTEID", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
 		zap.Uint32("RTEID", DownlinkTEID),
-		zap.Uint16("GTPU Port", 2152),
+		zap.Uint16("GTPU Port", GTPUPort),
 	)
 
 	select {}
