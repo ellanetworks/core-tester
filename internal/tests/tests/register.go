@@ -3,9 +3,9 @@ package tests
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
-	"github.com/ellanetworks/core-tester/tests/gnb"
-	"github.com/ellanetworks/core-tester/tests/ue"
+	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/gnb"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/ue"
 )
 
 func RegisterAll() error {

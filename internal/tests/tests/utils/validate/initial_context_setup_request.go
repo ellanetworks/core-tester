@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )

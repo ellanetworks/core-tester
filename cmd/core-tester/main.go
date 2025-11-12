@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/register"
-	"github.com/ellanetworks/core-tester/tests"
+	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests"
 	"github.com/ellanetworks/core/client"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"

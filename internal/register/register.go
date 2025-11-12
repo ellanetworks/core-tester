@@ -8,11 +8,11 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/utils"
-	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 	"go.uber.org/zap"
 )
 

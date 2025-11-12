@@ -6,34 +6,27 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/utils"
-	"github.com/ellanetworks/core-tester/tests/utils/core"
-	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 )
 
-const (
-	RANUENGAPID  = 1
-	GNBID        = "000008"
-	PDUSessionID = 1
-	DownlinkTEID = 1657545292
-)
+type UEContextRelease struct{}
 
-type RegistrationSuccess struct{}
-
-func (RegistrationSuccess) Meta() engine.Meta {
+func (UEContextRelease) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success",
-		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
+		ID:      "ue/context/release",
+		Summary: "UE context release test validating the Context Release Request and Response procedures",
 		Timeout: 2 * time.Second,
 	}
 }
 
-func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
+func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Policies: []core.PolicyConfig{
 			{
@@ -133,24 +126,23 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
-		return fmt.Errorf("initial registration procedure failed: %v", err)
+		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
+	}
+
+	pduSessionStatus := [16]bool{}
+	pduSessionStatus[PDUSessionID] = true
+
+	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
+		AMFUENGAPID:   resp.AMFUENGAPID,
+		RANUENGAPID:   RANUENGAPID,
+		GnodeB:        gNodeB,
+		PDUSessionIDs: pduSessionStatus,
+	})
+	if err != nil {
+		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
 	// Cleanup
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
-		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
-	})
-	if err != nil {
-		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
-	}
-
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/utils"
-	"github.com/ellanetworks/core-tester/tests/utils/core"
-	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 )

@@ -3,29 +3,37 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/utils"
-	"github.com/ellanetworks/core-tester/tests/utils/core"
-	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 )
 
-type AuthenticationWrongKey struct{}
+const (
+	RANUENGAPID  = 1
+	GNBID        = "000008"
+	PDUSessionID = 1
+	DownlinkTEID = 1657545292
+)
 
-func (AuthenticationWrongKey) Meta() engine.Meta {
+type RegistrationSuccess struct{}
+
+func (RegistrationSuccess) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/authentication/wrong_key",
-		Summary: "UE authentication failure test validating the Authentication Request and Response procedures",
+		ID:      "ue/registration_success",
+		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
 		Timeout: 2 * time.Second,
 	}
 }
 
-func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Policies: []core.PolicyConfig{
 			{
@@ -104,20 +112,45 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	err = procedure.AuthenticationResponseWrongKeys(ctx, &procedure.AuthenticationResponseWrongKeysOpts{
-		Mcc:         env.Config.EllaCore.MCC,
-		Mnc:         env.Config.EllaCore.MNC,
-		Tac:         env.Config.EllaCore.TAC,
-		GNBID:       GNBID,
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
-		GnodeB:      gNodeB,
+	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
+	if err != nil {
+		return fmt.Errorf("could not parse gNB N3 address: %v", err)
+	}
+
+	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
+		Sst:          env.Config.EllaCore.SST,
+		Sd:           env.Config.EllaCore.SD,
+		Tac:          env.Config.EllaCore.TAC,
+		DNN:          env.Config.EllaCore.DNN,
+		GNBID:        GNBID,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
+		N3GNBAddress: gnbN3Address,
+		GnodeB:       gNodeB,
+		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
 	// Cleanup
+	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		MCC:         env.Config.EllaCore.MCC,
+		MNC:         env.Config.EllaCore.MNC,
+		GNBID:       GNBID,
+		TAC:         env.Config.EllaCore.TAC,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
+
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)

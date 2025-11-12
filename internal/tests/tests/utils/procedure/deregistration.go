@@ -6,8 +6,8 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"

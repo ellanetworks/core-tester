@@ -1,45 +1,32 @@
-package gnb
+package procedure
 
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/ellanetworks/core-tester/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
 
-type SCTPBasic struct{}
-
-func (SCTPBasic) Meta() engine.Meta {
-	return engine.Meta{
-		ID:      "gnb/sctp",
-		Summary: "SCTP connectivity test validating SCTP Stream Identifier and PPID for NGSetup procedure",
-		Timeout: 500 * time.Millisecond,
-	}
+type NGSetupOpts struct {
+	Mcc    string
+	Mnc    string
+	Sst    int32
+	Tac    string
+	GnodeB *gnb.GnodeB
 }
 
-func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
-	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
-	if err != nil {
-		return fmt.Errorf("error starting gNB: %v", err)
-	}
-
-	defer gNodeB.Close()
-
-	opts := &gnb.NGSetupRequestOpts{
-		Mcc: env.Config.EllaCore.MCC,
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
-	}
-
-	err = gNodeB.SendNGSetupRequest(opts)
+func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
+	err := opts.GnodeB.SendNGSetupRequest(&gnb.NGSetupRequestOpts{
+		Mcc: opts.Mcc,
+		Mnc: opts.Mnc,
+		Sst: opts.Sst,
+		Tac: opts.Tac,
+	})
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
@@ -52,7 +39,7 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -61,12 +48,6 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
-
-	logger.Logger.Debug(
-		"Received SCTP frame",
-		zap.Uint16("StreamIdentifier", fr.Info.Stream),
-		zap.Uint32("PPID", fr.Info.PPID),
-	)
 
 	pdu, err := ngap.Decoder(fr.Data)
 	if err != nil {
@@ -85,6 +66,8 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	if nGSetupResponse == nil {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
+
+	logger.Logger.Debug("Received NGSetupResponse")
 
 	return nil
 }

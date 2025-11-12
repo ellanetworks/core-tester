@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap/ngapType"
