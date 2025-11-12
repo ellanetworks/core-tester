@@ -225,6 +225,20 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	)
 
 	// Cleanup
+	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		MCC:         env.Config.EllaCore.MCC,
+		MNC:         env.Config.EllaCore.MNC,
+		GNBID:       GNBID,
+		TAC:         env.Config.EllaCore.TAC,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
+
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
