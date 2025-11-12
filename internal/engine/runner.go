@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core/client"
+	"go.uber.org/zap"
 )
 
 const (
@@ -144,12 +146,12 @@ func Run(ctx context.Context, env Env) (bool, []TestResult) {
 			Duration: dur,
 		})
 
-		fmt.Printf(
-			"%s\t%s %s (%s)\n",
-			getSuccessString(success),
-			meta.ID,
-			details,
-			dur.Round(time.Millisecond),
+		logger.Logger.Info(
+			"Test Result",
+			zap.String("Test ID", meta.ID),
+			zap.String("Success", getSuccessString(success)),
+			zap.String("Details", details),
+			zap.Duration("Duration", dur),
 		)
 	}
 

@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type DeregistrationOpts struct {
@@ -49,6 +51,13 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport with Deregistration Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.String("GNB ID", opts.GNBID),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -67,6 +76,12 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received UE Context Release Command",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	err = opts.GnodeB.SendUEContextReleaseComplete(&gnb.UEContextReleaseCompleteOpts{
 		AMFUENGAPID: opts.AMFUENGAPID,
 		RANUENGAPID: opts.RANUENGAPID,
@@ -74,6 +89,12 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 	if err != nil {
 		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent UE Context Release Complete",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	return nil
 }

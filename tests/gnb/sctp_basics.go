@@ -7,9 +7,11 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type SCTPBasic struct{}
@@ -42,6 +44,14 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent NGSetupRequest",
+		zap.String("MCC", opts.Mcc),
+		zap.String("MNC", opts.Mnc),
+		zap.Int32("SST", opts.Sst),
+		zap.String("TAC", opts.Tac),
+	)
+
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -51,6 +61,12 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Received SCTP frame",
+		zap.Uint16("StreamIdentifier", fr.Info.Stream),
+		zap.Uint32("PPID", fr.Info.PPID),
+	)
 
 	pdu, err := ngap.Decoder(fr.Data)
 	if err != nil {

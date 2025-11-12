@@ -8,6 +8,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -17,6 +18,7 @@ import (
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type ServiceRequestData struct{}
@@ -56,6 +58,8 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
@@ -174,6 +178,12 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial UE Message for Service Request",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -194,6 +204,12 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received Initial Context Setup Request for Service Request",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: resp.AMFUENGAPID,
 		RANUENGAPID: RANUENGAPID,
@@ -202,11 +218,19 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial Context Setup Response for Service Request",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	// Cleanup
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

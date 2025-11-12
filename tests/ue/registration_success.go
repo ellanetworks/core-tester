@@ -8,6 +8,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -19,7 +20,7 @@ const (
 	RANUENGAPID  = 1
 	GNBID        = "000008"
 	PDUSessionID = 1
-	DownlinkTEID = 1
+	DownlinkTEID = 1657545292
 )
 
 type RegistrationSuccess struct{}
@@ -59,6 +60,8 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
@@ -152,6 +155,8 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

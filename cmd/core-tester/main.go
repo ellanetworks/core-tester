@@ -8,10 +8,12 @@ import (
 	"os"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/register"
 	"github.com/ellanetworks/core-tester/tests"
 	"github.com/ellanetworks/core/client"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var (
@@ -32,13 +34,20 @@ var (
 	ellaCoreN2Address  string
 	ellaCoreAPIAddress string
 	ellaCoreAPIToken   string
+	verbose            bool
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "ella-core-tester [command]",
 	Short: "A tool for testing Ella Core",
-	Long:  `Ella Core Tester is a tool for testing Ella Core. It can validate functionality, connectivity, and performance.`,
-	Args:  cobra.ArbitraryArgs,
+	Long:  `Ella Core Tester validates functionality, connectivity, and performance.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if verbose {
+			logger.Init(zap.DebugLevel)
+		} else {
+			logger.Init(zap.InfoLevel)
+		}
+	},
 }
 
 var testCmd = &cobra.Command{
@@ -60,6 +69,7 @@ var registerCmd = &cobra.Command{
 func main() {
 	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(registerCmd)
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose (debug) logging")
 
 	testCmd.Flags().StringVar(&ellaCoreAPIAddress, "ella-core-api-address", "", "Ella Core API address")
 	testCmd.Flags().StringVar(&ellaCoreAPIToken, "ella-core-api-token", "", "Ella Core API token")

@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/tests/utils"
 	"github.com/ellanetworks/core-tester/tests/utils/validate"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type AuthenticationResponseWrongKeysOpts struct {
@@ -48,6 +50,13 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial UE Message for Registration Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Any("GUTI", opts.UE.UeSecurity.Guti),
+	)
+
 	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -72,6 +81,12 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Received Authentication Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	paramAutn := []byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -99,6 +114,12 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport with Authentication Response (wrong key)",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
+
 	fr, err = opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -118,6 +139,12 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 	if err != nil {
 		return fmt.Errorf("could not validate Authentication Reject: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Received Authentication Reject as expected due to wrong key",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	return nil
 }

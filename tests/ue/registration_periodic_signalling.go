@@ -8,6 +8,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/ellanetworks/core-tester/tests/utils"
@@ -17,6 +18,7 @@ import (
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type RegistrationPeriodicUpdateSignalling struct{}
@@ -56,6 +58,8 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
@@ -174,6 +178,13 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Initial UE Message for Registration Request",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.Any("GUTI", newUE.UeSecurity.Guti),
+	)
+
 	fr, err := gNodeB.ReceiveFrame(ctx)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
@@ -191,6 +202,12 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("initial context setup request validation failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Received Initial Context Setup Request for Registration Periodic Update",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: resp.AMFUENGAPID,
 		RANUENGAPID: RANUENGAPID,
@@ -198,6 +215,12 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	if err != nil {
 		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
+
+	logger.Logger.Debug(
+		"Sent Initial Context Setup Response for Registration Periodic Update",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
 
 	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
 		SORTransparentContainer: nil,
@@ -224,6 +247,12 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport for Registration Complete",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	)
+
 	// Cleanup
 	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
@@ -243,6 +272,8 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }
