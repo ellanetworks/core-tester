@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/netip"
 
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
@@ -23,7 +22,7 @@ type Tunnel struct {
 }
 
 type TunnelOptions struct {
-	UEIP             *netip.Addr
+	UEIP             string
 	GnbIP            string
 	UpfIP            string
 	GTPUPort         int
@@ -63,7 +62,7 @@ func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 		return nil, fmt.Errorf("cannot read TUN interface: %v", err)
 	}
 
-	ueAddr, err := netlink.ParseAddr(opts.UEIP.String() + "/24")
+	ueAddr, err := netlink.ParseAddr(opts.UEIP)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse UE address: %v", err)
 	}

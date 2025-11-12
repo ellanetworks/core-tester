@@ -146,7 +146,7 @@ func Test(cmd *cobra.Command, args []string) {
 
 	err := tests.RegisterAll()
 	if err != nil {
-		log.Fatalf("Could not register tests: %v\n", err)
+		logger.Logger.Fatal("Could not register tests", zap.Error(err))
 	}
 
 	clientConfig := &client.Config{
@@ -198,7 +198,7 @@ func Register(cmd *cobra.Command, args []string) {
 
 	err := register.Register(ctx, registerConfig)
 	if err != nil {
-		log.Fatalf("Could not register: %v\n", err)
+		logger.Logger.Fatal("Could not register", zap.Error(err))
 	}
 }
 

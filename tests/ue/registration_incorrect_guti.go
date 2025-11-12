@@ -117,7 +117,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	_, err = procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
+	resp, err := procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		Sst:          env.Config.EllaCore.SST,
@@ -136,6 +136,20 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	}
 
 	// Cleanup
+	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: resp.AMFUENGAPID,
+		RANUENGAPID: RANUENGAPID,
+		MCC:         env.Config.EllaCore.MCC,
+		MNC:         env.Config.EllaCore.MNC,
+		GNBID:       GNBID,
+		TAC:         env.Config.EllaCore.TAC,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
+
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
