@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -156,7 +155,7 @@ func Test(cmd *cobra.Command, args []string) {
 
 	ellaClient, err := client.New(clientConfig)
 	if err != nil {
-		log.Fatalf("failed to create ella client: %v", err)
+		logger.Logger.Fatal("failed to create ella client", zap.Error(err))
 	}
 
 	testEnv := engine.Env{
@@ -168,11 +167,11 @@ func Test(cmd *cobra.Command, args []string) {
 
 	err = writeResultsToFile(outputFile, testResults)
 	if err != nil {
-		log.Fatalf("Could not write test results to file: %v\n", err)
+		logger.Logger.Fatal("Could not write test results to file", zap.Error(err))
 	}
 
 	if !allPassed {
-		log.Fatalf("Some tests failed\n")
+		logger.Logger.Fatal("Some tests failed")
 	}
 }
 

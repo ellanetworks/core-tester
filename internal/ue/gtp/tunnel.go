@@ -6,11 +6,12 @@ package gtp
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
+	"go.uber.org/zap"
 )
 
 type Tunnel struct {
@@ -115,12 +116,12 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	for {
 		n, err := ifce.Read(packet[8:])
 		if err != nil {
-			log.Printf("error reading from tun interface: %v", err)
+			logger.Logger.Error("error reading from tun interface", zap.Error(err))
 			continue
 		}
 
 		if n == 0 {
-			log.Println("read 0 bytes")
+			logger.Logger.Info("read 0 bytes")
 			continue
 		}
 
@@ -128,9 +129,11 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 
 		_, err = conn.Write(packet[:n+8])
 		if err != nil {
-			log.Printf("error writing to GTP: %v", err)
+			logger.Logger.Error("error writing to GTP", zap.Error(err))
 			continue
 		}
+
+		logger.Logger.Debug("Sent packet to GTP", zap.Int("length", n))
 	}
 }
 
@@ -144,7 +147,8 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 		// Currently ignores the address
 		n, _, err := conn.ReadFrom(packet)
 		if err != nil {
-			log.Printf("error reading from GTP: %v", err)
+			logger.Logger.Error("error reading from GTP", zap.Error(err))
+			continue
 		}
 		// Ignore packets that are not a GTP-U v1 T-PDU packet
 		if packet[0]&0x30 != 0x30 || packet[1] != 0xFF {
@@ -171,8 +175,10 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 
 		_, err = ifce.Write(packet[payloadStart:n])
 		if err != nil {
-			log.Printf("error writing to tun interface: %v", err)
+			logger.Logger.Error("error writing to tun interface", zap.Error(err))
 			continue
 		}
+
+		logger.Logger.Debug("Sent packet to TUN", zap.Int("length", n-payloadStart))
 	}
 }

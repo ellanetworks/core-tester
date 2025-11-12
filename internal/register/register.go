@@ -3,7 +3,6 @@ package register
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -107,7 +106,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	gnbN3Address, err := netip.ParseAddr(cfg.GnbN3Address)
 	if err != nil {
-		log.Fatalf("could not parse gNB N3 address: %v", err)
+		logger.Logger.Fatal("could not parse gNB N3 address", zap.Error(err))
 	}
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
@@ -160,6 +159,25 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Uint32("RTEID", DownlinkTEID),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)
+
+	// pduSessionStatus := [16]bool{}
+	// pduSessionStatus[PDUSessionID] = true
+
+	// err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
+	// 	AMFUENGAPID:   resp.AMFUENGAPID,
+	// 	RANUENGAPID:   RANUENGAPID,
+	// 	GnodeB:        gNodeB,
+	// 	PDUSessionIDs: pduSessionStatus,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+	// }
+
+	// logger.Logger.Info(
+	// 	"Completed UE Context Release Procedure",
+	// 	zap.String("IMSI", newUE.UeSecurity.Supi),
+	// 	zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+	// )
 
 	select {}
 }
