@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -117,6 +118,11 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
+	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
+	if err != nil {
+		return fmt.Errorf("could not parse gNB N3 address: %v", err)
+	}
+
 	resp, err := procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
@@ -130,6 +136,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		UE:           newUE,
 		GnodeB:       gNodeB,
 		DownlinkTEID: DownlinkTEID,
+		N3GnbAddress: gnbN3Address,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

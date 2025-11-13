@@ -12,13 +12,8 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
 type ServiceRequestData struct{}
@@ -147,82 +142,24 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
-	serviceRequest, err := ue.BuildServiceRequest(&ue.ServiceRequestOpts{
-		ServiceType:      nasMessage.ServiceTypeData,
-		AMFSetID:         newUE.GetAmfSetId(),
-		AMFPointer:       newUE.GetAmfPointer(),
-		TMSI5G:           newUE.GetTMSI5G(),
-		PDUSessionStatus: &pduSessionStatus,
-		UESecurity:       newUE.UeSecurity,
+	_, err = procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
+		Mcc:              env.Config.EllaCore.MCC,
+		Mnc:              env.Config.EllaCore.MNC,
+		PDUSessionStatus: pduSessionStatus,
+		Tac:              env.Config.EllaCore.TAC,
+		GNBID:            GNBID,
+		SST:              env.Config.EllaCore.SST,
+		SD:               env.Config.EllaCore.SD,
+		AMFUENGAPID:      resp.AMFUENGAPID,
+		RANUENGAPID:      RANUENGAPID,
+		UE:               newUE,
+		GnodeB:           gNodeB,
+		GnodebN3Address:  gnbN3Address,
+		DownlinkTEID:     DownlinkTEID,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Service Request NAS PDU: %v", err)
+		return fmt.Errorf("service request procedure failed: %v", err)
 	}
-
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(serviceRequest, nas.SecurityHeaderTypeIntegrityProtected)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
-	}
-
-	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:                   env.Config.EllaCore.MCC,
-		Mnc:                   env.Config.EllaCore.MNC,
-		GnbID:                 GNBID,
-		Tac:                   env.Config.EllaCore.TAC,
-		RanUENGAPID:           RANUENGAPID,
-		NasPDU:                encodedPdu,
-		Guti5g:                newUE.UeSecurity.Guti,
-		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoData,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Initial UE Message for Service Request",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
-
-	fr, err := gNodeB.ReceiveFrame(ctx)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
-	}
-
-	err = validate.ServiceAccept(&validate.ServiceAcceptOpts{
-		NASPDU: utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest),
-		UE:     newUE,
-	})
-	if err != nil {
-		return fmt.Errorf("validation failed for registration accept: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Received Initial Context Setup Request for Service Request",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
-
-	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Initial Context Setup Response for Service Request",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
 
 	// Cleanup
 	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{

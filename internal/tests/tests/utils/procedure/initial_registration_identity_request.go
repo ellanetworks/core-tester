@@ -29,6 +29,7 @@ type InitialRegistrationWithIdentityRequestOpts struct {
 	UE           *ue.UE
 	GnodeB       *gnb.GnodeB
 	DownlinkTEID uint32
+	N3GnbAddress netip.Addr
 }
 
 type InitialRegistration2Resp struct {
@@ -253,7 +254,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+	req, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
 		Frame: fr,
 	})
 	if err != nil {
@@ -261,7 +262,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 	}
 
 	guti5g, err := validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
-		NASPDU: utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest),
+		NASPDU: req.NASPDU,
 		UE:     opts.UE,
 		Sst:    opts.Sst,
 		Sd:     opts.Sd,
@@ -282,6 +283,14 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 	err = opts.GnodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: amfUENGAPID.Value,
 		RANUENGAPID: opts.RANUENGAPID,
+		N3GnbIp:     opts.N3GnbAddress,
+		PDUSessions: [16]*gnb.GnbPDUSession{
+			{
+				PDUSessionId: 1,
+				DownlinkTeid: opts.DownlinkTEID,
+				QFI:          1,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)

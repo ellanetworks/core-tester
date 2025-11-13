@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -13,7 +14,14 @@ type InitialContextSetupRequestOpts struct {
 	Frame gnb.SCTPFrame
 }
 
-func InitialContextSetupRequest(opts *InitialContextSetupRequestOpts) (*ngapType.InitialContextSetupRequest, error) {
+type InitialContextSetupRequestResp struct {
+	AMFUENGAPID                       *ngapType.AMFUENGAPID
+	RANUENGAPID                       *ngapType.RANUENGAPID
+	PDUSessionResourceSetupListCxtReq *ngapType.PDUSessionResourceSetupListCxtReq
+	NASPDU                            *ngapType.NASPDU
+}
+
+func InitialContextSetupRequest(opts *InitialContextSetupRequestOpts) (*InitialContextSetupRequestResp, error) {
 	err := utils.ValidateSCTP(opts.Frame.Info, 60, 1)
 	if err != nil {
 		return nil, fmt.Errorf("SCTP validation failed: %v", err)
@@ -37,5 +45,80 @@ func InitialContextSetupRequest(opts *InitialContextSetupRequestOpts) (*ngapType
 		return nil, fmt.Errorf("InitialContextSetupRequest is nil")
 	}
 
-	return initialContextSetupRequest, nil
+	var (
+		amfueNGAPID                                   *ngapType.AMFUENGAPID
+		ranueNGAPID                                   *ngapType.RANUENGAPID
+		protocolIEIDPDUSessionResourceSetupListCxtReq *ngapType.PDUSessionResourceSetupListCxtReq
+		nasPDU                                        *ngapType.NASPDU
+	)
+
+	for _, ie := range initialContextSetupRequest.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDAMFUENGAPID:
+			amfueNGAPID = ie.Value.AMFUENGAPID
+		case ngapType.ProtocolIEIDRANUENGAPID:
+			ranueNGAPID = ie.Value.RANUENGAPID
+		case ngapType.ProtocolIEIDPDUSessionResourceSetupListCxtReq:
+			protocolIEIDPDUSessionResourceSetupListCxtReq = ie.Value.PDUSessionResourceSetupListCxtReq
+		case ngapType.ProtocolIEIDGUAMI:
+		case ngapType.ProtocolIEIDAllowedNSSAI:
+		case ngapType.ProtocolIEIDUESecurityCapabilities:
+		case ngapType.ProtocolIEIDSecurityKey:
+		case ngapType.ProtocolIEIDNASPDU:
+			nasPDU = ie.Value.NASPDU
+		case ngapType.ProtocolIEIDMobilityRestrictionList:
+		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
+		default:
+			return nil, fmt.Errorf("PDUSessionResourceSetupRequest IE ID (%d) not supported", ie.Id.Value)
+		}
+	}
+
+	msgResp := &InitialContextSetupRequestResp{
+		AMFUENGAPID:                       amfueNGAPID,
+		RANUENGAPID:                       ranueNGAPID,
+		NASPDU:                            nasPDU,
+		PDUSessionResourceSetupListCxtReq: protocolIEIDPDUSessionResourceSetupListCxtReq,
+	}
+
+	return msgResp, nil
+}
+
+func PDUSessionResourceSetupListCxtReq(
+	pDUSessionResourceSetupListCxtReq *ngapType.PDUSessionResourceSetupListCxtReq,
+	expectedPDUSessionID uint8,
+	expectedSST int32,
+	expectedSD string,
+) (*PDUSessionResourceSetupListValue, error) {
+	if len(pDUSessionResourceSetupListCxtReq.List) != 1 {
+		return nil, fmt.Errorf("PDUSessionResourceSetupListCxtReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListCxtReq.List))
+	}
+
+	item := pDUSessionResourceSetupListCxtReq.List[0]
+	if item.PDUSessionID.Value != int64(expectedPDUSessionID) {
+		return nil, fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
+	}
+
+	expectedSSTBytes, expectedSDBytes, err := gnb.GetSliceInBytes(expectedSST, expectedSD)
+	if err != nil {
+		return nil, fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
+	}
+
+	if !bytes.Equal(item.SNSSAI.SST.Value, expectedSSTBytes) {
+		return nil, fmt.Errorf("unexpected SNSSAI SST: %x, expected: %x", item.SNSSAI.SST.Value, expectedSSTBytes)
+	}
+
+	if !bytes.Equal(item.SNSSAI.SD.Value, expectedSDBytes) {
+		return nil, fmt.Errorf("unexpected SNSSAI SD: %x, expected: %x", item.SNSSAI.SD.Value, expectedSDBytes)
+	}
+
+	pduSessionResourceSetupTransfer, err := pduSessionResourceSetupTransfer(item.PDUSessionResourceSetupRequestTransfer)
+	if err != nil {
+		return nil, fmt.Errorf("could not validate PDU Session Resource Setup Transfer: %v", err)
+	}
+
+	resp := &PDUSessionResourceSetupListValue{
+		PDUSessionResourceSetupRequestTransfer: pduSessionResourceSetupTransfer,
+	}
+
+	return resp, nil
 }
