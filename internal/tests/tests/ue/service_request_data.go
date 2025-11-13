@@ -142,7 +142,7 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
-	err = procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
+	_, err = procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
 		Mcc:              env.Config.EllaCore.MCC,
 		Mnc:              env.Config.EllaCore.MNC,
 		PDUSessionStatus: pduSessionStatus,

@@ -226,7 +226,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("destination", PingDestination),
 	)
 
-	err = procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
+	srvReqRsp, err := procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
 		Mcc:              env.Config.EllaCore.MCC,
 		Mnc:              env.Config.EllaCore.MNC,
 		PDUSessionStatus: pduSessionStatus,
@@ -241,6 +241,21 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	})
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)
+	}
+
+	tun.Close()
+
+	newTun, err := gtp.NewTunnel(&gtp.TunnelOptions{
+		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
+		GnbIP:            env.Config.Gnb.N3Address,
+		UpfIP:            srvReqRsp.UPFAddress,
+		GTPUPort:         GTPUPort,
+		TunInterfaceName: GTPInterfaceName,
+		Lteid:            srvReqRsp.ULTEID,
+		Rteid:            DownlinkTEID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to recreate GTP tunnel after Service Request: %v", err)
 	}
 
 	logger.Logger.Debug(
@@ -264,7 +279,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	)
 
 	// Cleanup
-	tun.Close()
+	newTun.Close()
 
 	logger.Logger.Debug("Closed GTP tunnel",
 		zap.String("interface", GTPInterfaceName),

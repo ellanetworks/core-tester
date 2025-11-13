@@ -28,7 +28,12 @@ type ServiceRequestOpts struct {
 	GnodeB           *gnb.GnodeB
 }
 
-func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
+type ServiceRequestResp struct {
+	ULTEID     uint32
+	UPFAddress string
+}
+
+func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) (*ServiceRequestResp, error) {
 	serviceRequest, err := ue.BuildServiceRequest(&ue.ServiceRequestOpts{
 		ServiceType:      nasMessage.ServiceTypeData,
 		AMFSetID:         opts.UE.GetAmfSetId(),
@@ -38,12 +43,12 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
 		UESecurity:       opts.UE.UeSecurity,
 	})
 	if err != nil {
-		return fmt.Errorf("could not build Service Request NAS PDU: %v", err)
+		return nil, fmt.Errorf("could not build Service Request NAS PDU: %v", err)
 	}
 
 	encodedPdu, err := opts.UE.EncodeNasPduWithSecurity(serviceRequest, nas.SecurityHeaderTypeIntegrityProtected)
 	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
+		return nil, fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", opts.UE.UeSecurity.Supi, err)
 	}
 
 	err = opts.GnodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
@@ -57,7 +62,7 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
 		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoData,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+		return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
 	logger.Logger.Debug(
@@ -68,23 +73,23 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
 
 	fr, err := opts.GnodeB.ReceiveFrame(ctx)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	resp, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+	initialContextSetupReq, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
 		Frame: fr,
 	})
 	if err != nil {
-		return fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
+		return nil, fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
 	}
 
-	if resp.PDUSessionResourceSetupListCxtReq == nil {
-		return fmt.Errorf("PDUSessionResourceSetupListCxtReq is nil in Initial Context Setup Request")
+	if initialContextSetupReq.PDUSessionResourceSetupListCxtReq == nil {
+		return nil, fmt.Errorf("PDUSessionResourceSetupListCxtReq is nil in Initial Context Setup Request")
 	}
 
-	rsp, err := validate.PDUSessionResourceSetupListCxtReq(resp.PDUSessionResourceSetupListCxtReq, 1, opts.SST, opts.SD)
+	rsp, err := validate.PDUSessionResourceSetupListCxtReq(initialContextSetupReq.PDUSessionResourceSetupListCxtReq, 1, opts.SST, opts.SD)
 	if err != nil {
-		return fmt.Errorf("PDUSessionResourceSetupListCxtReq validation failed: %v", err)
+		return nil, fmt.Errorf("PDUSessionResourceSetupListCxtReq validation failed: %v", err)
 	}
 
 	logger.Logger.Debug(
@@ -106,7 +111,7 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
 		RANUENGAPID: opts.RANUENGAPID,
 	})
 	if err != nil {
-		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
+		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
 	logger.Logger.Debug(
@@ -115,5 +120,8 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) error {
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	return nil
+	return &ServiceRequestResp{
+		ULTEID:     rsp.PDUSessionResourceSetupRequestTransfer.ULTeid,
+		UPFAddress: rsp.PDUSessionResourceSetupRequestTransfer.UpfAddress,
+	}, nil
 }
