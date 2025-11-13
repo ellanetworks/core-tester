@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/go-build.yaml
   build-rock:
     uses: ./.github/workflows/build.yaml
-  publish-ueransim-rock:
+  publish-rock:
     needs: build-rock
     if: github.ref_name == 'main'
     uses: ./.github/workflows/publish.yaml

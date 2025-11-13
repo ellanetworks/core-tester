@@ -253,7 +253,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	initialContextSetupRequest, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+	req, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
 		Frame: fr,
 	})
 	if err != nil {
@@ -261,7 +261,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 	}
 
 	guti5g, err := validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
-		NASPDU: utils.GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest),
+		NASPDU: req.NASPDU,
 		UE:     opts.UE,
 		Sst:    opts.Sst,
 		Sd:     opts.Sd,

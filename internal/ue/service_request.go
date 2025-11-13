@@ -2,6 +2,7 @@ package ue
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/free5gc/nas"
@@ -35,6 +36,22 @@ func BuildServiceRequest(opts *ServiceRequestOpts) ([]byte, error) {
 	serviceRequest.SetTypeOfIdentity(4) // 5G-S-TMSI
 	serviceRequest.SetTMSI5G(opts.TMSI5G)
 	serviceRequest.TMSI5GS.SetLen(7)
+
+	// Set pdu session status
+	pduFlag := uint16(0)
+	for i, pduSession := range opts.PDUSessionStatus {
+		pduFlag = pduFlag + (boolToUint16(pduSession) << (i))
+	}
+
+	serviceRequest.PDUSessionStatus = nasType.NewPDUSessionStatus(nasMessage.ServiceRequestPDUSessionStatusType)
+	serviceRequest.PDUSessionStatus.SetLen(2)
+	serviceRequest.PDUSessionStatus.Buffer = make([]byte, 2)
+	binary.LittleEndian.PutUint16(serviceRequest.PDUSessionStatus.Buffer, pduFlag)
+
+	// Uplink data status
+	serviceRequest.UplinkDataStatus = nasType.NewUplinkDataStatus(nasMessage.ServiceRequestUplinkDataStatusType)
+	serviceRequest.UplinkDataStatus.SetLen(2)
+	serviceRequest.UplinkDataStatus.Buffer = serviceRequest.PDUSessionStatus.Buffer
 
 	m.ServiceRequest = serviceRequest
 

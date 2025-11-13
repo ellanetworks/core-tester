@@ -68,7 +68,7 @@ func BuildRegistrationRequest(opts *RegistrationRequestOpts) ([]byte, error) {
 
 	if opts.PDUSessionStatus != nil {
 		for i, pduSession := range opts.PDUSessionStatus {
-			pduFlag = pduFlag + (boolToUint16(pduSession) << (i + 1))
+			pduFlag = pduFlag + (boolToUint16(pduSession) << (i))
 		}
 
 		if pduFlag != 0 {

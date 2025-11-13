@@ -33,19 +33,6 @@ func GetNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNA
 	return nil
 }
 
-func GetNASPDUFromInitialContextSetupRequest(initialContextSetupRequest *ngapType.InitialContextSetupRequest) *ngapType.NASPDU {
-	for _, ie := range initialContextSetupRequest.ProtocolIEs.List {
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDNASPDU:
-			return ie.Value.NASPDU
-		default:
-			continue
-		}
-	}
-
-	return nil
-}
-
 func GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.AMFUENGAPID {
 	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
 		switch ie.Id.Value {
