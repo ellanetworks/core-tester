@@ -211,6 +211,14 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: resp.AMFUENGAPID,
 		RANUENGAPID: RANUENGAPID,
+		N3GnbIp:     gnbN3Address,
+		PDUSessions: [16]*gnb.GnbPDUSession{
+			{
+				PDUSessionId: 1,
+				DownlinkTeid: DownlinkTEID,
+				QFI:          1,
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)

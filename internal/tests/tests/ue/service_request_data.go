@@ -154,6 +154,8 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		RANUENGAPID:      RANUENGAPID,
 		UE:               newUE,
 		GnodeB:           gNodeB,
+		GnodebN3Address:  gnbN3Address,
+		DownlinkTEID:     DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)

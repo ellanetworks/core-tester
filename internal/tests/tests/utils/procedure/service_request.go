@@ -3,6 +3,7 @@ package procedure
 import (
 	"context"
 	"fmt"
+	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -24,6 +25,8 @@ type ServiceRequestOpts struct {
 	SD               string
 	AMFUENGAPID      int64
 	RANUENGAPID      int64
+	DownlinkTEID     uint32
+	GnodebN3Address  netip.Addr
 	UE               *ue.UE
 	GnodeB           *gnb.GnodeB
 }
@@ -109,6 +112,14 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) (*ServiceRequ
 	err = opts.GnodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
 		AMFUENGAPID: opts.AMFUENGAPID,
 		RANUENGAPID: opts.RANUENGAPID,
+		N3GnbIp:     opts.GnodebN3Address,
+		PDUSessions: [16]*gnb.GnbPDUSession{
+			{
+				PDUSessionId: 1,
+				DownlinkTeid: opts.DownlinkTEID,
+				QFI:          1,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
