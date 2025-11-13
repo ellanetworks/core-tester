@@ -22,6 +22,7 @@ func RegisterAll() error {
 		ue.Deregistration{},
 		ue.UEContextRelease{},
 		ue.ServiceRequestData{},
+		ue.Connectivity{},
 	}
 
 	for _, test := range allTests {

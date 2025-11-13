@@ -132,6 +132,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.Int64("AMF UE NGAP ID", resp.AMFUENGAPID),
 	)
 
 	ueIP := resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String() + "/16"
@@ -159,25 +160,6 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Uint32("RTEID", DownlinkTEID),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)
-
-	// pduSessionStatus := [16]bool{}
-	// pduSessionStatus[PDUSessionID] = true
-
-	// err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-	// 	AMFUENGAPID:   resp.AMFUENGAPID,
-	// 	RANUENGAPID:   RANUENGAPID,
-	// 	GnodeB:        gNodeB,
-	// 	PDUSessionIDs: pduSessionStatus,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
-	// }
-
-	// logger.Logger.Info(
-	// 	"Completed UE Context Release Procedure",
-	// 	zap.String("IMSI", newUE.UeSecurity.Supi),
-	// 	zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	// )
 
 	select {}
 }

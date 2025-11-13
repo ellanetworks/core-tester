@@ -149,7 +149,7 @@ func Run(ctx context.Context, env Env) (bool, []TestResult) {
 		logger.Logger.Info(
 			"Test Result",
 			zap.String("Test ID", meta.ID),
-			zap.String("Success", getSuccessString(success)),
+			zap.String("Result", getSuccessString(success)),
 			zap.String("Details", details),
 			zap.Duration("Duration", dur),
 		)

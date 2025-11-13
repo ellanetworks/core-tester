@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/songgao/water"
@@ -116,7 +117,13 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 	for {
 		n, err := ifce.Read(packet[8:])
 		if err != nil {
+			if isClosedErr(err) {
+				// normal shutdown — exit goroutine
+				return
+			}
+
 			logger.Logger.Error("error reading from tun interface", zap.Error(err))
+
 			continue
 		}
 
@@ -147,7 +154,13 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 		// Currently ignores the address
 		n, _, err := conn.ReadFrom(packet)
 		if err != nil {
-			logger.Logger.Error("error reading from GTP", zap.Error(err))
+			if isClosedErr(err) {
+				// normal shutdown — exit goroutine
+				return
+			}
+
+			logger.Logger.Error("error reading from tun interface", zap.Error(err))
+
 			continue
 		}
 		// Ignore packets that are not a GTP-U v1 T-PDU packet
@@ -181,4 +194,15 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 
 		logger.Logger.Debug("Sent packet to TUN", zap.Int("length", n-payloadStart))
 	}
+}
+
+func isClosedErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	s := err.Error()
+
+	return strings.Contains(s, "use of closed network connection") ||
+		strings.Contains(s, "file already closed")
 }
