@@ -8,6 +8,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/register"
+	"github.com/ellanetworks/core-tester/internal/release"
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests"
 	"github.com/ellanetworks/core/client"
@@ -28,6 +29,7 @@ var (
 	sd                 string
 	tac                string
 	dnn                string
+	amfUENGAPID        int64
 	gnbN2Address       string
 	gnbN3Address       string
 	ellaCoreN2Address  string
@@ -65,9 +67,18 @@ var registerCmd = &cobra.Command{
 	Run:   Register,
 }
 
+var releaseCmd = &cobra.Command{
+	Use:   "release",
+	Short: "Release the UE context",
+	Long:  "Release the UE context in Ella Core. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.",
+	Args:  cobra.NoArgs,
+	Run:   Release,
+}
+
 func main() {
 	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(registerCmd)
+	rootCmd.AddCommand(releaseCmd)
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose (debug) logging")
 
 	testCmd.Flags().StringVar(&ellaCoreAPIAddress, "ella-core-api-address", "", "Ella Core API address")
@@ -109,6 +120,9 @@ func main() {
 	_ = registerCmd.MarkFlagRequired("gnb-n2-address")
 	_ = registerCmd.MarkFlagRequired("gnb-n3-address")
 	_ = registerCmd.MarkFlagRequired("ella-core-n2-address")
+
+	releaseCmd.Flags().Int64Var(&amfUENGAPID, "amfuengapid", 0, "AMF UE NGAP ID")
+	_ = releaseCmd.MarkFlagRequired("amfuengapid")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
@@ -198,6 +212,21 @@ func Register(cmd *cobra.Command, args []string) {
 	err := register.Register(ctx, registerConfig)
 	if err != nil {
 		logger.Logger.Fatal("Could not register", zap.Error(err))
+	}
+}
+
+func Release(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+
+	releaseConfig := release.ReleaseConfig{
+		AMFUENGAPID:       amfUENGAPID,
+		GnbN2Address:      gnbN2Address,
+		EllaCoreN2Address: ellaCoreN2Address,
+	}
+
+	err := release.Release(ctx, releaseConfig)
+	if err != nil {
+		logger.Logger.Fatal("Could not release", zap.Error(err))
 	}
 }
 
