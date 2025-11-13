@@ -3,16 +3,15 @@ package register
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/ellanetworks/core-tester/tests/utils"
-	"github.com/ellanetworks/core-tester/tests/utils/procedure"
 	"go.uber.org/zap"
 )
 
@@ -107,7 +106,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	gnbN3Address, err := netip.ParseAddr(cfg.GnbN3Address)
 	if err != nil {
-		log.Fatalf("could not parse gNB N3 address: %v", err)
+		logger.Logger.Fatal("could not parse gNB N3 address", zap.Error(err))
 	}
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
@@ -133,6 +132,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.Int64("AMF UE NGAP ID", resp.AMFUENGAPID),
 	)
 
 	ueIP := resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String() + "/16"

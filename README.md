@@ -50,7 +50,7 @@ PASSED  ue/context/release  (678ms)
 
 To add a new test, follow these steps:
 
-1. Create a new .go file in the `tests/gnb/` or `tests/ue/` directory depending on the type of test.
+1. Create a new .go file in the `internal/tests/tests/gnb/` or `internal/tests/tests/ue/` directory depending on the type of test.
 2. Define a new struct that implements the `engine.Test` interface.
 3. Implement the `Meta()` method to provide metadata about the test.
 4. Implement the `Run()` method to define the test logic.
