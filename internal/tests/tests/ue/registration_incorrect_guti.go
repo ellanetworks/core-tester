@@ -16,7 +16,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
-	"go.uber.org/zap"
 )
 
 type RegistrationIncorrectGUTI struct{}
@@ -121,7 +120,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
 	if err != nil {
-		logger.Logger.Fatal("could not parse gNB N3 address", zap.Error(err))
+		return fmt.Errorf("could not parse gNB N3 address: %v", err)
 	}
 
 	resp, err := procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{

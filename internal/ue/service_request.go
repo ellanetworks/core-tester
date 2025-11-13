@@ -37,7 +37,6 @@ func BuildServiceRequest(opts *ServiceRequestOpts) ([]byte, error) {
 	serviceRequest.SetTMSI5G(opts.TMSI5G)
 	serviceRequest.TMSI5GS.SetLen(7)
 
-	// Set pdu session status
 	pduFlag := uint16(0)
 	for i, pduSession := range opts.PDUSessionStatus {
 		pduFlag = pduFlag + (boolToUint16(pduSession) << (i))
@@ -48,7 +47,6 @@ func BuildServiceRequest(opts *ServiceRequestOpts) ([]byte, error) {
 	serviceRequest.PDUSessionStatus.Buffer = make([]byte, 2)
 	binary.LittleEndian.PutUint16(serviceRequest.PDUSessionStatus.Buffer, pduFlag)
 
-	// Uplink data status
 	serviceRequest.UplinkDataStatus = nasType.NewUplinkDataStatus(nasMessage.ServiceRequestUplinkDataStatusType)
 	serviceRequest.UplinkDataStatus.SetLen(2)
 	serviceRequest.UplinkDataStatus.Buffer = serviceRequest.PDUSessionStatus.Buffer

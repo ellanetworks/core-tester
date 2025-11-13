@@ -6,17 +6,12 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
-	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
 type InitialContextSetupRequestOpts struct {
 	Frame gnb.SCTPFrame
-}
-
-type RegistrationAcceptResp struct {
-	GUTI5G *nasType.GUTI5G
 }
 
 type InitialContextSetupRequestResp struct {
@@ -122,7 +117,6 @@ func PDUSessionResourceSetupListCxtReq(
 	}
 
 	resp := &PDUSessionResourceSetupListValue{
-		// UEIP:                                   ueIP,
 		PDUSessionResourceSetupRequestTransfer: pduSessionResourceSetupTransfer,
 	}
 

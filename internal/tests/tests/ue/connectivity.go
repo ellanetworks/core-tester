@@ -126,7 +126,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
 	if err != nil {
-		logger.Logger.Fatal("could not parse gNB N3 address", zap.Error(err))
+		return fmt.Errorf("could not parse gNB N3 address: %v", err)
 	}
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
