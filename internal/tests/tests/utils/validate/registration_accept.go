@@ -18,6 +18,8 @@ type RegistrationAcceptOpts struct {
 	UE     *ue.UE
 	Sst    int32
 	Sd     string
+	Mcc    string
+	Mnc    string
 }
 
 func RegistrationAccept(opts *RegistrationAcceptOpts) (*nasType.GUTI5G, error) {
@@ -84,8 +86,9 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) (*nasType.GUTI5G, error) {
 
 	guti5GStr := buildGUTI5G(*msg.RegistrationAccept.GUTI5G)
 
-	if !strings.HasPrefix(guti5GStr, "00101cafe") {
-		return nil, fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, "00101cafe")
+	prefix := fmt.Sprintf("%s%scafe", opts.Mcc, opts.Mnc)
+	if !strings.HasPrefix(guti5GStr, prefix) {
+		return nil, fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, prefix)
 	}
 
 	snssai := msg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()

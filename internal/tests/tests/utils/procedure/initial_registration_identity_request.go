@@ -266,6 +266,8 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		UE:     opts.UE,
 		Sst:    opts.Sst,
 		Sd:     opts.Sd,
+		Mcc:    opts.Mcc,
+		Mnc:    opts.Mnc,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("validation failed for registration accept: %v", err)

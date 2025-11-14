@@ -31,7 +31,28 @@ type DataNetworkConfig struct {
 	Mtu    int32
 }
 
+type OperatorID struct {
+	MCC string
+	MNC string
+}
+
+type OperatorSlice struct {
+	SST int32
+	SD  string
+}
+
+type OperatorTracking struct {
+	SupportedTACs []string
+}
+
+type OperatorConfig struct {
+	ID       OperatorID
+	Slice    OperatorSlice
+	Tracking OperatorTracking
+}
+
 type EllaCoreConfig struct {
+	Operator     OperatorConfig
 	DataNetworks []DataNetworkConfig
 	Policies     []PolicyConfig
 	Subscribers  []SubscriberConfig
@@ -50,7 +71,17 @@ func NewEllaCoreEnv(client *client.Client, config EllaCoreConfig) *EllaCoreEnv {
 }
 
 func (c *EllaCoreEnv) Create(ctx context.Context) error {
-	err := c.createDataNetworks(ctx)
+	err := c.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not clean up existing EllaCore environment: %v", err)
+	}
+
+	err = c.updateOperator(ctx)
+	if err != nil {
+		return fmt.Errorf("could not update operator: %v", err)
+	}
+
+	err = c.createDataNetworks(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create data networks: %v", err)
 	}
@@ -83,6 +114,58 @@ func (c *EllaCoreEnv) Delete(ctx context.Context) error {
 	err = c.deleteDataNetworks(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete data networks: %v", err)
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) updateOperator(ctx context.Context) error {
+	opConfig, err := c.Client.GetOperator(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get operator: %v", err)
+	}
+
+	if opConfig.ID.Mcc != c.Config.Operator.ID.MCC || opConfig.ID.Mnc != c.Config.Operator.ID.MNC {
+		err := c.Client.UpdateOperatorID(ctx, &client.UpdateOperatorIDOptions{
+			Mcc: c.Config.Operator.ID.MCC,
+			Mnc: c.Config.Operator.ID.MNC,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update operator ID: %v", err)
+		}
+	}
+
+	if opConfig.Slice.Sst != int(c.Config.Operator.Slice.SST) || opConfig.Slice.Sd != c.Config.Operator.Slice.SD {
+		err := c.Client.UpdateOperatorSlice(ctx, &client.UpdateOperatorSliceOptions{
+			Sst: int(c.Config.Operator.Slice.SST),
+			Sd:  c.Config.Operator.Slice.SD,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update operator slice: %v", err)
+		}
+	}
+
+	currentTACsMap := make(map[string]bool)
+	for _, tac := range opConfig.Tracking.SupportedTacs {
+		currentTACsMap[tac] = true
+	}
+
+	needUpdate := false
+
+	for _, tac := range c.Config.Operator.Tracking.SupportedTACs {
+		if !currentTACsMap[tac] {
+			needUpdate = true
+			break
+		}
+	}
+
+	if needUpdate {
+		err := c.Client.UpdateOperatorTracking(ctx, &client.UpdateOperatorTrackingOptions{
+			SupportedTacs: c.Config.Operator.Tracking.SupportedTACs,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update operator tracking: %v", err)
+		}
 	}
 
 	return nil
@@ -158,7 +241,15 @@ func (c *EllaCoreEnv) createSubs(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
-	for _, sub := range c.Config.Subscribers {
+	subs, err := c.Client.ListSubscribers(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list subscribers: %v", err)
+	}
+
+	for _, sub := range subs.Items {
 		err := c.Client.DeleteSubscriber(ctx, &client.DeleteSubscriberOptions{
 			ID: sub.Imsi,
 		})
@@ -171,7 +262,15 @@ func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
-	for _, policy := range c.Config.Policies {
+	pols, err := c.Client.ListPolicies(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list policies: %v", err)
+	}
+
+	for _, policy := range pols.Items {
 		err := c.Client.DeletePolicy(ctx, &client.DeletePolicyOptions{
 			Name: policy.Name,
 		})
@@ -184,7 +283,15 @@ func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
-	for _, dnn := range c.Config.DataNetworks {
+	dnns, err := c.Client.ListDataNetworks(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list data networks: %v", err)
+	}
+
+	for _, dnn := range dnns.Items {
 		err := c.Client.DeleteDataNetwork(ctx, &client.DeleteDataNetworkOptions{
 			Name: dnn.Name,
 		})
