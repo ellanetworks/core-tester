@@ -28,6 +28,27 @@ func (ServiceRequestData) Meta() engine.Meta {
 
 func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
+		Operator: core.OperatorConfig{
+			ID: core.OperatorID{
+				MCC: env.Config.EllaCore.MCC,
+				MNC: env.Config.EllaCore.MNC,
+			},
+			Slice: core.OperatorSlice{
+				SST: env.Config.EllaCore.SST,
+				SD:  env.Config.EllaCore.SD,
+			},
+			Tracking: core.OperatorTracking{
+				SupportedTACs: []string{env.Config.EllaCore.TAC},
+			},
+		},
+		DataNetworks: []core.DataNetworkConfig{
+			{
+				Name:   env.Config.EllaCore.DNN,
+				IPPool: "10.45.0.0/16",
+				DNS:    "8.8.8.8",
+				Mtu:    1500,
+			},
+		},
 		Policies: []core.PolicyConfig{
 			{
 				Name:            env.Config.Subscriber.PolicyName,

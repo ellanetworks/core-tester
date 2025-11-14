@@ -9,6 +9,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
@@ -25,6 +26,29 @@ func (SCTPBasic) Meta() engine.Meta {
 }
 
 func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
+		Operator: core.OperatorConfig{
+			ID: core.OperatorID{
+				MCC: env.Config.EllaCore.MCC,
+				MNC: env.Config.EllaCore.MNC,
+			},
+			Slice: core.OperatorSlice{
+				SST: env.Config.EllaCore.SST,
+				SD:  env.Config.EllaCore.SD,
+			},
+			Tracking: core.OperatorTracking{
+				SupportedTACs: []string{env.Config.EllaCore.TAC},
+			},
+		},
+	})
+
+	err := ellaCoreEnv.Create(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create EllaCore environment: %v", err)
+	}
+
+	logger.Logger.Debug("Created EllaCore environment")
+
 	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -85,6 +109,14 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 	if nGSetupResponse == nil {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
+
+	// Cleanup
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
+	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

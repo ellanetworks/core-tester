@@ -1,6 +1,7 @@
 package gnb
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/free5gc/aper"
@@ -42,7 +43,7 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 		return ngapType.NGAPPDU{}, fmt.Errorf("TAC is required to build NGSetupRequest")
 	}
 
-	tac, err := GetTacInBytes(opts.Tac)
+	tac, err := hex.DecodeString(opts.Tac)
 	if err != nil {
 		return ngapType.NGAPPDU{}, fmt.Errorf("could not get tac in bytes: %v", err)
 	}
