@@ -16,6 +16,7 @@ func RegisterAll() error {
 		gnb.NGReset{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
+		ue.RegistrationSuccess50Sequential{},
 		ue.AuthenticationWrongKey{},
 		ue.RegistrationPeriodicUpdateSignalling{},
 		ue.RegistrationIncorrectGUTI{},
