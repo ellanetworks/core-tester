@@ -3,6 +3,7 @@ package procedure
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -22,10 +23,11 @@ type NGSetupOpts struct {
 
 func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 	err := opts.GnodeB.SendNGSetupRequest(&gnb.NGSetupRequestOpts{
-		Mcc: opts.Mcc,
-		Mnc: opts.Mnc,
-		Sst: opts.Sst,
-		Tac: opts.Tac,
+		Mcc:  opts.Mcc,
+		Mnc:  opts.Mnc,
+		Sst:  opts.Sst,
+		Tac:  opts.Tac,
+		Name: "Ella-Core-Tester",
 	})
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)
@@ -39,7 +41,7 @@ func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

@@ -9,11 +9,13 @@ import (
 )
 
 type NGSetupRequestOpts struct {
-	Mcc string
-	Mnc string
-	Tac string
-	Sst int32
-	Sd  string
+	Name string
+	ID   int64
+	Mcc  string
+	Mnc  string
+	Tac  string
+	Sst  int32
+	Sd   string
 }
 
 func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
@@ -94,7 +96,7 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 	ie.Value.RANNodeName = new(ngapType.RANNodeName)
 
 	rANNodeName := ie.Value.RANNodeName
-	rANNodeName.Value = "Ella-Core-Tester"
+	rANNodeName.Value = opts.Name
 
 	nGSetupRequestIEs.List = append(nGSetupRequestIEs.List, ie)
 	ie = ngapType.NGSetupRequestIEs{}

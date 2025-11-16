@@ -58,10 +58,11 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: env.Config.EllaCore.MCC,
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
+		Mcc:  env.Config.EllaCore.MCC,
+		Mnc:  env.Config.EllaCore.MNC,
+		Sst:  env.Config.EllaCore.SST,
+		Tac:  env.Config.EllaCore.TAC,
+		Name: "Ella-Core-Tester",
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)
@@ -77,7 +78,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -140,7 +141,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		"Sent NGReset",
 	)
 
-	fr, err = gNodeB.ReceiveFrame(ctx)
+	fr, err = gNodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

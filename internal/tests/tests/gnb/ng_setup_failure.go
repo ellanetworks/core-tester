@@ -58,10 +58,11 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: "002", // Unknown MCC to trigger NGSetupFailure
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
+		Mcc:  "002", // Unknown MCC to trigger NGSetupFailure
+		Mnc:  env.Config.EllaCore.MNC,
+		Sst:  env.Config.EllaCore.SST,
+		Tac:  env.Config.EllaCore.TAC,
+		Name: "Ella-Core-Tester",
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)
@@ -77,17 +78,17 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	nextFrame, err := gNodeB.WaitForNextFrame(10 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 0)
+	err = utils.ValidateSCTP(nextFrame.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
 	}
 
-	pdu, err := ngap.Decoder(fr.Data)
+	pdu, err := ngap.Decoder(nextFrame.Data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
 	}

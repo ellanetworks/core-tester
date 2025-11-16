@@ -3,6 +3,7 @@ package procedure
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -57,7 +58,7 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 		zap.Any("GUTI", opts.UE.UeSecurity.Guti),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -120,7 +121,7 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

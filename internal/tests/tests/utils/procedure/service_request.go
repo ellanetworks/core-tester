@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -74,7 +75,7 @@ func ServiceRequest(ctx context.Context, opts *ServiceRequestOpts) (*ServiceRequ
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

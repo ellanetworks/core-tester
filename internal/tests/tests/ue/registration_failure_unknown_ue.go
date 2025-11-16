@@ -168,7 +168,7 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

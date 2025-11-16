@@ -1,11 +1,14 @@
 package gnb
 
 import (
-	"context"
 	"fmt"
+	"io"
 	"net"
+	"time"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ishidawataru/sctp"
+	"go.uber.org/zap"
 )
 
 const (
@@ -13,7 +16,33 @@ const (
 )
 
 type GnodeB struct {
-	Conn *sctp.SCTPConn
+	Conn           *sctp.SCTPConn
+	receivedFrames []SCTPFrame
+}
+
+func (g *GnodeB) GetReceivedFrames() []SCTPFrame {
+	return g.receivedFrames
+}
+
+func (g *GnodeB) FlushReceivedFrames() {
+	g.receivedFrames = nil
+}
+
+func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		if len(g.receivedFrames) > 0 {
+			frame := g.receivedFrames[0]
+			g.receivedFrames = g.receivedFrames[1:]
+
+			return frame, nil
+		}
+
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
 }
 
 type SCTPFrame struct {
@@ -21,7 +50,10 @@ type SCTPFrame struct {
 	Info *sctp.SndRcvInfo
 }
 
-func Start(coreN2Address string, gnbN2Address string) (*GnodeB, error) {
+func Start(
+	coreN2Address string,
+	gnbN2Address string,
+) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve Ella Core SCTP address: %w", err)
@@ -47,50 +79,51 @@ func Start(coreN2Address string, gnbN2Address string) (*GnodeB, error) {
 		return nil, fmt.Errorf("could not subscribe SCTP events: %w", err)
 	}
 
-	return &GnodeB{Conn: conn}, nil
+	gnodeB := &GnodeB{
+		Conn: conn,
+	}
+	gnodeB.listenAndServe(conn)
+
+	return gnodeB, nil
 }
 
-func (g *GnodeB) ReceiveFrame(ctx context.Context) (SCTPFrame, error) {
-	if g.Conn == nil {
-		return SCTPFrame{}, fmt.Errorf("SCTP connection is nil")
+func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
+	if conn == nil {
+		logger.Logger.Error("SCTP connection is nil")
+		return
 	}
-
-	type res struct {
-		data []byte
-		info *sctp.SndRcvInfo
-		err  error
-	}
-
-	ch := make(chan res, 1)
 
 	go func() {
 		buf := make([]byte, SCTPReadBufferSize)
 
-		n, info, err := g.Conn.SCTPRead(buf)
-		if err != nil {
-			ch <- res{err: fmt.Errorf("could not read SCTP frame: %w", err)}
-			return
-		}
+		for {
+			n, info, err := conn.SCTPRead(buf)
+			if err != nil {
+				if err == io.EOF {
+					logger.Logger.Debug("SCTP connection closed (EOF)")
+				} else {
+					logger.Logger.Error("could not read SCTP frame", zap.Error(err))
+				}
 
-		if n == 0 {
-			ch <- res{err: fmt.Errorf("empty SCTP read")}
-			return
-		}
+				return
+			}
 
-		cp := append([]byte(nil), buf[:n]...) // copy to isolate from buffer reuse
-		ch <- res{data: cp, info: info, err: nil}
+			if n == 0 {
+				logger.Logger.Info("SCTP read returned 0 bytes (connection closed?)")
+				return
+			}
+
+			cp := append([]byte(nil), buf[:n]...) // copy to isolate from buffer reuse
+
+			g.receivedFrames = append(g.receivedFrames, SCTPFrame{Data: cp, Info: info})
+
+			go func(data []byte) {
+				if err := handleFrame(data); err != nil {
+					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
+				}
+			}(cp)
+		}
 	}()
-
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			return SCTPFrame{}, r.err
-		}
-
-		return SCTPFrame{Data: r.data, Info: r.info}, nil
-	case <-ctx.Done():
-		return SCTPFrame{}, ctx.Err()
-	}
 }
 
 func (g *GnodeB) Close() {
