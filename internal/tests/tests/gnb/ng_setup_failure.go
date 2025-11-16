@@ -58,10 +58,11 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: "002", // Unknown MCC to trigger NGSetupFailure
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
+		Mcc:  "002", // Unknown MCC to trigger NGSetupFailure
+		Mnc:  env.Config.EllaCore.MNC,
+		Sst:  env.Config.EllaCore.SST,
+		Tac:  env.Config.EllaCore.TAC,
+		Name: "Ella-Core-Tester",
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)

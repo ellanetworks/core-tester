@@ -14,15 +14,18 @@ import (
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
+
+const NumRadios = 12
 
 type NGSetupResponse struct{}
 
 func (NGSetupResponse) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_response",
-		Summary: "NGSetup request/response test validating the NGSetupResponse message contents",
-		Timeout: 500 * time.Millisecond,
+		Summary: "NGSetup request/response test validating the NGSetupResponse message contents with 12 radios in parallel",
+		Timeout: 1 * time.Second,
 	}
 }
 
@@ -50,6 +53,33 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Created EllaCore environment")
 
+	eg := errgroup.Group{}
+
+	for i := range NumRadios {
+		func() {
+			eg.Go(func() error {
+				return ngSetupTest(env, i)
+			})
+		}()
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		return fmt.Errorf("NGSetupResponse test failed: %v", err)
+	}
+
+	// Cleanup
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
+	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func ngSetupTest(env engine.Env, index int) error {
 	gNodeB, err := gnb.Start(
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
@@ -61,10 +91,11 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: env.Config.EllaCore.MCC,
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
+		Mcc:  env.Config.EllaCore.MCC,
+		Mnc:  env.Config.EllaCore.MNC,
+		Sst:  env.Config.EllaCore.SST,
+		Tac:  env.Config.EllaCore.TAC,
+		Name: fmt.Sprintf("Ella-Core-Tester-%d", index),
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)
@@ -80,7 +111,7 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	nextFrame, err := gNodeB.WaitForNextFrame(10 * time.Millisecond)
+	nextFrame, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -125,14 +156,6 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 		zap.Int32("SST", env.Config.EllaCore.SST),
 		zap.String("SD", env.Config.EllaCore.SD),
 	)
-
-	// Cleanup
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
-
-	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

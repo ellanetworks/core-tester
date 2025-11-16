@@ -23,10 +23,11 @@ type NGSetupOpts struct {
 
 func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 	err := opts.GnodeB.SendNGSetupRequest(&gnb.NGSetupRequestOpts{
-		Mcc: opts.Mcc,
-		Mnc: opts.Mnc,
-		Sst: opts.Sst,
-		Tac: opts.Tac,
+		Mcc:  opts.Mcc,
+		Mnc:  opts.Mnc,
+		Sst:  opts.Sst,
+		Tac:  opts.Tac,
+		Name: "Ella-Core-Tester",
 	})
 	if err != nil {
 		return fmt.Errorf("could not send NGSetupRequest: %v", err)

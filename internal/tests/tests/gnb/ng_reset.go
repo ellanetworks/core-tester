@@ -58,10 +58,11 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 	defer gNodeB.Close()
 
 	opts := &gnb.NGSetupRequestOpts{
-		Mcc: env.Config.EllaCore.MCC,
-		Mnc: env.Config.EllaCore.MNC,
-		Sst: env.Config.EllaCore.SST,
-		Tac: env.Config.EllaCore.TAC,
+		Mcc:  env.Config.EllaCore.MCC,
+		Mnc:  env.Config.EllaCore.MNC,
+		Sst:  env.Config.EllaCore.SST,
+		Tac:  env.Config.EllaCore.TAC,
+		Name: "Ella-Core-Tester",
 	}
 
 	err = gNodeB.SendNGSetupRequest(opts)
