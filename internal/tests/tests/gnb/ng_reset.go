@@ -82,11 +82,6 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	aa := gNodeB.GetReceivedFrames()
-	logger.Logger.Debug("Number of received frames", zap.Int("count", len(aa)))
-
-	// gNodeB.FlushReceivedFrames()
-
 	err = utils.ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
 		return fmt.Errorf("SCTP validation failed: %v", err)
