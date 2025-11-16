@@ -3,6 +3,7 @@ package procedure
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -58,7 +59,7 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

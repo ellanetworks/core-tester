@@ -76,7 +76,7 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

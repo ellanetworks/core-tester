@@ -77,10 +77,15 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := gNodeB.ReceiveFrame(ctx)
+	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
+
+	aa := gNodeB.GetReceivedFrames()
+	logger.Logger.Debug("Number of received frames", zap.Int("count", len(aa)))
+
+	// gNodeB.FlushReceivedFrames()
 
 	err = utils.ValidateSCTP(fr.Info, 60, 0)
 	if err != nil {
@@ -140,7 +145,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		"Sent NGReset",
 	)
 
-	fr, err = gNodeB.ReceiveFrame(ctx)
+	fr, err = gNodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

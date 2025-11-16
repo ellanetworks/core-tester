@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -71,7 +72,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		zap.Any("GUTI", opts.UE.UeSecurity.Guti),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -130,7 +131,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -188,7 +189,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -249,7 +250,7 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -376,9 +377,9 @@ func InitialRegistrationWithIdentityRequest(ctx context.Context, opts *InitialRe
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")

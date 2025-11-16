@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -75,7 +76,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		zap.String("TAC", opts.Tac),
 	)
 
-	fr, err := opts.GnodeB.ReceiveFrame(ctx)
+	fr, err := opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -142,7 +143,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -205,7 +206,7 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -322,9 +323,9 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		zap.Uint8("PDU Session ID", opts.PDUSessionID),
 	)
 
-	fr, err = opts.GnodeB.ReceiveFrame(ctx)
+	fr, err = opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive NGAP frame: %v", err)
+		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")
