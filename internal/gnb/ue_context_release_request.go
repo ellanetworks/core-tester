@@ -104,7 +104,6 @@ func (builder *UeContextReleaseRequestBuilder) SetPduSessionResourceListCxtRelRe
 }
 
 func (builder *UeContextReleaseRequestBuilder) SetCause(causeValue aper.Enumerated) *UeContextReleaseRequestBuilder {
-	// Cause
 	ie := ngapType.UEContextReleaseRequestIEs{}
 	ie.Id.Value = ngapType.ProtocolIEIDCause
 	ie.Criticality.Value = ngapType.CriticalityPresentIgnore

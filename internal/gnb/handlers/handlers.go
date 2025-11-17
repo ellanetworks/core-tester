@@ -1,13 +1,14 @@
-package gnb
+package handlers
 
 import (
 	"fmt"
 
+	"github.com/ellanetworks/core-tester/internal/gnb/status"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func handleFrame(data []byte) error {
+func HandleFrame(status *status.Status, data []byte) error {
 	pdu, err := ngap.Decoder(data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
@@ -17,7 +18,7 @@ func handleFrame(data []byte) error {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		return handleNGAPInitiatingMessage(pdu)
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
-		return handleNGAPSuccessfulOutcome(pdu)
+		return handleNGAPSuccessfulOutcome(status, pdu)
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		return handleNGAPUnsuccessfulOutcome(pdu)
 	default:
@@ -40,26 +41,10 @@ func handleNGAPInitiatingMessage(pdu *ngapType.NGAPPDU) error {
 	}
 }
 
-func handleDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) error {
-	return nil
-}
-
-func handleInitialContextSetupRequest(initialContextSetupRequest *ngapType.InitialContextSetupRequest) error {
-	return nil
-}
-
-func handlePDUSessionResourceSetupRequest(pDUSessionResourceSetupRequest *ngapType.PDUSessionResourceSetupRequest) error {
-	return nil
-}
-
-func handleUEContextReleaseCommand(uEContextReleaseCommand *ngapType.UEContextReleaseCommand) error {
-	return nil
-}
-
-func handleNGAPSuccessfulOutcome(pdu *ngapType.NGAPPDU) error {
+func handleNGAPSuccessfulOutcome(status *status.Status, pdu *ngapType.NGAPPDU) error {
 	switch pdu.SuccessfulOutcome.Value.Present {
 	case ngapType.SuccessfulOutcomePresentNGSetupResponse:
-		return handleNGSetupResponse(pdu.SuccessfulOutcome.Value.NGSetupResponse)
+		return handleNGSetupResponse(status, pdu.SuccessfulOutcome.Value.NGSetupResponse)
 	case ngapType.SuccessfulOutcomePresentNGResetAcknowledge:
 		return handleNGResetAcknowledge(pdu.SuccessfulOutcome.Value.NGResetAcknowledge)
 	default:
@@ -74,16 +59,4 @@ func handleNGAPUnsuccessfulOutcome(pdu *ngapType.NGAPPDU) error {
 	default:
 		return fmt.Errorf("NGAP UnsuccessfulOutcome Present is invalid: %d", pdu.UnsuccessfulOutcome.Value.Present)
 	}
-}
-
-func handleNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse) error {
-	return nil
-}
-
-func handleNGSetupFailure(nGSetupFailure *ngapType.NGSetupFailure) error {
-	return nil
-}
-
-func handleNGResetAcknowledge(nGResetAcknowledge *ngapType.NGResetAcknowledge) error {
-	return nil
 }

@@ -77,22 +77,25 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
+	gNodeB, err := gnb.Start(
+		GNBID,
+		env.Config.EllaCore.MCC,
+		env.Config.EllaCore.MNC,
+		env.Config.EllaCore.SST,
+		env.Config.EllaCore.TAC,
+		"Ella-Core-Tester",
+		env.Config.EllaCore.N2Address,
+		env.Config.Gnb.N2Address,
+	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    env.Config.EllaCore.MCC,
-		Mnc:    env.Config.EllaCore.MNC,
-		Sst:    env.Config.EllaCore.SST,
-		Tac:    env.Config.EllaCore.TAC,
-		GnodeB: gNodeB,
-	})
+	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("NGSetupProcedure failed: %v", err)
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{

@@ -13,7 +13,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -81,6 +80,12 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 
 func ngSetupTest(env engine.Env, index int) error {
 	gNodeB, err := gnb.Start(
+		fmt.Sprintf("%06x", index+1),
+		env.Config.EllaCore.MCC,
+		env.Config.EllaCore.MNC,
+		env.Config.EllaCore.SST,
+		env.Config.EllaCore.TAC,
+		fmt.Sprintf("Ella-Core-Tester-%d", index),
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 	)
@@ -89,27 +94,6 @@ func ngSetupTest(env engine.Env, index int) error {
 	}
 
 	defer gNodeB.Close()
-
-	opts := &gnb.NGSetupRequestOpts{
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
-		Sst:  env.Config.EllaCore.SST,
-		Tac:  env.Config.EllaCore.TAC,
-		Name: fmt.Sprintf("Ella-Core-Tester-%d", index),
-	}
-
-	err = gNodeB.SendNGSetupRequest(opts)
-	if err != nil {
-		return fmt.Errorf("could not send NGSetupRequest: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent NGSetupRequest",
-		zap.String("MCC", opts.Mcc),
-		zap.String("MNC", opts.Mnc),
-		zap.Int32("SST", opts.Sst),
-		zap.String("TAC", opts.Tac),
-	)
 
 	nextFrame, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
@@ -148,14 +132,6 @@ func ngSetupTest(env engine.Env, index int) error {
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
-
-	logger.Logger.Debug(
-		"Received NGSetupResponse",
-		zap.String("MCC", env.Config.EllaCore.MCC),
-		zap.String("MNC", env.Config.EllaCore.MNC),
-		zap.Int32("SST", env.Config.EllaCore.SST),
-		zap.String("SD", env.Config.EllaCore.SD),
-	)
 
 	return nil
 }
