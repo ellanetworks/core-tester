@@ -1,4 +1,4 @@
-package handlers
+package gnb
 
 import (
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -6,7 +6,7 @@ import (
 )
 
 func handleNGResetAcknowledge(_ *ngapType.NGResetAcknowledge) error {
-	logger.Logger.Debug("Received NGResetAcknowledge")
+	logger.GnbLogger.Debug("Received NGResetAcknowledge")
 
 	return nil
 }

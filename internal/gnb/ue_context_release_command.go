@@ -1,4 +1,4 @@
-package handlers
+package gnb
 
 import "github.com/free5gc/ngap/ngapType"
 

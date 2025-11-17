@@ -1,14 +1,13 @@
-package handlers
+package gnb
 
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/gnb/status"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func HandleFrame(status *status.Status, data []byte) error {
+func HandleFrame(gnb *GnodeB, data []byte) error {
 	pdu, err := ngap.Decoder(data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
@@ -16,9 +15,9 @@ func HandleFrame(status *status.Status, data []byte) error {
 
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
-		return handleNGAPInitiatingMessage(pdu)
+		return handleNGAPInitiatingMessage(gnb, pdu)
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
-		return handleNGAPSuccessfulOutcome(status, pdu)
+		return handleNGAPSuccessfulOutcome(gnb, pdu)
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		return handleNGAPUnsuccessfulOutcome(pdu)
 	default:
@@ -26,14 +25,14 @@ func HandleFrame(status *status.Status, data []byte) error {
 	}
 }
 
-func handleNGAPInitiatingMessage(pdu *ngapType.NGAPPDU) error {
+func handleNGAPInitiatingMessage(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 	switch pdu.InitiatingMessage.Value.Present {
 	case ngapType.InitiatingMessagePresentDownlinkNASTransport:
-		return handleDownlinkNASTransport(pdu.InitiatingMessage.Value.DownlinkNASTransport)
+		return handleDownlinkNASTransport(gnb, pdu.InitiatingMessage.Value.DownlinkNASTransport)
 	case ngapType.InitiatingMessagePresentInitialContextSetupRequest:
-		return handleInitialContextSetupRequest(pdu.InitiatingMessage.Value.InitialContextSetupRequest)
+		return handleInitialContextSetupRequest(gnb, pdu.InitiatingMessage.Value.InitialContextSetupRequest)
 	case ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest:
-		return handlePDUSessionResourceSetupRequest(pdu.InitiatingMessage.Value.PDUSessionResourceSetupRequest)
+		return handlePDUSessionResourceSetupRequest(gnb, pdu.InitiatingMessage.Value.PDUSessionResourceSetupRequest)
 	case ngapType.InitiatingMessagePresentUEContextReleaseCommand:
 		return handleUEContextReleaseCommand(pdu.InitiatingMessage.Value.UEContextReleaseCommand)
 	default:
@@ -41,10 +40,10 @@ func handleNGAPInitiatingMessage(pdu *ngapType.NGAPPDU) error {
 	}
 }
 
-func handleNGAPSuccessfulOutcome(status *status.Status, pdu *ngapType.NGAPPDU) error {
+func handleNGAPSuccessfulOutcome(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 	switch pdu.SuccessfulOutcome.Value.Present {
 	case ngapType.SuccessfulOutcomePresentNGSetupResponse:
-		return handleNGSetupResponse(status, pdu.SuccessfulOutcome.Value.NGSetupResponse)
+		return handleNGSetupResponse(gnb, pdu.SuccessfulOutcome.Value.NGSetupResponse)
 	case ngapType.SuccessfulOutcomePresentNGResetAcknowledge:
 		return handleNGResetAcknowledge(pdu.SuccessfulOutcome.Value.NGResetAcknowledge)
 	default:

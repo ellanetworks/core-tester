@@ -1,4 +1,4 @@
-package handlers
+package gnb
 
 import (
 	"fmt"

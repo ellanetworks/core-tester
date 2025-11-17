@@ -3,7 +3,6 @@ package ue
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -93,6 +92,8 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -106,13 +107,15 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Msin: env.Config.Subscriber.IMSI[5:],
-		K:    env.Config.Subscriber.Key,
-		OpC:  env.Config.Subscriber.OPC,
-		Amf:  "80000000000000000000000000000000",
-		Sqn:  env.Config.Subscriber.SequenceNumber,
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
+		PDUSessionID: PDUSessionID,
+		GnodeB:       gNodeB,
+		Msin:         env.Config.Subscriber.IMSI[5:],
+		K:            env.Config.Subscriber.Key,
+		OpC:          env.Config.Subscriber.OPC,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
@@ -136,10 +139,7 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
-	if err != nil {
-		return fmt.Errorf("could not parse gNB N3 address: %v", err)
-	}
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
 		Mcc:          env.Config.EllaCore.MCC,
@@ -152,9 +152,7 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
-		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
-		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

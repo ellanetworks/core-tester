@@ -8,12 +8,18 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
+	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/milenage"
 	"github.com/free5gc/util/ueauth"
+	"go.uber.org/zap"
 )
 
 const (
@@ -54,15 +60,18 @@ type Amf struct {
 }
 
 type UE struct {
-	UeSecurity *UESecurity
-	StateMM    int
-	DNN        string
-	Snssai     models.Snssai
-	amfInfo    Amf
-	IMEISV     string
+	UeSecurity   *UESecurity
+	StateMM      int
+	DNN          string
+	PDUSessionID uint8
+	Snssai       models.Snssai
+	amfInfo      Amf
+	IMEISV       string
+	Gnb          engine.UplinkSender
 }
 
 type UEOpts struct {
+	PDUSessionID         uint8
 	Msin                 string
 	UeSecurityCapability *nasType.UESecurityCapability
 	K                    string
@@ -78,6 +87,7 @@ type UEOpts struct {
 	Sd                   string
 	IMEISV               string
 	Guti                 *nasType.GUTI5G
+	GnodeB               engine.UplinkSender
 }
 
 func NewUE(opts *UEOpts) (*UE, error) {
@@ -85,6 +95,8 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.UeSecurity = &UESecurity{}
 	ue.UeSecurity.Msin = opts.Msin
 	ue.UeSecurity.UeSecurityCapability = opts.UeSecurityCapability
+	ue.Gnb = opts.GnodeB
+	ue.PDUSessionID = opts.PDUSessionID
 
 	integAlg, cipherAlg, err := SelectAlgorithms(ue.UeSecurity.UeSecurityCapability)
 	if err != nil {
@@ -413,4 +425,213 @@ func (ue *UE) GetTMSI5G() [4]uint8 {
 
 func (ue *UE) GetSuci() nasType.MobileIdentity5GS {
 	return ue.UeSecurity.Suci
+}
+
+func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) error {
+	decodedMsg, err := ue.DecodeNAS(msg)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS message: %v", err)
+	}
+
+	msgType := decodedMsg.GmmMessage.GetMessageType()
+
+	switch msgType {
+	case nas.MsgTypeAuthenticationReject:
+		return handleAuthenticationReject(ue, decodedMsg)
+	case nas.MsgTypeAuthenticationRequest:
+		return handleAuthenticationRequest(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+	case nas.MsgTypeSecurityModeCommand:
+		return handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+	case nas.MsgTypeRegistrationAccept:
+		return handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+	default:
+		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
+	}
+}
+
+func handleAuthenticationReject(ue *UE, _ *nas.Message) error {
+	logger.UeLogger.Debug("Received Authentication Reject NAS message", zap.String("IMSI", ue.UeSecurity.Supi))
+	return nil
+}
+
+func handleRegistrationAccept(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
+	logger.UeLogger.Debug("Received Registration Accept NAS message", zap.String("IMSI", ue.UeSecurity.Supi))
+
+	ue.Set5gGuti(msg.RegistrationAccept.GUTI5G)
+
+	regComplete, err := BuildRegistrationComplete(&RegistrationCompleteOpts{
+		SORTransparentContainer: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
+	}
+
+	encodedPdu, err := ue.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg", ue.UeSecurity.Supi)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(encodedPdu, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Registration Complete NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	pduReq, err := BuildPduSessionEstablishmentRequest(&PduSessionEstablishmentRequestOpts{
+		PDUSessionID: ue.PDUSessionID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
+	}
+
+	pduUplink, err := BuildUplinkNasTransport(&UplinkNasTransportOpts{
+		PDUSessionID:     ue.PDUSessionID,
+		PayloadContainer: pduReq,
+		DNN:              ue.DNN,
+		SNSSAI:           ue.Snssai,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
+	}
+
+	encodedPdu, err = ue.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", ue.UeSecurity.Supi)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(encodedPdu, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent PDU Session Establishment Request",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func handleAuthenticationRequest(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
+	logger.UeLogger.Debug("Received Authentication Request NAS message")
+
+	rand := msg.GetRANDValue()
+	autn := msg.GetAUTN()
+
+	paramAutn, err := ue.DeriveRESstarAndSetKey(ue.UeSecurity.AuthenticationSubs, rand[:], ue.UeSecurity.Snn, autn[:])
+	if err != nil {
+		return fmt.Errorf("could not derive RES* and set key: %v", err)
+	}
+
+	authResp, err := BuildAuthenticationResponse(&AuthenticationResponseOpts{
+		AuthenticationResponseParam: paramAutn,
+		EapMsg:                      "",
+	})
+	if err != nil {
+		return fmt.Errorf("could not build authentication response: %v", err)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(authResp, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send Authentication Response: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Authentication Response NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func handleSecurityModeCommand(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
+	logger.UeLogger.Debug("Received Security Mode Command NAS message")
+
+	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())
+
+	var tsc models.ScType
+
+	switch msg.SecurityModeCommand.GetTSC() {
+	case nasMessage.TypeOfSecurityContextFlagNative:
+		tsc = models.ScType_NATIVE
+	case nasMessage.TypeOfSecurityContextFlagMapped:
+		tsc = models.ScType_MAPPED
+	}
+
+	ue.UeSecurity.NgKsi.Ksi = ksi
+	ue.UeSecurity.NgKsi.Tsc = tsc
+
+	logger.UeLogger.Debug(
+		"Updated UE security NG KSI",
+		zap.Int32("KSI", ksi),
+		zap.String("TSC", string(tsc)),
+	)
+
+	securityModeComplete, err := BuildSecurityModeComplete(&SecurityModeCompleteOpts{
+		UESecurity: ue.UeSecurity,
+		IMEISV:     ue.IMEISV,
+	})
+	if err != nil {
+		return fmt.Errorf("error sending Security Mode Complete: %w", err)
+	}
+
+	encodedPdu, err := ue.EncodeNasPduWithSecurity(securityModeComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(encodedPdu, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Security Mode Complete NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
+	nasPDU, err := BuildRegistrationRequest(&RegistrationRequestOpts{
+		RegistrationType:  regType,
+		RequestedNSSAI:    nil,
+		UplinkDataStatus:  nil,
+		IncludeCapability: false,
+		UESecurity:        ue.UeSecurity,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+	}
+
+	// err = ue.Gnb.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
+	// 	Mcc:                   opts.Mcc,
+	// 	Mnc:                   opts.Mnc,
+	// 	GnbID:                 opts.GNBID,
+	// 	Tac:                   opts.Tac,
+	// 	RanUENGAPID:           opts.RANUENGAPID,
+	// 	NasPDU:                nasPDU,
+	// 	Guti5g:                opts.UE.UeSecurity.Guti,
+	// 	RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
+	// }
+
+	err = ue.Gnb.SendInitialUEMessage(nasPDU, ranUENGAPID, ue.UeSecurity.Guti, ngapType.RRCEstablishmentCausePresentMoSignalling)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Security Mode Complete NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
 }

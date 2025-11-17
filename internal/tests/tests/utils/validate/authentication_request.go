@@ -14,74 +14,71 @@ type AuthenticationRequestOpts struct {
 	UE     *ue.UE
 }
 
-func AuthenticationRequest(opts *AuthenticationRequestOpts) ([16]uint8, [16]uint8, error) {
+func AuthenticationRequest(opts *AuthenticationRequestOpts) error {
 	if opts.NASPDU == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS PDU is nil")
+		return fmt.Errorf("NAS PDU is nil")
 	}
 
 	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
 	if err != nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("could not decode NAS PDU: %v", err)
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
 	}
 
 	if msg == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message is nil")
+		return fmt.Errorf("NAS message is nil")
 	}
 
 	if msg.GmmMessage == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message is not a GMM message")
+		return fmt.Errorf("NAS message is not a GMM message")
 	}
 
 	if msg.GmmMessage.GetMessageType() != nas.MsgTypeAuthenticationRequest {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS message type is not Authentication Request (%d), got (%d)", nas.MsgTypeAuthenticationRequest, msg.GmmMessage.GetMessageType())
+		return fmt.Errorf("NAS message type is not Authentication Request (%d), got (%d)", nas.MsgTypeAuthenticationRequest, msg.GmmMessage.GetMessageType())
 	}
 
 	if msg.AuthenticationRequest == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS Authentication Request message is nil")
+		return fmt.Errorf("NAS Authentication Request message is nil")
 	}
 
 	if msg.AuthenticationParameterRAND == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("NAS Authentication Request RAND is nil")
+		return fmt.Errorf("NAS Authentication Request RAND is nil")
 	}
 
 	if reflect.ValueOf(msg.AuthenticationRequest.ExtendedProtocolDiscriminator).IsZero() {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("extended protocol is missing")
+		return fmt.Errorf("extended protocol is missing")
 	}
 
 	if msg.AuthenticationRequest.GetExtendedProtocolDiscriminator() != 126 {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("extended protocol not the expected value")
+		return fmt.Errorf("extended protocol not the expected value")
 	}
 
 	if msg.AuthenticationRequest.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("spare half octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if msg.AuthenticationRequest.GetSecurityHeaderType() != 0 {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("security header type not the expected value")
+		return fmt.Errorf("security header type not the expected value")
 	}
 
 	if reflect.ValueOf(msg.AuthenticationRequest.AuthenticationRequestMessageIdentity).IsZero() {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("message type is missing")
+		return fmt.Errorf("message type is missing")
 	}
 
 	if msg.AuthenticationRequest.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("spare half octet not the expected value")
+		return fmt.Errorf("spare half octet not the expected value")
 	}
 
 	if msg.AuthenticationRequest.GetNasKeySetIdentifiler() == 7 {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ngKSI not the expected value")
+		return fmt.Errorf("ngKSI not the expected value")
 	}
 
 	if reflect.ValueOf(msg.AuthenticationRequest.ABBA).IsZero() {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ABBA is missing")
+		return fmt.Errorf("ABBA is missing")
 	}
 
 	if msg.AuthenticationRequest.GetABBAContents() == nil {
-		return [16]uint8{}, [16]uint8{}, fmt.Errorf("ABBA content is missing")
+		return fmt.Errorf("ABBA content is missing")
 	}
 
-	rand := msg.GetRANDValue()
-	autn := msg.GetAUTN()
-
-	return rand, autn, nil
+	return nil
 }

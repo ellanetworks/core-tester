@@ -1,13 +1,12 @@
-package handlers
+package gnb
 
 import (
-	"github.com/ellanetworks/core-tester/internal/gnb/status"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
 
-func handleNGSetupResponse(status *status.Status, nGSetupResponse *ngapType.NGSetupResponse) error {
+func handleNGSetupResponse(gnb *GnodeB, nGSetupResponse *ngapType.NGSetupResponse) error {
 	var (
 		amfName             *ngapType.AMFName
 		guamiList           *ngapType.ServedGUAMIList
@@ -36,7 +35,7 @@ func handleNGSetupResponse(status *status.Status, nGSetupResponse *ngapType.NGSe
 		zap.Int("PLMNSupportListCount", len(plmnSupportList.List)),
 	)
 
-	status.NGSetupComplete = true
+	gnb.NGSetupComplete = true
 
 	return nil
 }

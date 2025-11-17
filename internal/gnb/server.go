@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
+	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/gnb/handlers"
-	"github.com/ellanetworks/core-tester/internal/gnb/status"
+	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/free5gc/aper"
+	"github.com/free5gc/nas/nasType"
 	"github.com/ishidawataru/sctp"
 	"go.uber.org/zap"
 )
@@ -18,15 +21,19 @@ const (
 )
 
 type GnodeB struct {
-	GnbID          string
-	MCC            string
-	MNC            string
-	SST            int32
-	TAC            string
-	Name           string
-	Status         *status.Status
-	Conn           *sctp.SCTPConn
-	receivedFrames []SCTPFrame
+	GnbID           string
+	MCC             string
+	MNC             string
+	SST             int32
+	TAC             string
+	Name            string
+	NGSetupComplete bool
+	UEPool          sync.Map // map[int64]engine.DownlinkSender, UeRanNgapId as key
+	Conn            *sctp.SCTPConn
+	receivedFrames  []SCTPFrame
+	N3Address       netip.Addr
+	PDUSessionID    int64
+	DownlinkTEID    uint32
 }
 
 func (g *GnodeB) GetReceivedFrames() []SCTPFrame {
@@ -60,7 +67,7 @@ func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		if g.Status.NGSetupComplete {
+		if g.NGSetupComplete {
 			g.receivedFrames = nil
 			return nil
 		}
@@ -85,6 +92,8 @@ func Start(
 	Name string,
 	coreN2Address string,
 	gnbN2Address string,
+	gnbN3Address string,
+	downlinkTEID uint32,
 ) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
@@ -111,17 +120,23 @@ func Start(
 		return nil, fmt.Errorf("could not subscribe SCTP events: %w", err)
 	}
 
+	gnbN3IPAddress, err := netip.ParseAddr(gnbN3Address)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
+	}
+
 	gnodeB := &GnodeB{
-		GnbID: GnbID,
-		MCC:   MCC,
-		MNC:   MNC,
-		SST:   SST,
-		TAC:   TAC,
-		Name:  Name,
-		Conn:  conn,
-		Status: &status.Status{
-			NGSetupComplete: false,
-		},
+		GnbID:           GnbID,
+		MCC:             MCC,
+		MNC:             MNC,
+		SST:             SST,
+		TAC:             TAC,
+		Name:            Name,
+		Conn:            conn,
+		NGSetupComplete: false,
+		N3Address:       gnbN3IPAddress,
+		PDUSessionID:    1,
+		DownlinkTEID:    downlinkTEID,
 	}
 
 	gnodeB.listenAndServe(conn)
@@ -150,6 +165,10 @@ func Start(
 	)
 
 	return gnodeB, nil
+}
+
+func (g *GnodeB) AddUE(ranUENGAPID int64, ue engine.DownlinkSender) {
+	g.UEPool.Store(ranUENGAPID, ue)
 }
 
 func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
@@ -183,7 +202,7 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 			g.receivedFrames = append(g.receivedFrames, SCTPFrame{Data: cp, Info: info})
 
 			go func(data []byte) {
-				if err := handlers.HandleFrame(g.Status, data); err != nil {
+				if err := HandleFrame(g, data); err != nil {
 					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
 				}
 			}(cp)
@@ -198,4 +217,62 @@ func (g *GnodeB) Close() {
 			fmt.Println("could not close SCTP connection:", err)
 		}
 	}
+}
+
+func (g *GnodeB) SendUplinkNAS(nasPDU []byte, amfUENGAPID int64, ranUENGAPID int64) error {
+	err := g.SendUplinkNASTransport(&UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID,
+		RANUeNgapID: ranUENGAPID,
+		Mcc:         g.MCC,
+		Mnc:         g.MNC,
+		GnbID:       g.GnbID,
+		Tac:         g.TAC,
+		NasPDU:      nasPDU,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent Uplink NAS Transport",
+		zap.Int64("AMF UE NGAP ID", amfUENGAPID),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.String("GNB ID", g.GnbID),
+	)
+
+	return nil
+}
+
+func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *nasType.GUTI5G, cause aper.Enumerated) error {
+	opts := &InitialUEMessageOpts{
+		Mcc:                   g.MCC,
+		Mnc:                   g.MNC,
+		GnbID:                 g.GnbID,
+		Tac:                   g.TAC,
+		RanUENGAPID:           ranUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                guti5G,
+		RRCEstablishmentCause: cause,
+	}
+
+	pdu, err := BuildInitialUEMessage(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
+	}
+
+	err = g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
+	if err != nil {
+		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent Initial UE Message",
+		zap.String("GNB ID", g.GnbID),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.String("MCC", g.MCC),
+		zap.String("MNC", g.MNC),
+		zap.String("TAC", g.TAC),
+	)
+
+	return nil
 }

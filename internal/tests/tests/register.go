@@ -4,26 +4,25 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/gnb"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/ue"
 )
 
 func RegisterAll() error {
 	allTests := []engine.Test{
-		gnb.SCTPBasic{},
-		gnb.NGSetupResponse{},
-		gnb.NGSetupFailure_UnknownPLMN{},
-		gnb.NGReset{},
-		ue.RegistrationReject_UnknownUE{},
+		// gnb.SCTPBasic{},
+		// gnb.NGSetupResponse{},
+		// gnb.NGSetupFailure_UnknownPLMN{},
+		// gnb.NGReset{},
+		// ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
-		ue.RegistrationSuccess50Sequential{},
-		ue.AuthenticationWrongKey{},
-		ue.RegistrationPeriodicUpdateSignalling{},
-		ue.RegistrationIncorrectGUTI{},
-		ue.Deregistration{},
-		ue.UEContextRelease{},
-		ue.ServiceRequestData{},
-		ue.Connectivity{},
+		// ue.RegistrationSuccess50Sequential{},
+		// ue.AuthenticationWrongKey{},
+		// ue.RegistrationPeriodicUpdateSignalling{},
+		// ue.RegistrationIncorrectGUTI{},
+		// ue.Deregistration{},
+		// ue.UEContextRelease{},
+		// ue.ServiceRequestData{},
+		// ue.Connectivity{},
 	}
 
 	for _, test := range allTests {

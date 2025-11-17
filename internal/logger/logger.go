@@ -10,6 +10,7 @@ import (
 var (
 	Logger    *zap.Logger
 	GnbLogger *zap.Logger
+	UeLogger  *zap.Logger
 )
 
 func Init(logLevel zapcore.Level) {
@@ -26,9 +27,11 @@ func Init(logLevel zapcore.Level) {
 
 	Logger = zap.New(core)
 	GnbLogger = zap.New(core)
+	UeLogger = zap.New(core)
 	zap.ReplaceGlobals(Logger)
 
 	GnbLogger = GnbLogger.With(zap.String("Component", "GNB"))
+	UeLogger = UeLogger.With(zap.String("Component", "UE"))
 }
 
 func Sync() {

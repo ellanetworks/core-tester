@@ -58,14 +58,14 @@ func (g *GnodeB) SendNGReset(opts *NGResetOpts) error {
 	return g.SendMessage(pdu, NGAPProcedureNGReset)
 }
 
-func (g *GnodeB) SendInitialUEMessage(opts *InitialUEMessageOpts) error {
-	pdu, err := BuildInitialUEMessage(opts)
-	if err != nil {
-		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
-	}
+// func (g *GnodeB) SendInitialUEMessage(opts *InitialUEMessageOpts) error {
+// 	pdu, err := BuildInitialUEMessage(opts)
+// 	if err != nil {
+// 		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
+// 	}
 
-	return g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
-}
+// 	return g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
+// }
 
 func (g *GnodeB) SendUEContextReleaseRequest(opts *UEContextReleaseRequestOpts) error {
 	pdu, err := BuildUEContextReleaseRequest(opts)

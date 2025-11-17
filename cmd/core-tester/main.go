@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/ellanetworks/core-tester/internal/register"
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests"
 	"github.com/ellanetworks/core/client"
@@ -176,29 +175,29 @@ func Test(cmd *cobra.Command, args []string) {
 }
 
 func Register(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	registerConfig := register.RegisterConfig{
-		IMSI:              imsi,
-		Key:               key,
-		OPC:               opc,
-		SequenceNumber:    sqn,
-		PolicyName:        policyName,
-		MCC:               mcc,
-		MNC:               mnc,
-		SST:               sst,
-		SD:                sd,
-		TAC:               tac,
-		DNN:               dnn,
-		GnbN2Address:      gnbN2Address,
-		GnbN3Address:      gnbN3Address,
-		EllaCoreN2Address: ellaCoreN2Address,
-	}
+	// registerConfig := register.RegisterConfig{
+	// 	IMSI:              imsi,
+	// 	Key:               key,
+	// 	OPC:               opc,
+	// 	SequenceNumber:    sqn,
+	// 	PolicyName:        policyName,
+	// 	MCC:               mcc,
+	// 	MNC:               mnc,
+	// 	SST:               sst,
+	// 	SD:                sd,
+	// 	TAC:               tac,
+	// 	DNN:               dnn,
+	// 	GnbN2Address:      gnbN2Address,
+	// 	GnbN3Address:      gnbN3Address,
+	// 	EllaCoreN2Address: ellaCoreN2Address,
+	// }
 
-	err := register.Register(ctx, registerConfig)
-	if err != nil {
-		logger.Logger.Fatal("Could not register", zap.Error(err))
-	}
+	// err := register.Register(ctx, registerConfig)
+	// if err != nil {
+	// 	logger.Logger.Fatal("Could not register", zap.Error(err))
+	// }
 }
 
 func writeResultsToFile(filePath string, testResults []engine.TestResult) error {
