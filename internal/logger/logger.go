@@ -7,7 +7,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var Logger *zap.Logger
+var (
+	Logger    *zap.Logger
+	GnbLogger *zap.Logger
+)
 
 func Init(logLevel zapcore.Level) {
 	encCfg := zap.NewDevelopmentEncoderConfig()
@@ -22,7 +25,10 @@ func Init(logLevel zapcore.Level) {
 	)
 
 	Logger = zap.New(core)
+	GnbLogger = zap.New(core)
 	zap.ReplaceGlobals(Logger)
+
+	GnbLogger = GnbLogger.With(zap.String("Component", "GNB"))
 }
 
 func Sync() {

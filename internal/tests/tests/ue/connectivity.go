@@ -86,33 +86,26 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
+	gNodeB, err := gnb.Start(
+		GNBID,
+		env.Config.EllaCore.MCC,
+		env.Config.EllaCore.MNC,
+		env.Config.EllaCore.SST,
+		env.Config.EllaCore.TAC,
+		"Ella-Core-Tester",
+		env.Config.EllaCore.N2Address,
+		env.Config.Gnb.N2Address,
+	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    env.Config.EllaCore.MCC,
-		Mnc:    env.Config.EllaCore.MNC,
-		Sst:    env.Config.EllaCore.SST,
-		Tac:    env.Config.EllaCore.TAC,
-		GnodeB: gNodeB,
-	})
+	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("NGSetupProcedure failed: %v", err)
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
-
-	logger.Logger.Debug(
-		"Completed NG Setup Procedure",
-		zap.String("MCC", env.Config.EllaCore.MCC),
-		zap.String("MNC", env.Config.EllaCore.MNC),
-		zap.Int32("SST", env.Config.EllaCore.SST),
-		zap.String("TAC", env.Config.EllaCore.TAC),
-		zap.String("gNodeBID", GNBID),
-		zap.Int64("RANUENGAPID", RANUENGAPID),
-	)
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		Msin: env.Config.Subscriber.IMSI[5:],

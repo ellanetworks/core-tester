@@ -5,17 +5,19 @@ import (
 	"fmt"
 
 	"github.com/free5gc/aper"
+	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 )
 
 type NGSetupRequestOpts struct {
-	Name string
-	ID   int64
-	Mcc  string
-	Mnc  string
-	Tac  string
-	Sst  int32
-	Sd   string
+	Name  string
+	GnbID string
+	ID    int64
+	Mcc   string
+	Mnc   string
+	Tac   string
+	Sst   int32
+	Sd    string
 }
 
 func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
@@ -81,10 +83,7 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 
 	gNBID := globalGNBID.GNBID.GNBID
 
-	*gNBID = aper.BitString{
-		Bytes:     []byte{0x45, 0x46, 0x47},
-		BitLength: 24,
-	}
+	*gNBID = ngapConvert.HexToBitString(opts.GnbID, 24)
 
 	nGSetupRequestIEs.List = append(nGSetupRequestIEs.List, ie)
 

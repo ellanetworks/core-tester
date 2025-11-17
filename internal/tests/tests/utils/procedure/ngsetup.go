@@ -69,7 +69,5 @@ func NGSetup(ctx context.Context, opts *NGSetupOpts) error {
 		return fmt.Errorf("NGSetupResponse is nil")
 	}
 
-	logger.Logger.Debug("Received NGSetupResponse")
-
 	return nil
 }

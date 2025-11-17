@@ -6,6 +6,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/ellanetworks/core-tester/internal/gnb/handlers"
+	"github.com/ellanetworks/core-tester/internal/gnb/status"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ishidawataru/sctp"
 	"go.uber.org/zap"
@@ -16,6 +18,13 @@ const (
 )
 
 type GnodeB struct {
+	GnbID          string
+	MCC            string
+	MNC            string
+	SST            int32
+	TAC            string
+	Name           string
+	Status         *status.Status
 	Conn           *sctp.SCTPConn
 	receivedFrames []SCTPFrame
 }
@@ -45,12 +54,35 @@ func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
 	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
 }
 
+// WaitForNGSetupComplete waits until the NG Setup procedure is complete or the timeout is reached.
+// Flushes received frames upon successful completion.
+func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		if g.Status.NGSetupComplete {
+			g.receivedFrames = nil
+			return nil
+		}
+
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for NGSetupComplete")
+}
+
 type SCTPFrame struct {
 	Data []byte
 	Info *sctp.SndRcvInfo
 }
 
 func Start(
+	GnbID string,
+	MCC string,
+	MNC string,
+	SST int32,
+	TAC string,
+	Name string,
 	coreN2Address string,
 	gnbN2Address string,
 ) (*GnodeB, error) {
@@ -80,9 +112,42 @@ func Start(
 	}
 
 	gnodeB := &GnodeB{
-		Conn: conn,
+		GnbID: GnbID,
+		MCC:   MCC,
+		MNC:   MNC,
+		SST:   SST,
+		TAC:   TAC,
+		Name:  Name,
+		Conn:  conn,
+		Status: &status.Status{
+			NGSetupComplete: false,
+		},
 	}
+
 	gnodeB.listenAndServe(conn)
+
+	opts := &NGSetupRequestOpts{
+		GnbID: gnodeB.GnbID,
+		Mcc:   gnodeB.MCC,
+		Mnc:   gnodeB.MNC,
+		Sst:   gnodeB.SST,
+		Tac:   gnodeB.TAC,
+		Name:  gnodeB.Name,
+	}
+
+	err = gnodeB.SendNGSetupRequest(opts)
+	if err != nil {
+		return nil, fmt.Errorf("could not send NGSetupRequest: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent NGSetupRequest",
+		zap.String("MCC", opts.Mcc),
+		zap.String("MNC", opts.Mnc),
+		zap.Int32("SST", opts.Sst),
+		zap.String("TAC", opts.Tac),
+		zap.String("Name", opts.Name),
+	)
 
 	return gnodeB, nil
 }
@@ -118,7 +183,7 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 			g.receivedFrames = append(g.receivedFrames, SCTPFrame{Data: cp, Info: info})
 
 			go func(data []byte) {
-				if err := handleFrame(data); err != nil {
+				if err := handlers.HandleFrame(g.Status, data); err != nil {
 					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
 				}
 			}(cp)

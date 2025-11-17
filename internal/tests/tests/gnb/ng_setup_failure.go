@@ -13,7 +13,6 @@ import (
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
 type NGSetupFailure_UnknownPLMN struct{}
@@ -50,35 +49,23 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
+	gNodeB, err := gnb.Start(
+		fmt.Sprintf("%06x", 1),
+		"002", // Unknown MCC to trigger NGSetupFailure
+		env.Config.EllaCore.MNC,
+		env.Config.EllaCore.SST,
+		env.Config.EllaCore.TAC,
+		"Ella-Core-Tester",
+		env.Config.EllaCore.N2Address,
+		env.Config.Gnb.N2Address,
+	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
 	defer gNodeB.Close()
 
-	opts := &gnb.NGSetupRequestOpts{
-		Mcc:  "002", // Unknown MCC to trigger NGSetupFailure
-		Mnc:  env.Config.EllaCore.MNC,
-		Sst:  env.Config.EllaCore.SST,
-		Tac:  env.Config.EllaCore.TAC,
-		Name: "Ella-Core-Tester",
-	}
-
-	err = gNodeB.SendNGSetupRequest(opts)
-	if err != nil {
-		return fmt.Errorf("could not send NGSetupRequest: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent NGSetupRequest",
-		zap.String("MCC", "002"),
-		zap.String("MNC", opts.Mnc),
-		zap.Int32("SST", opts.Sst),
-		zap.String("TAC", opts.Tac),
-	)
-
-	nextFrame, err := gNodeB.WaitForNextFrame(10 * time.Millisecond)
+	nextFrame, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -110,10 +97,6 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
 	}
-
-	logger.Logger.Debug("Received NGSetupFailure",
-		zap.String("Cause", "Unknown PLMN"),
-	)
 
 	// Cleanup
 	err = ellaCoreEnv.Delete(ctx)

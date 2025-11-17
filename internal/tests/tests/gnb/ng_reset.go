@@ -10,7 +10,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
@@ -50,35 +49,47 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(env.Config.EllaCore.N2Address, env.Config.Gnb.N2Address)
+	gNodeB, err := gnb.Start(
+		fmt.Sprintf("%06x", 1),
+		env.Config.EllaCore.MCC,
+		env.Config.EllaCore.MNC,
+		env.Config.EllaCore.SST,
+		env.Config.EllaCore.TAC,
+		"Ella-Core-Tester",
+		env.Config.EllaCore.N2Address,
+		env.Config.Gnb.N2Address,
+	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
 	defer gNodeB.Close()
 
-	opts := &gnb.NGSetupRequestOpts{
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
-		Sst:  env.Config.EllaCore.SST,
-		Tac:  env.Config.EllaCore.TAC,
-		Name: "Ella-Core-Tester",
+	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
 
-	err = gNodeB.SendNGSetupRequest(opts)
+	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
+		Cause: &ngapType.Cause{
+			Present: ngapType.CausePresentMisc,
+			Misc: &ngapType.CauseMisc{
+				Value: ngapType.CauseMiscPresentUnspecified,
+			},
+		},
+		ResetAll: true,
+	})
 	if err != nil {
-		return fmt.Errorf("could not send NGSetupRequest: %v", err)
+		return fmt.Errorf("could not send NGReset: %v", err)
 	}
 
 	logger.Logger.Debug(
-		"Sent NGSetupRequest",
-		zap.String("MCC", opts.Mcc),
-		zap.String("MNC", opts.Mnc),
-		zap.Int32("SST", opts.Sst),
-		zap.String("TAC", opts.Tac),
+		"Sent NGReset",
+		zap.String("Cause", "unspecified"),
+		zap.Bool("ResetAll", true),
 	)
 
-	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
+	fr, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -97,79 +108,13 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("NGAP PDU is not a SuccessfulOutcome")
 	}
 
-	if pdu.SuccessfulOutcome.ProcedureCode.Value != ngapType.ProcedureCodeNGSetup {
-		return fmt.Errorf("NGAP ProcedureCode is not NGSetup (%d)", ngapType.ProcedureCodeNGSetup)
-	}
-
-	nGSetupResponse := pdu.SuccessfulOutcome.Value.NGSetupResponse
-	if nGSetupResponse == nil {
-		return fmt.Errorf("NGSetupResponse is nil")
-	}
-
-	err = validate.NGSetupResponse(nGSetupResponse, &validate.NGSetupResponseValidationOpts{
-		MCC: env.Config.EllaCore.MCC,
-		MNC: env.Config.EllaCore.MNC,
-		SST: env.Config.EllaCore.SST,
-		SD:  env.Config.EllaCore.SD,
-	})
-	if err != nil {
-		return fmt.Errorf("NGSetupResponse validation failed: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Received NGSetupResponse",
-		zap.String("MCC", env.Config.EllaCore.MCC),
-		zap.String("MNC", env.Config.EllaCore.MNC),
-		zap.Int32("SST", env.Config.EllaCore.SST),
-		zap.String("SD", env.Config.EllaCore.SD),
-	)
-
-	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
-		Cause: &ngapType.Cause{
-			Present: ngapType.CausePresentMisc,
-			Misc: &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnspecified,
-			},
-		},
-		ResetAll: true,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send NGReset: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent NGReset",
-	)
-
-	fr, err = gNodeB.WaitForNextFrame(200 * time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	err = utils.ValidateSCTP(fr.Info, 60, 0)
-	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
-
-	pdu, err = ngap.Decoder(fr.Data)
-	if err != nil {
-		return fmt.Errorf("could not decode NGAP: %v", err)
-	}
-
-	if pdu.SuccessfulOutcome == nil {
-		return fmt.Errorf("NGAP PDU is not a SuccessfulOutcome")
-	}
-
 	if pdu.SuccessfulOutcome.ProcedureCode.Value != ngapType.ProcedureCodeNGReset {
 		return fmt.Errorf("NGAP ProcedureCode is not NGReset (%d)", ngapType.ProcedureCodeNGReset)
 	}
 
-	nGResetAcknowledge := pdu.SuccessfulOutcome.Value.NGResetAcknowledge
-	if nGResetAcknowledge == nil {
+	if pdu.SuccessfulOutcome.Value.NGResetAcknowledge == nil {
 		return fmt.Errorf("NG Reset Acknowledge is nil")
 	}
-
-	logger.Logger.Debug("Received NGResetAcknowledge")
 
 	// Cleanup
 	err = ellaCoreEnv.Delete(ctx)

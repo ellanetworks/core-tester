@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -45,33 +46,34 @@ type RegisterConfig struct {
 }
 
 func Register(ctx context.Context, cfg RegisterConfig) error {
-	gNodeB, err := gnb.Start(cfg.EllaCoreN2Address, cfg.GnbN2Address)
+	// GNBID,
+	// 	env.Config.EllaCore.MCC,
+	// 	env.Config.EllaCore.MNC,
+	// 	env.Config.EllaCore.SST,
+	// 	env.Config.EllaCore.TAC,
+	// 	"Ella-Core-Tester",
+	// 	env.Config.EllaCore.N2Address,
+	// 	env.Config.Gnb.N2Address,
+	gNodeB, err := gnb.Start(
+		GNBID,
+		cfg.MCC,
+		cfg.MNC,
+		cfg.SST,
+		cfg.TAC,
+		"Ella-Core-Tester",
+		cfg.EllaCoreN2Address,
+		cfg.GnbN2Address,
+	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
 	defer gNodeB.Close()
 
-	err = procedure.NGSetup(ctx, &procedure.NGSetupOpts{
-		Mcc:    cfg.MCC,
-		Mnc:    cfg.MNC,
-		Sst:    cfg.SST,
-		Tac:    cfg.TAC,
-		GnodeB: gNodeB,
-	})
+	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("NGSetupProcedure failed: %v", err)
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
-
-	logger.Logger.Info(
-		"Completed NG Setup Procedure",
-		zap.String("MCC", cfg.MCC),
-		zap.String("MNC", cfg.MNC),
-		zap.Int32("SST", cfg.SST),
-		zap.String("TAC", cfg.TAC),
-		zap.String("gNodeBID", GNBID),
-		zap.Int64("RANUENGAPID", RANUENGAPID),
-	)
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		Msin: cfg.IMSI[5:],
