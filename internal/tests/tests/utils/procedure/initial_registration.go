@@ -14,13 +14,6 @@ import (
 )
 
 type InitialRegistrationOpts struct {
-	Mcc          string
-	Mnc          string
-	Sst          int32
-	Sd           string
-	Tac          string
-	DNN          string
-	GNBID        string
 	RANUENGAPID  int64
 	PDUSessionID uint8
 	UE           *ue.UE
@@ -102,10 +95,10 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	err = validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
 		NASPDU: req.NASPDU,
 		UE:     opts.UE,
-		Sst:    opts.Sst,
-		Sd:     opts.Sd,
-		Mcc:    opts.Mcc,
-		Mnc:    opts.Mnc,
+		Sst:    opts.GnodeB.SST,
+		Sd:     opts.GnodeB.SD,
+		Mcc:    opts.GnodeB.MCC,
+		Mnc:    opts.GnodeB.MNC,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("validation failed for registration accept: %v", err)
@@ -124,15 +117,15 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 	resp, err := validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
 		Frame:                fr,
 		ExpectedPDUSessionID: opts.PDUSessionID,
-		ExpectedSST:          opts.Sst,
-		ExpectedSD:           opts.Sd,
+		ExpectedSST:          opts.GnodeB.SST,
+		ExpectedSD:           opts.GnodeB.SD,
 		UEIns:                opts.UE,
 		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
 			PDUSessionID: opts.PDUSessionID,
 			UeIPSubnet:   network,
-			Dnn:          opts.DNN,
-			Sst:          opts.Sst,
-			Sd:           opts.Sd,
+			Dnn:          opts.GnodeB.DNN,
+			Sst:          opts.GnodeB.SST,
+			Sd:           opts.GnodeB.SD,
 			Qfi:          1,
 			FiveQI:       9,
 		},

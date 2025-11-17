@@ -88,6 +88,8 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
@@ -142,13 +144,6 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		Mcc:          env.Config.EllaCore.MCC,
-		Mnc:          env.Config.EllaCore.MNC,
-		Sst:          env.Config.EllaCore.SST,
-		Sd:           env.Config.EllaCore.SD,
-		Tac:          env.Config.EllaCore.TAC,
-		DNN:          env.Config.EllaCore.DNN,
-		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,

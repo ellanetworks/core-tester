@@ -84,6 +84,8 @@ func ngSetupTest(env engine.Env, index int) error {
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		fmt.Sprintf("Ella-Core-Tester-%d", index),
 		env.Config.EllaCore.N2Address,

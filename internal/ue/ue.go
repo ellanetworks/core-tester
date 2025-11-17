@@ -289,7 +289,7 @@ var (
 	ErrSQNFailure = errors.New("sequence number out of range")
 )
 
-func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription, RAND []byte, snNmae string, AUTN []byte) ([]byte, error) {
+func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription, RAND []byte, snName string, AUTN []byte) ([]byte, error) {
 	OPC, err := hex.DecodeString(authSubs.EncOpcKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode OPC: %v", err)
@@ -325,11 +325,11 @@ func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription,
 
 	key := append(CK, IK...)
 	FC := ueauth.FC_FOR_RES_STAR_XRES_STAR_DERIVATION
-	P0 := []byte(snNmae)
+	P0 := []byte(snName)
 	P1 := RAND
 	P2 := RES
 
-	err = ue.DerivateKamf(key, snNmae, sqnHn, AK)
+	err = ue.DerivateKamf(key, snName, sqnHn, AK)
 	if err != nil {
 		return nil, fmt.Errorf("error while deriving Kamf: %v", err)
 	}
@@ -444,6 +444,10 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
 	case nas.MsgTypeRegistrationAccept:
 		return handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+	case nas.MsgTypeRegistrationReject:
+		return handleRegistrationReject(ue, decodedMsg)
+	case nas.MsgTypeDeregistrationRequestUETerminatedDeregistration:
+		return handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
 	default:
 		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
 	}
@@ -516,6 +520,16 @@ func handleRegistrationAccept(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUE
 	return nil
 }
 
+func handleRegistrationReject(ue *UE, _ *nas.Message) error {
+	logger.UeLogger.Debug("Received Registration Reject NAS message", zap.String("IMSI", ue.UeSecurity.Supi))
+	return nil
+}
+
+func handleDeregistrationRequestUETerminated(ue *UE, _ *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
+	logger.UeLogger.Debug("Received Deregistration Request UE Terminated NAS message")
+	return nil
+}
+
 func handleAuthenticationRequest(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
 	logger.UeLogger.Debug("Received Authentication Request NAS message")
 
@@ -549,6 +563,10 @@ func handleAuthenticationRequest(ue *UE, msg *nas.Message, amfUENGAPID int64, ra
 }
 
 func handleSecurityModeCommand(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUENGAPID int64) error {
+	if ue.Gnb == nil {
+		return fmt.Errorf("GNB is not set for UE")
+	}
+
 	logger.UeLogger.Debug("Received Security Mode Command NAS message")
 
 	ksi := int32(msg.SecurityModeCommand.GetNasKeySetIdentifiler())
@@ -598,6 +616,10 @@ func handleSecurityModeCommand(ue *UE, msg *nas.Message, amfUENGAPID int64, ranU
 }
 
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
+	if ue.Gnb == nil {
+		return fmt.Errorf("GNB is not set for UE")
+	}
+
 	nasPDU, err := BuildRegistrationRequest(&RegistrationRequestOpts{
 		RegistrationType:  regType,
 		RequestedNSSAI:    nil,
@@ -609,20 +631,6 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	// err = ue.Gnb.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-	// 	Mcc:                   opts.Mcc,
-	// 	Mnc:                   opts.Mnc,
-	// 	GnbID:                 opts.GNBID,
-	// 	Tac:                   opts.Tac,
-	// 	RanUENGAPID:           opts.RANUENGAPID,
-	// 	NasPDU:                nasPDU,
-	// 	Guti5g:                opts.UE.UeSecurity.Guti,
-	// 	RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
-	// })
-	// if err != nil {
-	// 	return nil, fmt.Errorf("could not send InitialUEMessage: %v", err)
-	// }
-
 	err = ue.Gnb.SendInitialUEMessage(nasPDU, ranUENGAPID, ue.UeSecurity.Guti, ngapType.RRCEstablishmentCausePresentMoSignalling)
 	if err != nil {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
@@ -630,6 +638,33 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 
 	logger.UeLogger.Debug(
 		"Sent Security Mode Complete NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func (ue *UE) SendDeregistrationRequest(amfUENGAPID int64, ranUENGAPID int64) error {
+	deregBytes, err := BuildDeregistrationRequest(&DeregistrationRequestOpts{
+		Guti: ue.UeSecurity.Guti,
+		Ksi:  ue.UeSecurity.NgKsi.Ksi,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
+	}
+
+	encodedPdu, err := ue.EncodeNasPduWithSecurity(deregBytes, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Deregistration Msg", ue.UeSecurity.Supi)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(encodedPdu, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Deregistration Request NAS message",
 		zap.String("IMSI", ue.UeSecurity.Supi),
 	)
 

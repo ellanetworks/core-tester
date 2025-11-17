@@ -25,7 +25,9 @@ type GnodeB struct {
 	MCC             string
 	MNC             string
 	SST             int32
+	SD              string
 	TAC             string
+	DNN             string
 	Name            string
 	NGSetupComplete bool
 	UEPool          sync.Map // map[int64]engine.DownlinkSender, UeRanNgapId as key
@@ -88,6 +90,8 @@ func Start(
 	MCC string,
 	MNC string,
 	SST int32,
+	SD string,
+	DNN string,
 	TAC string,
 	Name string,
 	coreN2Address string,
@@ -130,6 +134,8 @@ func Start(
 		MCC:             MCC,
 		MNC:             MNC,
 		SST:             SST,
+		SD:              SD,
+		DNN:             DNN,
 		TAC:             TAC,
 		Name:            Name,
 		Conn:            conn,

@@ -34,7 +34,7 @@ func handleNGAPInitiatingMessage(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 	case ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest:
 		return handlePDUSessionResourceSetupRequest(gnb, pdu.InitiatingMessage.Value.PDUSessionResourceSetupRequest)
 	case ngapType.InitiatingMessagePresentUEContextReleaseCommand:
-		return handleUEContextReleaseCommand(pdu.InitiatingMessage.Value.UEContextReleaseCommand)
+		return handleUEContextReleaseCommand(gnb, pdu.InitiatingMessage.Value.UEContextReleaseCommand)
 	default:
 		return fmt.Errorf("NGAP InitiatingMessage Present is invalid: %d", pdu.InitiatingMessage.Value.Present)
 	}
