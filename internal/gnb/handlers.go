@@ -34,7 +34,7 @@ func HandleFrame(gnb *GnodeB, sctpFrame SCTPFrame) error {
 		return handleNGAPInitiatingMessage(gnb, pdu)
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
 		updateReceivedFramesMap(gnb, pdu.Present, pdu.SuccessfulOutcome.Value.Present, sctpFrame)
-		return handleNGAPSuccessfulOutcome(gnb, pdu)
+		return handleNGAPSuccessfulOutcome(pdu)
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		updateReceivedFramesMap(gnb, pdu.Present, pdu.UnsuccessfulOutcome.Value.Present, sctpFrame)
 		return handleNGAPUnsuccessfulOutcome(pdu)
@@ -58,7 +58,7 @@ func handleNGAPInitiatingMessage(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 	}
 }
 
-func handleNGAPSuccessfulOutcome(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
+func handleNGAPSuccessfulOutcome(pdu *ngapType.NGAPPDU) error {
 	switch pdu.SuccessfulOutcome.Value.Present {
 	case ngapType.SuccessfulOutcomePresentNGSetupResponse:
 		return handleNGSetupResponse(pdu.SuccessfulOutcome.Value.NGSetupResponse)
