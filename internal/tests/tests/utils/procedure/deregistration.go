@@ -46,19 +46,5 @@ func Deregistration(ctx context.Context, opts *DeregistrationOpts) error {
 		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
 
-	// err = opts.GnodeB.SendUEContextReleaseComplete(&gnb.UEContextReleaseCompleteOpts{
-	// 	AMFUENGAPID: opts.AMFUENGAPID,
-	// 	RANUENGAPID: opts.RANUENGAPID,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
-	// }
-
-	// logger.Logger.Debug(
-	// 	"Sent UE Context Release Complete",
-	// 	zap.String("IMSI", opts.UE.UeSecurity.Supi),
-	// 	zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-	// )
-
 	return nil
 }

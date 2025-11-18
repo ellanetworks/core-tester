@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const NumRadios = 1
+const NumRadios = 12
 
 type NGSetupResponse struct{}
 
