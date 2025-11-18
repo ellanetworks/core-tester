@@ -28,10 +28,6 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pDUSessionResourceSetupRe
 		zap.String("GNB ID", gnb.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
-		// zap.Uint8("PDU Session ID", opts.PDUSessionID),
-		// zap.String("UE IP", resp.PDUSessionResourceSetupListValue.UEIP.String()),
-		// zap.String("UPF Address", resp.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
-		// zap.Uint32("UL TEID", resp.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
 	)
 
 	err := gnb.SendPDUSessionResourceSetupResponse(&PDUSessionResourceSetupResponseOpts{
