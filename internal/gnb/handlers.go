@@ -61,7 +61,7 @@ func handleNGAPInitiatingMessage(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 func handleNGAPSuccessfulOutcome(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 	switch pdu.SuccessfulOutcome.Value.Present {
 	case ngapType.SuccessfulOutcomePresentNGSetupResponse:
-		return handleNGSetupResponse(gnb, pdu.SuccessfulOutcome.Value.NGSetupResponse)
+		return handleNGSetupResponse(pdu.SuccessfulOutcome.Value.NGSetupResponse)
 	case ngapType.SuccessfulOutcomePresentNGResetAcknowledge:
 		return handleNGResetAcknowledge(pdu.SuccessfulOutcome.Value.NGResetAcknowledge)
 	default:

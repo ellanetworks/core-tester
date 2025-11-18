@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func handleNGSetupResponse(gnb *GnodeB, nGSetupResponse *ngapType.NGSetupResponse) error {
+func handleNGSetupResponse(nGSetupResponse *ngapType.NGSetupResponse) error {
 	var (
 		amfName             *ngapType.AMFName
 		guamiList           *ngapType.ServedGUAMIList
