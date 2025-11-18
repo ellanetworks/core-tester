@@ -17,15 +17,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const NumRadios = 12
+const NumRadios = 24
 
 type NGSetupResponse struct{}
 
 func (NGSetupResponse) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/setup_response",
-		Summary: "NGSetup request/response test validating the NGSetupResponse message contents with 12 radios in parallel",
-		Timeout: 1 * time.Second,
+		Summary: "NGSetup request/response test validating the NGSetupResponse message contents with 24 radios in parallel",
+		Timeout: 2 * time.Second,
 	}
 }
 
@@ -100,7 +100,7 @@ func ngSetupTest(env engine.Env, index int) error {
 
 	defer gNodeB.Close()
 
-	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
+	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

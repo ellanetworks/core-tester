@@ -17,7 +17,10 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-const testStartIMSI = "001017271246546"
+const (
+	NumSubscribersSequential = 50
+	testStartIMSI            = "001017271246546"
+)
 
 type RegistrationSuccess50Sequential struct{}
 
@@ -40,11 +43,11 @@ func computeIMSI(baseIMSI string, increment int) (string, error) {
 	return fmt.Sprintf("%015d", newIMSI), nil
 }
 
-func buildSubscriberConfig() ([]core.SubscriberConfig, error) {
+func buildSubscriberConfig(numSubscribers int, startIMSI string) ([]core.SubscriberConfig, error) {
 	subs := []core.SubscriberConfig{}
 
-	for i := range 50 {
-		imsi, err := computeIMSI(testStartIMSI, i)
+	for i := range numSubscribers {
+		imsi, err := computeIMSI(startIMSI, i)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute IMSI: %v", err)
 		}
@@ -62,7 +65,7 @@ func buildSubscriberConfig() ([]core.SubscriberConfig, error) {
 }
 
 func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env) error {
-	subs, err := buildSubscriberConfig()
+	subs, err := buildSubscriberConfig(NumSubscribersSequential, testStartIMSI)
 	if err != nil {
 		return fmt.Errorf("could not build subscriber config: %v", err)
 	}
@@ -134,62 +137,10 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	for i, subscriber := range subs {
-		ranUENGAPID := RANUENGAPID + int64(i)
-
-		newUE, err := ue.NewUE(&ue.UEOpts{
-			GnodeB:       gNodeB,
-			PDUSessionID: PDUSessionID,
-			Msin:         subscriber.Imsi[5:],
-			K:            subscriber.Key,
-			OpC:          subscriber.OPc,
-			Amf:          "80000000000000000000000000000000",
-			Sqn:          env.Config.Subscriber.SequenceNumber,
-			Mcc:          env.Config.EllaCore.MCC,
-			Mnc:          env.Config.EllaCore.MNC,
-			HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-				ProtectionScheme: "0",
-				PublicKeyID:      "0",
-			},
-			RoutingIndicator: "0000",
-			DNN:              env.Config.EllaCore.DNN,
-			Sst:              env.Config.EllaCore.SST,
-			Sd:               env.Config.EllaCore.SD,
-			IMEISV:           "3569380356438091",
-			UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
-				Integrity: utils.IntegrityAlgorithms{
-					Nia2: true,
-				},
-				Ciphering: utils.CipheringAlgorithms{
-					Nea0: true,
-					Nea2: true,
-				},
-			}),
-		})
+	for i := range NumSubscribersSequential {
+		err := ueRegistrationTest(env, i, gNodeB, subs[i])
 		if err != nil {
-			return fmt.Errorf("could not create UE: %v", err)
-		}
-
-		gNodeB.AddUE(ranUENGAPID, newUE)
-
-		err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-			RANUENGAPID: ranUENGAPID,
-			UE:          newUE,
-			GnodeB:      gNodeB,
-		})
-		if err != nil {
-			return fmt.Errorf("initial registration procedure failed: %v", err)
-		}
-
-		// Cleanup
-		err = procedure.Deregistration(&procedure.DeregistrationOpts{
-			GnodeB:      gNodeB,
-			UE:          newUE,
-			AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
-			RANUENGAPID: ranUENGAPID,
-		})
-		if err != nil {
-			return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
 		}
 	}
 
@@ -199,6 +150,67 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func ueRegistrationTest(env engine.Env, index int, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
+	ranUENGAPID := RANUENGAPID + int64(index)
+
+	newUE, err := ue.NewUE(&ue.UEOpts{
+		GnodeB:       gNodeB,
+		PDUSessionID: PDUSessionID,
+		Msin:         subscriber.Imsi[5:],
+		K:            subscriber.Key,
+		OpC:          subscriber.OPc,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
+		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
+			ProtectionScheme: "0",
+			PublicKeyID:      "0",
+		},
+		RoutingIndicator: "0000",
+		DNN:              env.Config.EllaCore.DNN,
+		Sst:              env.Config.EllaCore.SST,
+		Sd:               env.Config.EllaCore.SD,
+		IMEISV:           "3569380356438091",
+		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
+			Integrity: utils.IntegrityAlgorithms{
+				Nia2: true,
+			},
+			Ciphering: utils.CipheringAlgorithms{
+				Nea0: true,
+				Nea2: true,
+			},
+		}),
+	})
+	if err != nil {
+		return fmt.Errorf("could not create UE: %v", err)
+	}
+
+	gNodeB.AddUE(ranUENGAPID, newUE)
+
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: ranUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
+	})
+	if err != nil {
+		return fmt.Errorf("initial registration procedure failed: %v", err)
+	}
+
+	// Cleanup
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		GnodeB:      gNodeB,
+		UE:          newUE,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
+		RANUENGAPID: ranUENGAPID,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
 
 	return nil
 }
