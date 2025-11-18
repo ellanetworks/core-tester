@@ -22,7 +22,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

@@ -107,7 +107,7 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -191,7 +191,7 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find downlink NAS transport message 1: %v", err)
 	}
@@ -216,9 +216,9 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not find downlink NAS transport message 2: %v", err)
+		return fmt.Errorf("could not find downlink NAS transport message: %v", err)
 	}
 
 	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
@@ -236,7 +236,7 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find initial context setup request message: %v", err)
 	}
@@ -260,7 +260,7 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
 	}
