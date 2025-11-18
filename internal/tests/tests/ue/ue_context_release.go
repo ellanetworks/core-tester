@@ -11,9 +11,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
@@ -173,15 +173,13 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
-		Frame: fr,
-		Cause: &ngapType.Cause{
-			Present: ngapType.CausePresentRadioNetwork,
-			RadioNetwork: &ngapType.CauseRadioNetwork{
-				Value: ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
-			},
+	err = validateUEContextReleaseCommand(fr, &ngapType.Cause{
+		Present: ngapType.CausePresentRadioNetwork,
+		RadioNetwork: &ngapType.CauseRadioNetwork{
+			Value: ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
 		},
-	})
+	},
+	)
 	if err != nil {
 		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
@@ -193,6 +191,70 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func validateUEContextReleaseCommand(fr gnb.SCTPFrame, ca *ngapType.Cause) error {
+	err := utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeUEContextRelease {
+		return fmt.Errorf("NGAP ProcedureCode is not UEContextRelease (%d), received %d", ngapType.ProcedureCodeUEContextRelease, pdu.InitiatingMessage.ProcedureCode.Value)
+	}
+
+	ueContextReleaseCommand := pdu.InitiatingMessage.Value.UEContextReleaseCommand
+	if ueContextReleaseCommand == nil {
+		return fmt.Errorf("UE Context Release Command is nil")
+	}
+
+	var (
+		ueNGAPIDs *ngapType.UENGAPIDs
+		cause     *ngapType.Cause
+	)
+
+	for _, ie := range ueContextReleaseCommand.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDUENGAPIDs:
+			ueNGAPIDs = ie.Value.UENGAPIDs
+		case ngapType.ProtocolIEIDCause:
+			cause = ie.Value.Cause
+		default:
+			return fmt.Errorf("UEContextReleaseCommand IE ID (%d) not supported", ie.Id.Value)
+		}
+	}
+
+	if cause.Present != ca.Present {
+		return fmt.Errorf("unexpected Cause Present: got %d, want %d", cause.Present, ca.Present)
+	}
+
+	switch cause.Present {
+	case ngapType.CausePresentRadioNetwork:
+		if cause.RadioNetwork.Value != ca.RadioNetwork.Value {
+			return fmt.Errorf("unexpected RadioNetwork Cause value: got %d, want %d", cause.RadioNetwork.Value, ca.RadioNetwork.Value)
+		}
+	case ngapType.CausePresentNas:
+		if cause.Nas.Value != ca.Nas.Value {
+			return fmt.Errorf("unexpected NAS Cause value: got %d, want %d", cause.Nas.Value, ca.Nas.Value)
+		}
+	default:
+		return fmt.Errorf("unexpected Cause Present type: %d", cause.Present)
+	}
+
+	if ueNGAPIDs == nil {
+		return fmt.Errorf("UENGAPIDs is nil")
+	}
 
 	return nil
 }

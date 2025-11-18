@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"reflect"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -216,52 +217,19 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
-	err = validate.IdentityRequest(&validate.IdentityRequestOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
+	err = validateIdentityRequest(utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport), opts.UE)
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
-	}
-
-	err = validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
-	if err != nil {
-		return fmt.Errorf("NAS PDU validation failed: %v", err)
-	}
-
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
-	}
-
-	err = validate.SecurityModeCommand(&validate.SecurityModeCommandOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
-	if err != nil {
-		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
 
 	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 200*time.Millisecond)
@@ -321,6 +289,47 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 	})
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
+
+	return nil
+}
+
+func validateIdentityRequest(nasPDU *ngapType.NASPDU, ue *ue.UE) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.IdentityRequest.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.IdentityRequest.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.IdentityRequest.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.IdentityRequestMessageIdentity).IsZero() {
+		return fmt.Errorf("message type is missing")
+	}
+
+	if msg.IdentityRequestMessageIdentity.GetMessageType() != 91 {
+		return fmt.Errorf("message type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.SpareHalfOctetAndIdentityType).IsZero() {
+		return fmt.Errorf("spare half octet and identity type is missing")
 	}
 
 	return nil

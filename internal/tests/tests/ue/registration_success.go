@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"reflect"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -15,6 +16,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -208,10 +210,10 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
 	}
 
-	err = validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
+	err = validateAuthenticationRequest(
+		utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		opts.UE,
+	)
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
@@ -228,10 +230,10 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
-	err = validate.SecurityModeCommand(&validate.SecurityModeCommandOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
+	err = validateSecurityModeCommand(
+		utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		opts.UE,
+	)
 	if err != nil {
 		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
@@ -288,6 +290,140 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 	})
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
+
+	return nil
+}
+
+func validateAuthenticationRequest(nasPDU *ngapType.NASPDU, ue *ue.UE) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeAuthenticationRequest {
+		return fmt.Errorf("NAS message type is not Authentication Request (%d), got (%d)", nas.MsgTypeAuthenticationRequest, msg.GmmMessage.GetMessageType())
+	}
+
+	if msg.AuthenticationRequest == nil {
+		return fmt.Errorf("NAS Authentication Request message is nil")
+	}
+
+	if msg.AuthenticationParameterRAND == nil {
+		return fmt.Errorf("NAS Authentication Request RAND is nil")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.AuthenticationRequest.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.AuthenticationRequest.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.AuthenticationRequest.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.AuthenticationRequestMessageIdentity).IsZero() {
+		return fmt.Errorf("message type is missing")
+	}
+
+	if msg.AuthenticationRequest.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.AuthenticationRequest.GetNasKeySetIdentifiler() == 7 {
+		return fmt.Errorf("ngKSI not the expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationRequest.ABBA).IsZero() {
+		return fmt.Errorf("ABBA is missing")
+	}
+
+	if msg.AuthenticationRequest.GetABBAContents() == nil {
+		return fmt.Errorf("ABBA content is missing")
+	}
+
+	return nil
+}
+
+func validateSecurityModeCommand(nasPDU *ngapType.NASPDU, ue *ue.UE) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeSecurityModeCommand {
+		return fmt.Errorf("NAS message type is not Security Mode Command (%d), got (%d)", nas.MsgTypeSecurityModeCommand, msg.GmmMessage.GetMessageType())
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.SecurityModeCommand.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.SecurityModeCommand.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header type not the expected value")
+	}
+
+	if msg.SecurityModeCommand.SpareHalfOctetAndSecurityHeaderType.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.SecurityModeCommandMessageIdentity).IsZero() {
+		return fmt.Errorf("message type is missing")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.SelectedNASSecurityAlgorithms).IsZero() {
+		return fmt.Errorf("nas security algorithms is missing")
+	}
+
+	if msg.SecurityModeCommand.SpareHalfOctetAndNgksi.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.SecurityModeCommand.GetNasKeySetIdentifiler() == 7 {
+		return fmt.Errorf("ngKSI not the expected value")
+	}
+
+	if reflect.ValueOf(msg.SecurityModeCommand.ReplayedUESecurityCapabilities).IsZero() {
+		return fmt.Errorf("replayed ue security capabilities is missing")
+	}
+
+	if msg.IMEISVRequest == nil {
+		return fmt.Errorf("imeisv request is missing")
 	}
 
 	return nil

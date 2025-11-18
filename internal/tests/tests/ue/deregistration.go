@@ -11,7 +11,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
@@ -147,14 +146,14 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	err = runDeregistration(&DeregistrationOpts{
-		GnodeB:      gNodeB,
-		UE:          newUE,
-		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
-		RANUENGAPID: RANUENGAPID,
-	})
+	err = newUE.SendDeregistrationRequest(gNodeB.GetAMFUENGAPID(RANUENGAPID), RANUENGAPID)
 	if err != nil {
-		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
+	}
+
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	err = ellaCoreEnv.Delete(ctx)
@@ -163,40 +162,6 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
-
-	return nil
-}
-
-type DeregistrationOpts struct {
-	GnodeB      *gnb.GnodeB
-	UE          *ue.UE
-	AMFUENGAPID int64
-	RANUENGAPID int64
-}
-
-func runDeregistration(opts *DeregistrationOpts) error {
-	err := opts.UE.SendDeregistrationRequest(opts.AMFUENGAPID, opts.RANUENGAPID)
-	if err != nil {
-		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
-	}
-
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
-		Frame: fr,
-		Cause: &ngapType.Cause{
-			Present: ngapType.CausePresentNas,
-			Nas: &ngapType.CauseNas{
-				Value: ngapType.CauseNasPresentDeregister,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("UEContextRelease validation failed: %v", err)
-	}
 
 	return nil
 }

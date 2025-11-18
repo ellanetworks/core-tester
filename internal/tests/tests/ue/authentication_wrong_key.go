@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -13,6 +14,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -137,11 +139,7 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	err = sendAuthenticationResponseWithWrongKey(&AuthenticationResponseWrongKeysOpts{
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
-		GnodeB:      gNodeB,
-	})
+	err = sendAuthenticationResponseWithWrongKey(RANUENGAPID, newUE, gNodeB)
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
@@ -157,22 +155,21 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 	return nil
 }
 
-type AuthenticationResponseWrongKeysOpts struct {
-	RANUENGAPID int64
-	UE          *ue.UE
-	GnodeB      *gnb.GnodeB
-}
-
-func sendAuthenticationResponseWithWrongKey(opts *AuthenticationResponseWrongKeysOpts) error {
-	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
+func sendAuthenticationResponseWithWrongKey(ranUENGAPID int64, ue *ue.UE, gNodeB *gnb.GnodeB) error {
+	err := ue.SendRegistrationRequest(ranUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
 	if err != nil {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
 	// The SNN will be used to derive wrong keys
-	opts.UE.UeSecurity.Snn = "an unreasonable serving network name"
+	ue.UeSecurity.Snn = "an unreasonable serving network name"
 
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -184,32 +181,54 @@ func sendAuthenticationResponseWithWrongKey(opts *AuthenticationResponseWrongKey
 		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
 	}
 
-	err = validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
-	if err != nil {
-		return fmt.Errorf("NAS PDU validation failed: %v", err)
-	}
-
-	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
-	}
-
-	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
-	}
-
-	err = validate.AuthenticationReject(&validate.AuthenticationRejectOpts{
-		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
-		UE:     opts.UE,
-	})
+	err = validateAuthenticationReject(utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport), ue)
 	if err != nil {
 		return fmt.Errorf("could not validate Authentication Reject: %v", err)
+	}
+
+	return nil
+}
+
+func validateAuthenticationReject(nasPDU *ngapType.NASPDU, ue *ue.UE) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeAuthenticationReject {
+		return fmt.Errorf("NAS message type is not Authentication Reject (%d), got (%d)", nas.MsgTypeAuthenticationReject, msg.GmmMessage.GetMessageType())
+	}
+
+	if reflect.ValueOf(msg.AuthenticationReject.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.AuthenticationReject.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.AuthenticationReject.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header type not the expected value")
+	}
+
+	if msg.AuthenticationReject.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if reflect.ValueOf(msg.AuthenticationReject.AuthenticationRejectMessageIdentity).IsZero() {
+		return fmt.Errorf("message type is missing")
 	}
 
 	return nil
