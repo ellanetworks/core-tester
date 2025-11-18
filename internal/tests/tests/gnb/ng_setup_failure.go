@@ -54,10 +54,14 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 		"002", // Unknown MCC to trigger NGSetupFailure
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		"1.2.3.4",
+		1,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -65,7 +69,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 
 	defer gNodeB.Close()
 
-	nextFrame, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
+	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentUnsuccessfulOutcome, ngapType.UnsuccessfulOutcomePresentNGSetupFailure, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

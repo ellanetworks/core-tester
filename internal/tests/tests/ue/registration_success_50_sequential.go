@@ -3,7 +3,6 @@ package ue
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 const testStartIMSI = "001017271246546"
@@ -114,10 +114,14 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -125,20 +129,24 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	for i, subscriber := range subs {
+		ranUENGAPID := RANUENGAPID + int64(i)
+
 		newUE, err := ue.NewUE(&ue.UEOpts{
-			Msin: subscriber.Imsi[5:],
-			K:    subscriber.Key,
-			OpC:  subscriber.OPc,
-			Amf:  "80000000000000000000000000000000",
-			Sqn:  env.Config.Subscriber.SequenceNumber,
-			Mcc:  env.Config.EllaCore.MCC,
-			Mnc:  env.Config.EllaCore.MNC,
+			GnodeB:       gNodeB,
+			PDUSessionID: PDUSessionID,
+			Msin:         subscriber.Imsi[5:],
+			K:            subscriber.Key,
+			OpC:          subscriber.OPc,
+			Amf:          "80000000000000000000000000000000",
+			Sqn:          env.Config.Subscriber.SequenceNumber,
+			Mcc:          env.Config.EllaCore.MCC,
+			Mnc:          env.Config.EllaCore.MNC,
 			HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 				ProtectionScheme: "0",
 				PublicKeyID:      "0",
@@ -162,25 +170,13 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 			return fmt.Errorf("could not create UE: %v", err)
 		}
 
-		gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
-		if err != nil {
-			return fmt.Errorf("could not parse gNB N3 address: %v", err)
-		}
+		gNodeB.AddUE(ranUENGAPID, newUE)
 
 		resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-			Mcc:          env.Config.EllaCore.MCC,
-			Mnc:          env.Config.EllaCore.MNC,
-			Sst:          env.Config.EllaCore.SST,
-			Sd:           env.Config.EllaCore.SD,
-			Tac:          env.Config.EllaCore.TAC,
-			DNN:          env.Config.EllaCore.DNN,
-			GNBID:        GNBID,
-			RANUENGAPID:  int64(i + 1),
+			RANUENGAPID:  ranUENGAPID,
 			PDUSessionID: PDUSessionID,
 			UE:           newUE,
-			N3GNBAddress: gnbN3Address,
 			GnodeB:       gNodeB,
-			DownlinkTEID: DownlinkTEID,
 		})
 		if err != nil {
 			return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -191,7 +187,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 			GnodeB:      gNodeB,
 			UE:          newUE,
 			AMFUENGAPID: resp.AMFUENGAPID,
-			RANUENGAPID: int64(i + 1),
+			RANUENGAPID: ranUENGAPID,
 			MCC:         env.Config.EllaCore.MCC,
 			MNC:         env.Config.EllaCore.MNC,
 			GNBID:       GNBID,

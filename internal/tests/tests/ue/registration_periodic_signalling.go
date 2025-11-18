@@ -3,7 +3,6 @@ package ue
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -15,10 +14,8 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
 type RegistrationPeriodicUpdateSignalling struct{}
@@ -87,10 +84,14 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -98,19 +99,21 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Msin: env.Config.Subscriber.IMSI[5:],
-		K:    env.Config.Subscriber.Key,
-		OpC:  env.Config.Subscriber.OPC,
-		Amf:  "80000000000000000000000000000000",
-		Sqn:  env.Config.Subscriber.SequenceNumber,
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
+		GnodeB:       gNodeB,
+		PDUSessionID: PDUSessionID,
+		Msin:         env.Config.Subscriber.IMSI[5:],
+		K:            env.Config.Subscriber.Key,
+		OpC:          env.Config.Subscriber.OPC,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
@@ -134,25 +137,13 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
-	if err != nil {
-		return fmt.Errorf("could not parse gNB N3 address: %v", err)
-	}
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		Mcc:          env.Config.EllaCore.MCC,
-		Mnc:          env.Config.EllaCore.MNC,
-		Sst:          env.Config.EllaCore.SST,
-		Sd:           env.Config.EllaCore.SD,
-		Tac:          env.Config.EllaCore.TAC,
-		DNN:          env.Config.EllaCore.DNN,
-		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
-		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
-		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
@@ -171,45 +162,12 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
-	nasPDU, err := ue.BuildRegistrationRequest(&ue.RegistrationRequestOpts{
-		RegistrationType:  nasMessage.RegistrationType5GSPeriodicRegistrationUpdating,
-		RequestedNSSAI:    nil,
-		UplinkDataStatus:  nil,
-		IncludeCapability: false,
-		UESecurity:        newUE.UeSecurity,
-		PDUSessionStatus:  &pduSessionStatus,
-	})
+	err = newUE.SendRegistrationRequest(RANUENGAPID, nasMessage.RegistrationType5GSPeriodicRegistrationUpdating)
 	if err != nil {
-		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+		return fmt.Errorf("could not send Registration Request for periodic update: %v", err)
 	}
 
-	encodedPdu, err := newUE.EncodeNasPduWithSecurity(nasPDU, nas.SecurityHeaderTypeIntegrityProtected)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", newUE.UeSecurity.Supi, err)
-	}
-
-	err = gNodeB.SendInitialUEMessage(&gnb.InitialUEMessageOpts{
-		Mcc:                   env.Config.EllaCore.MCC,
-		Mnc:                   env.Config.EllaCore.MNC,
-		GnbID:                 GNBID,
-		Tac:                   env.Config.EllaCore.TAC,
-		RanUENGAPID:           RANUENGAPID,
-		NasPDU:                encodedPdu,
-		Guti5g:                newUE.UeSecurity.Guti,
-		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Initial UE Message for Registration Request",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Any("GUTI", newUE.UeSecurity.Guti),
-	)
-
-	fr, err := gNodeB.WaitForNextFrame(500 * time.Millisecond)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -225,65 +183,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	if err != nil {
 		return fmt.Errorf("initial context setup request validation failed: %v", err)
 	}
-
-	logger.Logger.Debug(
-		"Received Initial Context Setup Request for Registration Periodic Update",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
-
-	err = gNodeB.SendInitialContextSetupResponse(&gnb.InitialContextSetupResponseOpts{
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-		N3GnbIp:     gnbN3Address,
-		PDUSessions: [16]*gnb.GnbPDUSession{
-			{
-				PDUSessionId: 1,
-				DownlinkTeid: DownlinkTEID,
-				QFI:          1,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Initial Context Setup Response for Registration Periodic Update",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
-
-	regComplete, err := ue.BuildRegistrationComplete(&ue.RegistrationCompleteOpts{
-		SORTransparentContainer: nil,
-	})
-	if err != nil {
-		return fmt.Errorf("could not build Registration Complete NAS PDU: %v", err)
-	}
-
-	encodedPdu, err = newUE.EncodeNasPduWithSecurity(regComplete, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE NAS Registration Complete Msg: %v", newUE.UeSecurity.Supi, err)
-	}
-
-	err = gNodeB.SendUplinkNASTransport(&gnb.UplinkNasTransportOpts{
-		AMFUeNgapID: resp.AMFUENGAPID,
-		RANUeNgapID: RANUENGAPID,
-		Mcc:         env.Config.EllaCore.MCC,
-		Mnc:         env.Config.EllaCore.MNC,
-		GnbID:       GNBID,
-		Tac:         env.Config.EllaCore.TAC,
-		NasPDU:      encodedPdu,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Uplink NAS Transport for Registration Complete",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
 
 	// Cleanup
 	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{

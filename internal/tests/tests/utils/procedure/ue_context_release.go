@@ -37,7 +37,7 @@ func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 		zap.String("Cause", "ReleaseDueToNgranGeneratedReason"),
 	)
 
-	fr, err := opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -54,28 +54,6 @@ func UEContextRelease(ctx context.Context, opts *UEContextReleaseOpts) error {
 	if err != nil {
 		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
-
-	logger.Logger.Debug(
-		"Received UE Context Release Command",
-		zap.Int64("AMF UE NGAP ID", opts.AMFUENGAPID),
-		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-		zap.String("Cause", "ReleaseDueToNgranGeneratedReason"),
-	)
-
-	err = opts.GnodeB.SendUEContextReleaseComplete(&gnb.UEContextReleaseCompleteOpts{
-		AMFUENGAPID: opts.AMFUENGAPID,
-		RANUENGAPID: opts.RANUENGAPID,
-		// PDUSessionIDs: opts.PDUSessionIDs,
-	})
-	if err != nil {
-		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent UE Context Release Complete",
-		zap.Int64("AMF UE NGAP ID", opts.AMFUENGAPID),
-		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-	)
 
 	return nil
 }

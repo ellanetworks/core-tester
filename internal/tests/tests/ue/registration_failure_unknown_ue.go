@@ -85,10 +85,14 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -96,7 +100,7 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
@@ -112,13 +116,14 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	newUEOpts := &ue.UEOpts{
-		Msin: "1234567890", // Unknown MSIN
-		K:    env.Config.Subscriber.Key,
-		OpC:  env.Config.Subscriber.OPC,
-		Amf:  "80000000000000000000000000000000",
-		Sqn:  env.Config.Subscriber.SequenceNumber,
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
+		GnodeB: gNodeB,
+		Msin:   "1234567890", // Unknown MSIN
+		K:      env.Config.Subscriber.Key,
+		OpC:    env.Config.Subscriber.OPC,
+		Amf:    "80000000000000000000000000000000",
+		Sqn:    env.Config.Subscriber.SequenceNumber,
+		Mcc:    env.Config.EllaCore.MCC,
+		Mnc:    env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
@@ -135,44 +140,16 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	regReqOpts := &ue.RegistrationRequestOpts{
-		RegistrationType:  nasMessage.RegistrationType5GSInitialRegistration,
-		RequestedNSSAI:    nil,
-		UplinkDataStatus:  nil,
-		IncludeCapability: false,
-		UESecurity:        newUE.UeSecurity,
-	}
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	nasPDU, err := ue.BuildRegistrationRequest(regReqOpts)
+	err = newUE.SendRegistrationRequest(RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
 	if err != nil {
-		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+		return fmt.Errorf("could not send Registration Request: %v", err)
 	}
 
-	initialUEMsgOpts := &gnb.InitialUEMessageOpts{
-		Mcc:                   env.Config.EllaCore.MCC,
-		Mnc:                   env.Config.EllaCore.MNC,
-		GnbID:                 GNBID,
-		Tac:                   env.Config.EllaCore.TAC,
-		RanUENGAPID:           RANUENGAPID,
-		NasPDU:                nasPDU,
-		Guti5g:                newUE.UeSecurity.Guti,
-		RRCEstablishmentCause: ngapType.RRCEstablishmentCausePresentMoSignalling,
-	}
-
-	err = gNodeB.SendInitialUEMessage(initialUEMsgOpts)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not send InitialUEMessage: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Sent Initial UE Message for Registration Request",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-	)
-
-	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
 
 	err = utils.ValidateSCTP(fr.Info, 60, 1)
@@ -214,9 +191,8 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	logger.Logger.Debug(
-		"Received DownlinkNASTransport with Registration Reject",
+		"Received Registration Reject",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 		zap.String("Cause", "UE Identity Cannot Be Derived By The Network"),
 	)
 

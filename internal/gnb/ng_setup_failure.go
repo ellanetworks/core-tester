@@ -1,4 +1,4 @@
-package handlers
+package gnb
 
 import (
 	"github.com/ellanetworks/core-tester/internal/logger"
@@ -16,7 +16,7 @@ func handleNGSetupFailure(nGSetupFailure *ngapType.NGSetupFailure) error {
 		}
 	}
 
-	logger.Logger.Debug("Received NGSetupFailure",
+	logger.GnbLogger.Debug("Received NGSetupFailure",
 		zap.String("Cause", causeToString(*cause)),
 	)
 

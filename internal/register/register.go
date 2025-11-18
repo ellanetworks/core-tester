@@ -3,7 +3,6 @@ package register
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -13,6 +12,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
 
@@ -46,23 +46,19 @@ type RegisterConfig struct {
 }
 
 func Register(ctx context.Context, cfg RegisterConfig) error {
-	// GNBID,
-	// 	env.Config.EllaCore.MCC,
-	// 	env.Config.EllaCore.MNC,
-	// 	env.Config.EllaCore.SST,
-	// 	env.Config.EllaCore.TAC,
-	// 	"Ella-Core-Tester",
-	// 	env.Config.EllaCore.N2Address,
-	// 	env.Config.Gnb.N2Address,
 	gNodeB, err := gnb.Start(
 		GNBID,
 		cfg.MCC,
 		cfg.MNC,
 		cfg.SST,
+		cfg.SD,
+		cfg.DNN,
 		cfg.TAC,
 		"Ella-Core-Tester",
 		cfg.EllaCoreN2Address,
 		cfg.GnbN2Address,
+		cfg.GnbN3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -70,9 +66,9 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
@@ -106,25 +102,11 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gnbN3Address, err := netip.ParseAddr(cfg.GnbN3Address)
-	if err != nil {
-		logger.Logger.Fatal("could not parse gNB N3 address", zap.Error(err))
-	}
-
 	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		Mcc:          cfg.MCC,
-		Mnc:          cfg.MNC,
-		Sst:          cfg.SST,
-		Sd:           cfg.SD,
-		Tac:          cfg.TAC,
-		DNN:          cfg.DNN,
-		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
-		N3GNBAddress: gnbN3Address,
 		GnodeB:       gNodeB,
-		DownlinkTEID: DownlinkTEID,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

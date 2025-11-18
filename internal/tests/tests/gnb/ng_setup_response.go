@@ -84,10 +84,14 @@ func ngSetupTest(env engine.Env, index int) error {
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		fmt.Sprintf("Ella-Core-Tester-%d", index),
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		"1.2.3.4",
+		1,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -95,7 +99,7 @@ func ngSetupTest(env engine.Env, index int) error {
 
 	defer gNodeB.Close()
 
-	nextFrame, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
+	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

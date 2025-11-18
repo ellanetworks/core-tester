@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
+	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/gnb/handlers"
-	"github.com/ellanetworks/core-tester/internal/gnb/status"
+	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/free5gc/aper"
+	"github.com/free5gc/nas/nasType"
 	"github.com/ishidawataru/sctp"
 	"go.uber.org/zap"
 )
@@ -22,53 +25,57 @@ type GnodeB struct {
 	MCC            string
 	MNC            string
 	SST            int32
+	SD             string
 	TAC            string
+	DNN            string
 	Name           string
-	Status         *status.Status
+	UEPool         map[int64]engine.DownlinkSender // UeRanNgapId as key
 	Conn           *sctp.SCTPConn
-	receivedFrames []SCTPFrame
+	receivedFrames map[int]map[int][]SCTPFrame
+	mu             sync.Mutex
+	N3Address      netip.Addr
+	PDUSessionID   int64
+	DownlinkTEID   uint32
 }
 
-func (g *GnodeB) GetReceivedFrames() []SCTPFrame {
-	return g.receivedFrames
-}
-
-func (g *GnodeB) FlushReceivedFrames() {
-	g.receivedFrames = nil
-}
-
-func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
+func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration) (SCTPFrame, error) {
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		if len(g.receivedFrames) > 0 {
-			frame := g.receivedFrames[0]
-			g.receivedFrames = g.receivedFrames[1:]
+		g.mu.Lock()
 
-			return frame, nil
+		msgTypeMap, ok := g.receivedFrames[pduType]
+		if !ok {
+			g.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
 		}
 
-		time.Sleep(1 * time.Millisecond)
-	}
+		frames, ok := msgTypeMap[msgType]
+		if !ok {
+			g.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
 
-	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
-}
-
-// WaitForNGSetupComplete waits until the NG Setup procedure is complete or the timeout is reached.
-// Flushes received frames upon successful completion.
-func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		if g.Status.NGSetupComplete {
-			g.receivedFrames = nil
-			return nil
+			continue
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		frame := frames[0]
+
+		if len(frames) == 1 {
+			delete(msgTypeMap, msgType)
+		} else {
+			msgTypeMap[msgType] = frames[1:]
+		}
+
+		g.receivedFrames[pduType] = msgTypeMap
+
+		g.mu.Unlock()
+
+		return frame, nil
 	}
 
-	return fmt.Errorf("timeout waiting for NGSetupComplete")
+	return SCTPFrame{}, fmt.Errorf("timeout waiting for NGAP message %v", getMessageName(pduType, msgType))
 }
 
 type SCTPFrame struct {
@@ -81,10 +88,14 @@ func Start(
 	MCC string,
 	MNC string,
 	SST int32,
+	SD string,
+	DNN string,
 	TAC string,
 	Name string,
 	coreN2Address string,
 	gnbN2Address string,
+	gnbN3Address string,
+	downlinkTEID uint32,
 ) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
@@ -111,17 +122,24 @@ func Start(
 		return nil, fmt.Errorf("could not subscribe SCTP events: %w", err)
 	}
 
+	gnbN3IPAddress, err := netip.ParseAddr(gnbN3Address)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
+	}
+
 	gnodeB := &GnodeB{
-		GnbID: GnbID,
-		MCC:   MCC,
-		MNC:   MNC,
-		SST:   SST,
-		TAC:   TAC,
-		Name:  Name,
-		Conn:  conn,
-		Status: &status.Status{
-			NGSetupComplete: false,
-		},
+		GnbID:        GnbID,
+		MCC:          MCC,
+		MNC:          MNC,
+		SST:          SST,
+		SD:           SD,
+		DNN:          DNN,
+		TAC:          TAC,
+		Name:         Name,
+		Conn:         conn,
+		N3Address:    gnbN3IPAddress,
+		PDUSessionID: 1,
+		DownlinkTEID: downlinkTEID,
 	}
 
 	gnodeB.listenAndServe(conn)
@@ -140,7 +158,7 @@ func Start(
 		return nil, fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent NGSetupRequest",
 		zap.String("MCC", opts.Mcc),
 		zap.String("MNC", opts.Mnc),
@@ -152,9 +170,20 @@ func Start(
 	return gnodeB, nil
 }
 
+func (g *GnodeB) AddUE(ranUENGAPID int64, ue engine.DownlinkSender) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.UEPool == nil {
+		g.UEPool = make(map[int64]engine.DownlinkSender)
+	}
+
+	g.UEPool[ranUENGAPID] = ue
+}
+
 func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 	if conn == nil {
-		logger.Logger.Error("SCTP connection is nil")
+		logger.GnbLogger.Error("SCTP connection is nil")
 		return
 	}
 
@@ -165,28 +194,31 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 			n, info, err := conn.SCTPRead(buf)
 			if err != nil {
 				if err == io.EOF {
-					logger.Logger.Debug("SCTP connection closed (EOF)")
+					logger.GnbLogger.Debug("SCTP connection closed (EOF)")
 				} else {
-					logger.Logger.Error("could not read SCTP frame", zap.Error(err))
+					logger.GnbLogger.Error("could not read SCTP frame", zap.Error(err))
 				}
 
 				return
 			}
 
 			if n == 0 {
-				logger.Logger.Info("SCTP read returned 0 bytes (connection closed?)")
+				logger.GnbLogger.Info("SCTP read returned 0 bytes (connection closed?)")
 				return
 			}
 
 			cp := append([]byte(nil), buf[:n]...) // copy to isolate from buffer reuse
 
-			g.receivedFrames = append(g.receivedFrames, SCTPFrame{Data: cp, Info: info})
+			sctpFrame := SCTPFrame{
+				Data: cp,
+				Info: info,
+			}
 
-			go func(data []byte) {
-				if err := handlers.HandleFrame(g.Status, data); err != nil {
-					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
+			go func(sctpFrame SCTPFrame) {
+				if err := HandleFrame(g, sctpFrame); err != nil {
+					logger.GnbLogger.Error("could not handle SCTP frame", zap.Error(err))
 				}
-			}(cp)
+			}(sctpFrame)
 		}
 	}()
 }
@@ -198,4 +230,62 @@ func (g *GnodeB) Close() {
 			fmt.Println("could not close SCTP connection:", err)
 		}
 	}
+}
+
+func (g *GnodeB) SendUplinkNAS(nasPDU []byte, amfUENGAPID int64, ranUENGAPID int64) error {
+	err := g.SendUplinkNASTransport(&UplinkNasTransportOpts{
+		AMFUeNgapID: amfUENGAPID,
+		RANUeNgapID: ranUENGAPID,
+		Mcc:         g.MCC,
+		Mnc:         g.MNC,
+		GnbID:       g.GnbID,
+		Tac:         g.TAC,
+		NasPDU:      nasPDU,
+	})
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.GnbLogger.Debug(
+		"Sent Uplink NAS Transport",
+		zap.Int64("AMF UE NGAP ID", amfUENGAPID),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.String("GNB ID", g.GnbID),
+	)
+
+	return nil
+}
+
+func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *nasType.GUTI5G, cause aper.Enumerated) error {
+	opts := &InitialUEMessageOpts{
+		Mcc:                   g.MCC,
+		Mnc:                   g.MNC,
+		GnbID:                 g.GnbID,
+		Tac:                   g.TAC,
+		RanUENGAPID:           ranUENGAPID,
+		NasPDU:                nasPDU,
+		Guti5g:                guti5G,
+		RRCEstablishmentCause: cause,
+	}
+
+	pdu, err := BuildInitialUEMessage(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
+	}
+
+	err = g.SendMessage(pdu, NGAPProcedureInitialUEMessage)
+	if err != nil {
+		return fmt.Errorf("could not send InitialUEMessage: %v", err)
+	}
+
+	logger.GnbLogger.Debug(
+		"Sent Initial UE Message",
+		zap.String("GNB ID", g.GnbID),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.String("MCC", g.MCC),
+		zap.String("MNC", g.MNC),
+		zap.String("TAC", g.TAC),
+	)
+
+	return nil
 }

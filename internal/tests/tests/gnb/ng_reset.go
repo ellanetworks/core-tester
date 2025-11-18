@@ -54,10 +54,14 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		"1.2.3.4",
+		1,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -65,9 +69,9 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("timeout waiting for NG Setup Response: %v", err)
 	}
 
 	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
@@ -89,7 +93,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		zap.Bool("ResetAll", true),
 	)
 
-	fr, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGResetAcknowledge, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

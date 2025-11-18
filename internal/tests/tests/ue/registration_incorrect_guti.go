@@ -3,7 +3,6 @@ package ue
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -16,6 +15,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type RegistrationIncorrectGUTI struct{}
@@ -84,10 +84,14 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
+		env.Config.EllaCore.SD,
+		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3Address,
+		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -95,9 +99,9 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	// Create a random GUTI
@@ -111,14 +115,16 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	guti.SetIei(nasMessage.RegistrationAcceptGUTI5GType)
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Guti: guti,
-		Msin: env.Config.Subscriber.IMSI[5:],
-		K:    env.Config.Subscriber.Key,
-		OpC:  env.Config.Subscriber.OPC,
-		Amf:  "80000000000000000000000000000000",
-		Sqn:  env.Config.Subscriber.SequenceNumber,
-		Mcc:  env.Config.EllaCore.MCC,
-		Mnc:  env.Config.EllaCore.MNC,
+		GnodeB:       gNodeB,
+		PDUSessionID: PDUSessionID,
+		Guti:         guti,
+		Msin:         env.Config.Subscriber.IMSI[5:],
+		K:            env.Config.Subscriber.Key,
+		OpC:          env.Config.Subscriber.OPC,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: "0",
 			PublicKeyID:      "0",
@@ -142,25 +148,18 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gnbN3Address, err := netip.ParseAddr(env.Config.Gnb.N3Address)
-	if err != nil {
-		return fmt.Errorf("could not parse gNB N3 address: %v", err)
-	}
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	resp, err := procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		Sst:          env.Config.EllaCore.SST,
 		Sd:           env.Config.EllaCore.SD,
-		Tac:          env.Config.EllaCore.TAC,
 		DNN:          env.Config.EllaCore.DNN,
-		GNBID:        GNBID,
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
 		GnodeB:       gNodeB,
-		DownlinkTEID: DownlinkTEID,
-		N3GnbAddress: gnbN3Address,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
