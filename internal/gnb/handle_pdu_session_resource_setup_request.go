@@ -69,13 +69,15 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		gnb.StorePDUSession(ranueNGAPID.Value, pduSessionInfo)
 	}
 
+	pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
+
 	err = gnb.SendPDUSessionResourceSetupResponse(&PDUSessionResourceSetupResponseOpts{
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
 		N3GnbIp:     gnb.N3Address,
 		PDUSessions: [16]*GnbPDUSession{
 			{
-				PDUSessionId: gnb.PDUSessionID,
+				PDUSessionId: pduSession.PDUSessionID,
 				DownlinkTeid: gnb.DownlinkTEID,
 				QFI:          1,
 			},
@@ -90,7 +92,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		zap.String("GNB ID", gnb.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
-		zap.Int64("PDU Session ID", gnb.PDUSessionID),
+		zap.Int64("PDU Session ID", pduSession.PDUSessionID),
 		zap.Uint32("Downlink TEID", gnb.DownlinkTEID),
 	)
 

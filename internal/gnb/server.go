@@ -35,7 +35,6 @@ type GnodeB struct {
 	receivedFrames map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
 	mu             sync.Mutex
 	N3Address      netip.Addr
-	PDUSessionID   int64
 	PDUSessions    map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
 	DownlinkTEID   uint32
 }
@@ -178,17 +177,17 @@ func Start(
 	}
 
 	gnodeB := &GnodeB{
-		GnbID:        GnbID,
-		MCC:          MCC,
-		MNC:          MNC,
-		SST:          SST,
-		SD:           SD,
-		DNN:          DNN,
-		TAC:          TAC,
-		Name:         Name,
-		Conn:         conn,
-		N3Address:    gnbN3IPAddress,
-		PDUSessionID: 1,
+		GnbID:     GnbID,
+		MCC:       MCC,
+		MNC:       MNC,
+		SST:       SST,
+		SD:        SD,
+		DNN:       DNN,
+		TAC:       TAC,
+		Name:      Name,
+		Conn:      conn,
+		N3Address: gnbN3IPAddress,
+		// PDUSessionID: 1,
 		DownlinkTEID: downlinkTEID,
 	}
 
