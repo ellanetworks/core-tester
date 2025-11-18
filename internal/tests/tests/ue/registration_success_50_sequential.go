@@ -172,26 +172,21 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 		gNodeB.AddUE(ranUENGAPID, newUE)
 
-		resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-			RANUENGAPID:  ranUENGAPID,
-			PDUSessionID: PDUSessionID,
-			UE:           newUE,
-			GnodeB:       gNodeB,
+		err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+			RANUENGAPID: ranUENGAPID,
+			UE:          newUE,
+			GnodeB:      gNodeB,
 		})
 		if err != nil {
 			return fmt.Errorf("initial registration procedure failed: %v", err)
 		}
 
 		// Cleanup
-		err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+		err = procedure.Deregistration(&procedure.DeregistrationOpts{
 			GnodeB:      gNodeB,
 			UE:          newUE,
-			AMFUENGAPID: resp.AMFUENGAPID,
+			AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
 			RANUENGAPID: ranUENGAPID,
-			MCC:         env.Config.EllaCore.MCC,
-			MNC:         env.Config.EllaCore.MNC,
-			GNBID:       GNBID,
-			TAC:         env.Config.EllaCore.TAC,
 		})
 		if err != nil {
 			return fmt.Errorf("DeregistrationProcedure failed: %v", err)

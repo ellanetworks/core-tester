@@ -88,37 +88,33 @@ func PDUSessionResourceSetupListCxtReq(
 	expectedPDUSessionID uint8,
 	expectedSST int32,
 	expectedSD string,
-) (*PDUSessionResourceSetupListValue, error) {
+) error {
 	if len(pDUSessionResourceSetupListCxtReq.List) != 1 {
-		return nil, fmt.Errorf("PDUSessionResourceSetupListCxtReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListCxtReq.List))
+		return fmt.Errorf("PDUSessionResourceSetupListCxtReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListCxtReq.List))
 	}
 
 	item := pDUSessionResourceSetupListCxtReq.List[0]
 	if item.PDUSessionID.Value != int64(expectedPDUSessionID) {
-		return nil, fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
+		return fmt.Errorf("unexpected PDUSessionID: %d", item.PDUSessionID.Value)
 	}
 
 	expectedSSTBytes, expectedSDBytes, err := gnb.GetSliceInBytes(expectedSST, expectedSD)
 	if err != nil {
-		return nil, fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
+		return fmt.Errorf("could not convert expected SST and SD to byte slices: %v", err)
 	}
 
 	if !bytes.Equal(item.SNSSAI.SST.Value, expectedSSTBytes) {
-		return nil, fmt.Errorf("unexpected SNSSAI SST: %x, expected: %x", item.SNSSAI.SST.Value, expectedSSTBytes)
+		return fmt.Errorf("unexpected SNSSAI SST: %x, expected: %x", item.SNSSAI.SST.Value, expectedSSTBytes)
 	}
 
 	if !bytes.Equal(item.SNSSAI.SD.Value, expectedSDBytes) {
-		return nil, fmt.Errorf("unexpected SNSSAI SD: %x, expected: %x", item.SNSSAI.SD.Value, expectedSDBytes)
+		return fmt.Errorf("unexpected SNSSAI SD: %x, expected: %x", item.SNSSAI.SD.Value, expectedSDBytes)
 	}
 
-	pduSessionResourceSetupTransfer, err := pduSessionResourceSetupTransfer(item.PDUSessionResourceSetupRequestTransfer)
+	err = pduSessionResourceSetupTransfer(item.PDUSessionResourceSetupRequestTransfer)
 	if err != nil {
-		return nil, fmt.Errorf("could not validate PDU Session Resource Setup Transfer: %v", err)
+		return fmt.Errorf("could not validate PDU Session Resource Setup Transfer: %v", err)
 	}
 
-	resp := &PDUSessionResourceSetupListValue{
-		PDUSessionResourceSetupRequestTransfer: pduSessionResourceSetupTransfer,
-	}
-
-	return resp, nil
+	return nil
 }

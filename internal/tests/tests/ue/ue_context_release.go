@@ -11,9 +11,11 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type UEContextRelease struct{}
@@ -137,11 +139,10 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
@@ -150,14 +151,39 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
+	err = gNodeB.SendUEContextReleaseRequest(&gnb.UEContextReleaseRequestOpts{
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
-		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
+		Cause:         ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
 	})
 	if err != nil {
-		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent UE Context Release Request",
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.String("Cause", "ReleaseDueToNgranGeneratedReason"),
+	)
+
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = validate.UEContextReleaseCommand(&validate.UEContextReleaseCommandOpts{
+		Frame: fr,
+		Cause: &ngapType.Cause{
+			Present: ngapType.CausePresentRadioNetwork,
+			RadioNetwork: &ngapType.CauseRadioNetwork{
+				Value: ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
 
 	// Cleanup

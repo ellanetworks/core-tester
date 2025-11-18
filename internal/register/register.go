@@ -102,11 +102,10 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -116,18 +115,19 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", resp.AMFUENGAPID),
 	)
 
-	ueIP := resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String() + "/16"
+	pduSession := gNodeB.GetPDUSession(RANUENGAPID)
+
+	ueIP := newUE.GetPDUSession().UEIP + "/16"
 
 	_, err = gtp.NewTunnel(&gtp.TunnelOptions{
 		UEIP:             ueIP,
 		GnbIP:            cfg.GnbN3Address,
-		UpfIP:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress,
+		UpfIP:            pduSession.UpfAddress,
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
-		Lteid:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid,
+		Lteid:            pduSession.ULTeid,
 		Rteid:            DownlinkTEID,
 	})
 	if err != nil {
@@ -139,8 +139,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.String("interface", GTPInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("gNB IP", cfg.GnbN3Address),
-		zap.String("UPF IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
-		zap.Uint32("LTEID", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
+		zap.String("UPF IP", pduSession.UpfAddress),
+		zap.Uint32("LTEID", pduSession.ULTeid),
 		zap.Uint32("RTEID", DownlinkTEID),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)

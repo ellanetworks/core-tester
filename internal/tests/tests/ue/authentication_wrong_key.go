@@ -10,9 +10,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -136,7 +137,7 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	err = procedure.AuthenticationResponseWrongKeys(ctx, &procedure.AuthenticationResponseWrongKeysOpts{
+	err = sendAuthenticationResponseWithWrongKey(&AuthenticationResponseWrongKeysOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 		GnodeB:      gNodeB,
@@ -152,6 +153,64 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+type AuthenticationResponseWrongKeysOpts struct {
+	RANUENGAPID int64
+	UE          *ue.UE
+	GnodeB      *gnb.GnodeB
+}
+
+func sendAuthenticationResponseWithWrongKey(opts *AuthenticationResponseWrongKeysOpts) error {
+	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
+	if err != nil {
+		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+	}
+
+	// The SNN will be used to derive wrong keys
+	opts.UE.UeSecurity.Snn = "an unreasonable serving network name"
+
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	err = validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		UE:     opts.UE,
+	})
+	if err != nil {
+		return fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	err = validate.AuthenticationReject(&validate.AuthenticationRejectOpts{
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		UE:     opts.UE,
+	})
+	if err != nil {
+		return fmt.Errorf("could not validate Authentication Reject: %v", err)
+	}
 
 	return nil
 }

@@ -146,11 +146,10 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -160,18 +159,20 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", resp.AMFUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
 	)
 
-	ueIP := resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.UEIP.String() + "/16"
+	ueIP := newUE.GetPDUSession().UEIP + "/16"
+
+	pduSessionInformation := gNodeB.GetPDUSession(RANUENGAPID)
 
 	tun, err := gtp.NewTunnel(&gtp.TunnelOptions{
 		UEIP:             ueIP,
 		GnbIP:            env.Config.Gnb.N3Address,
-		UpfIP:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress,
+		UpfIP:            pduSessionInformation.UpfAddress,
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
-		Lteid:            resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid,
+		Lteid:            pduSessionInformation.ULTeid,
 		Rteid:            DownlinkTEID,
 	})
 	if err != nil {
@@ -183,8 +184,8 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("interface", GTPInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("gNB IP", env.Config.Gnb.N3Address),
-		zap.String("UPF IP", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.UpfAddress),
-		zap.Uint32("LTEID", resp.PDUSessionResourceSetupRequest.PDUSessionResourceSetupListValue.PDUSessionResourceSetupRequestTransfer.ULTeid),
+		zap.String("UPF IP", pduSessionInformation.UpfAddress),
+		zap.Uint32("LTEID", pduSessionInformation.ULTeid),
 		zap.Uint32("RTEID", DownlinkTEID),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)
@@ -205,8 +206,8 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
+	err = procedure.UEContextRelease(&procedure.UEContextReleaseOpts{
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
@@ -217,7 +218,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug(
 		"Completed UE Context Release Procedure",
-		zap.String("AMF UE NGAP ID", fmt.Sprintf("%d", resp.AMFUENGAPID)),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 	)
 
@@ -234,10 +235,8 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("destination", PingDestination),
 	)
 
-	srvReqRsp, err := procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
+	err = procedure.ServiceRequest(&procedure.ServiceRequestOpts{
 		PDUSessionStatus: pduSessionStatus,
-		SST:              env.Config.EllaCore.SST,
-		SD:               env.Config.EllaCore.SD,
 		RANUENGAPID:      RANUENGAPID,
 		UE:               newUE,
 		GnodeB:           gNodeB,
@@ -248,13 +247,15 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	tun.Close()
 
+	pduSession := gNodeB.GetPDUSession(RANUENGAPID)
+
 	newTun, err := gtp.NewTunnel(&gtp.TunnelOptions{
 		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
 		GnbIP:            env.Config.Gnb.N3Address,
-		UpfIP:            srvReqRsp.UPFAddress,
+		UpfIP:            pduSession.UpfAddress,
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
-		Lteid:            srvReqRsp.ULTEID,
+		Lteid:            pduSession.ULTeid,
 		Rteid:            DownlinkTEID,
 	})
 	if err != nil {
@@ -265,7 +266,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		"Completed Service Request Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", resp.AMFUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
 	)
 
 	cmd = exec.Command("ping", "-I", GTPInterfaceName, PingDestination, "-c", "3", "-W", "1")
@@ -288,15 +289,11 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("interface", GTPInterfaceName),
 	)
 
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)

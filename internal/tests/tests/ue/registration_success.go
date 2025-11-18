@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -11,8 +12,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -144,7 +147,7 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
+	err = runInitialRegistration(&InitialRegistrationOpts{
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
@@ -155,15 +158,11 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	// Cleanup
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
@@ -175,6 +174,121 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+type InitialRegistrationOpts struct {
+	RANUENGAPID  int64
+	PDUSessionID uint8
+	UE           *ue.UE
+	GnodeB       *gnb.GnodeB
+}
+
+func runInitialRegistration(opts *InitialRegistrationOpts) error {
+	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
+	if err != nil {
+		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+	}
+
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not find downlink NAS transport message 1: %v", err)
+	}
+
+	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	amfUENGAPID := utils.GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport)
+	if amfUENGAPID == nil {
+		return fmt.Errorf("could not get AMF UE NGAP ID from DownlinkNASTransport: %v", err)
+	}
+
+	err = validate.AuthenticationRequest(&validate.AuthenticationRequestOpts{
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		UE:     opts.UE,
+	})
+	if err != nil {
+		return fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not find downlink NAS transport message 2: %v", err)
+	}
+
+	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	err = validate.SecurityModeCommand(&validate.SecurityModeCommandOpts{
+		NASPDU: utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport),
+		UE:     opts.UE,
+	})
+	if err != nil {
+		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not find initial context setup request message: %v", err)
+	}
+
+	req, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("initial context setup request validation failed: %v", err)
+	}
+
+	err = validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
+		NASPDU: req.NASPDU,
+		UE:     opts.UE,
+		Sst:    opts.GnodeB.SST,
+		Sd:     opts.GnodeB.SD,
+		Mcc:    opts.GnodeB.MCC,
+		Mnc:    opts.GnodeB.MNC,
+	})
+	if err != nil {
+		return fmt.Errorf("validation failed for registration accept: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
+	}
+
+	network, err := netip.ParsePrefix("10.45.0.0/16")
+	if err != nil {
+		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+	}
+
+	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
+		Frame:                fr,
+		ExpectedPDUSessionID: opts.PDUSessionID,
+		ExpectedSST:          opts.GnodeB.SST,
+		ExpectedSD:           opts.GnodeB.SD,
+		UEIns:                opts.UE,
+		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
+			PDUSessionID: opts.PDUSessionID,
+			UeIPSubnet:   network,
+			Dnn:          opts.GnodeB.DNN,
+			Sst:          opts.GnodeB.SST,
+			Sd:           opts.GnodeB.SD,
+			Qfi:          1,
+			FiveQI:       9,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
 
 	return nil
 }
