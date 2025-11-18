@@ -448,6 +448,10 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return handleRegistrationReject(ue, decodedMsg)
 	case nas.MsgTypeDeregistrationRequestUETerminatedDeregistration:
 		return handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+	case nas.MsgTypeIdentityRequest:
+		return handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
+	case nas.MsgTypeServiceAccept:
+		return handleServiceAccept(ue, decodedMsg)
 	default:
 		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
 	}
@@ -615,6 +619,34 @@ func handleSecurityModeCommand(ue *UE, msg *nas.Message, amfUENGAPID int64, ranU
 	return nil
 }
 
+func handleIdentityRequest(ue *UE, amfUENGAPID int64, ranUENGAPID int64) error {
+	logger.UeLogger.Debug("Received Identity Request NAS message")
+
+	identityResp, err := BuildIdentityResponse(&IdentityResponseOpts{
+		Suci: ue.GetSuci(),
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Identity Response NAS PDU: %v", err)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(identityResp, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent Identity Response NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func handleServiceAccept(ue *UE, _ *nas.Message) error {
+	logger.UeLogger.Debug("Received Service Accept NAS message", zap.String("IMSI", ue.UeSecurity.Supi))
+	return nil
+}
+
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 	if ue.Gnb == nil {
 		return fmt.Errorf("GNB is not set for UE")
@@ -644,6 +676,38 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 	return nil
 }
 
+func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool) error {
+	serviceRequest, err := BuildServiceRequest(&ServiceRequestOpts{
+		ServiceType:      nasMessage.ServiceTypeData,
+		AMFSetID:         ue.GetAmfSetId(),
+		AMFPointer:       ue.GetAmfPointer(),
+		TMSI5G:           ue.GetTMSI5G(),
+		PDUSessionStatus: &pduSessionStatus,
+		UESecurity:       ue.UeSecurity,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Service Request NAS PDU: %v", err)
+	}
+
+	encodedPdu, err := ue.EncodeNasPduWithSecurity(serviceRequest, nas.SecurityHeaderTypeIntegrityProtected)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
+	}
+
+	err = ue.Gnb.SendInitialUEMessage(encodedPdu, ranUENGAPID, ue.UeSecurity.Guti, ngapType.RRCEstablishmentCausePresentMoData)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent Service Request NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+	)
+
+	return nil
+}
+
 func (ue *UE) SendDeregistrationRequest(amfUENGAPID int64, ranUENGAPID int64) error {
 	deregBytes, err := BuildDeregistrationRequest(&DeregistrationRequestOpts{
 		Guti: ue.UeSecurity.Guti,
@@ -665,6 +729,42 @@ func (ue *UE) SendDeregistrationRequest(amfUENGAPID int64, ranUENGAPID int64) er
 
 	logger.UeLogger.Debug(
 		"Sent Deregistration Request NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+	)
+
+	return nil
+}
+
+func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID int64) error {
+	pduReq, err := BuildPduSessionEstablishmentRequest(&PduSessionEstablishmentRequestOpts{
+		PDUSessionID: ue.PDUSessionID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)
+	}
+
+	pduUplink, err := BuildUplinkNasTransport(&UplinkNasTransportOpts{
+		PDUSessionID:     ue.PDUSessionID,
+		PayloadContainer: pduReq,
+		DNN:              ue.DNN,
+		SNSSAI:           ue.Snssai,
+	})
+	if err != nil {
+		return fmt.Errorf("could not build Uplink NAS Transport for PDU Session: %v", err)
+	}
+
+	encodedPdu, err := ue.EncodeNasPduWithSecurity(pduUplink, nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	if err != nil {
+		return fmt.Errorf("error encoding %s IMSI UE NAS Uplink NAS Transport for PDU Session Msg", ue.UeSecurity.Supi)
+	}
+
+	err = ue.Gnb.SendUplinkNAS(encodedPdu, amfUENGAPID, ranUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not send UplinkNASTransport for PDU Session Establishment: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Sent PDU Session Establishment Request",
 		zap.String("IMSI", ue.UeSecurity.Supi),
 	)
 

@@ -30,55 +30,88 @@ type GnodeB struct {
 	DNN             string
 	Name            string
 	NGSetupComplete bool
-	UEPool          sync.Map // map[int64]engine.DownlinkSender, UeRanNgapId as key
+	UEPool          map[int64]engine.DownlinkSender // UeRanNgapId as key
 	Conn            *sctp.SCTPConn
-	receivedFrames  []SCTPFrame
+	receivedFrames  map[int]map[int][]SCTPFrame
+	mu              sync.Mutex
 	N3Address       netip.Addr
 	PDUSessionID    int64
 	DownlinkTEID    uint32
 }
 
-func (g *GnodeB) GetReceivedFrames() []SCTPFrame {
-	return g.receivedFrames
-}
-
-func (g *GnodeB) FlushReceivedFrames() {
-	g.receivedFrames = nil
-}
-
-func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
+func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration) (SCTPFrame, error) {
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		if len(g.receivedFrames) > 0 {
-			frame := g.receivedFrames[0]
-			g.receivedFrames = g.receivedFrames[1:]
+		g.mu.Lock()
 
-			return frame, nil
+		msgTypeMap, ok := g.receivedFrames[pduType]
+		if !ok {
+			g.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		frames, ok := msgTypeMap[msgType]
+		if !ok {
+			g.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
+		}
+
+		frame := frames[0]
+
+		if len(frames) == 1 {
+			delete(msgTypeMap, msgType)
+		} else {
+			msgTypeMap[msgType] = frames[1:]
+		}
+
+		g.receivedFrames[pduType] = msgTypeMap
+
+		g.mu.Unlock()
+
+		return frame, nil
 	}
 
-	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
+	return SCTPFrame{}, fmt.Errorf("timeout waiting for NGAP message %v", getMessageName(pduType, msgType))
 }
+
+// func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
+// 	deadline := time.Now().Add(timeout)
+
+// 	for time.Now().Before(deadline) {
+// 		if len(g.receivedFrames) > 0 {
+// 			frame := g.receivedFrames[0]
+// 			g.receivedFrames = g.receivedFrames[1:]
+
+// 			return frame, nil
+// 		}
+
+// 		time.Sleep(1 * time.Millisecond)
+// 	}
+
+// 	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
+// }
 
 // WaitForNGSetupComplete waits until the NG Setup procedure is complete or the timeout is reached.
 // Flushes received frames upon successful completion.
-func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
+// func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
+// 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		if g.NGSetupComplete {
-			g.receivedFrames = nil
-			return nil
-		}
+// 	for time.Now().Before(deadline) {
+// 		if g.NGSetupComplete {
+// 			g.receivedFrames = nil
+// 			return nil
+// 		}
 
-		time.Sleep(1 * time.Millisecond)
-	}
+// 		time.Sleep(1 * time.Millisecond)
+// 	}
 
-	return fmt.Errorf("timeout waiting for NGSetupComplete")
-}
+// 	return fmt.Errorf("timeout waiting for NGSetupComplete")
+// }
 
 type SCTPFrame struct {
 	Data []byte
@@ -174,7 +207,14 @@ func Start(
 }
 
 func (g *GnodeB) AddUE(ranUENGAPID int64, ue engine.DownlinkSender) {
-	g.UEPool.Store(ranUENGAPID, ue)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.UEPool == nil {
+		g.UEPool = make(map[int64]engine.DownlinkSender)
+	}
+
+	g.UEPool[ranUENGAPID] = ue
 }
 
 func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
@@ -205,13 +245,16 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 
 			cp := append([]byte(nil), buf[:n]...) // copy to isolate from buffer reuse
 
-			g.receivedFrames = append(g.receivedFrames, SCTPFrame{Data: cp, Info: info})
+			sctpFrame := SCTPFrame{
+				Data: cp,
+				Info: info,
+			}
 
-			go func(data []byte) {
-				if err := HandleFrame(g, data); err != nil {
+			go func(sctpFrame SCTPFrame) {
+				if err := HandleFrame(g, sctpFrame); err != nil {
 					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
 				}
-			}(cp)
+			}(sctpFrame)
 		}
 	}()
 }

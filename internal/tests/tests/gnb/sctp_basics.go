@@ -10,6 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
+	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +68,7 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

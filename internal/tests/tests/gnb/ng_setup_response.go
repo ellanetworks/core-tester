@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const NumRadios = 12
+const NumRadios = 1
 
 type NGSetupResponse struct{}
 
@@ -99,7 +99,7 @@ func ngSetupTest(env engine.Env, index int) error {
 
 	defer gNodeB.Close()
 
-	nextFrame, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
+	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

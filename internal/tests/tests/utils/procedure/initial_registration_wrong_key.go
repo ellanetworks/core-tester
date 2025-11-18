@@ -10,6 +10,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type AuthenticationResponseWrongKeysOpts struct {
@@ -27,7 +28,7 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 	// The SNN will be used to derive wrong keys
 	opts.UE.UeSecurity.Snn = "an unreasonable serving network name"
 
-	fr, err := opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -52,7 +53,7 @@ func AuthenticationResponseWrongKeys(ctx context.Context, opts *AuthenticationRe
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

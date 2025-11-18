@@ -11,6 +11,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type InitialRegistrationOpts struct {
@@ -33,9 +34,9 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	fr, err := opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not find downlink NAS transport message 1: %v", err)
 	}
 
 	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
@@ -60,9 +61,9 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not find downlink NAS transport message 2: %v", err)
 	}
 
 	downlinkNASTransport, err = validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
@@ -80,9 +81,9 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not find initial context setup request message: %v", err)
 	}
 
 	req, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
@@ -104,9 +105,9 @@ func InitialRegistration(ctx context.Context, opts *InitialRegistrationOpts) (*I
 		return nil, fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
-	fr, err = opts.GnodeB.WaitForNextFrame(500 * time.Millisecond)
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive SCTP frame: %v", err)
+		return nil, fmt.Errorf("could not find PDU session resource setup request message: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")

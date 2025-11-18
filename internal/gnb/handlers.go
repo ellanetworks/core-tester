@@ -7,18 +7,36 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-func HandleFrame(gnb *GnodeB, data []byte) error {
-	pdu, err := ngap.Decoder(data)
+func updateReceivedFramesMap(gnb *GnodeB, pduType int, msgType int, frame SCTPFrame) {
+	gnb.mu.Lock()
+	defer gnb.mu.Unlock()
+
+	if gnb.receivedFrames == nil {
+		gnb.receivedFrames = make(map[int]map[int][]SCTPFrame)
+	}
+
+	if gnb.receivedFrames[pduType] == nil {
+		gnb.receivedFrames[pduType] = make(map[int][]SCTPFrame)
+	}
+
+	gnb.receivedFrames[pduType][msgType] = append(gnb.receivedFrames[pduType][msgType], frame)
+}
+
+func HandleFrame(gnb *GnodeB, sctpFrame SCTPFrame) error {
+	pdu, err := ngap.Decoder(sctpFrame.Data)
 	if err != nil {
 		return fmt.Errorf("could not decode NGAP: %v", err)
 	}
 
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
+		updateReceivedFramesMap(gnb, pdu.Present, pdu.InitiatingMessage.Value.Present, sctpFrame)
 		return handleNGAPInitiatingMessage(gnb, pdu)
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
+		updateReceivedFramesMap(gnb, pdu.Present, pdu.SuccessfulOutcome.Value.Present, sctpFrame)
 		return handleNGAPSuccessfulOutcome(gnb, pdu)
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
+		updateReceivedFramesMap(gnb, pdu.Present, pdu.UnsuccessfulOutcome.Value.Present, sctpFrame)
 		return handleNGAPUnsuccessfulOutcome(pdu)
 	default:
 		return fmt.Errorf("NGAP PDU Present is invalid: %d", pdu.Present)

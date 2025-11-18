@@ -46,15 +46,13 @@ func handleDownlinkNASTransport(gnb *GnodeB, downlinkNASTransport *ngapType.Down
 }
 
 func loadUE(gnb *GnodeB, ranUeId int64) (engine.DownlinkSender, error) {
-	ueAny, ok := gnb.UEPool.Load(ranUeId)
+	gnb.mu.Lock()
+	defer gnb.mu.Unlock()
+
+	ue, ok := gnb.UEPool[ranUeId]
 	if !ok {
 		return nil, fmt.Errorf("UE is not found in GNB UE POOL with RAN UE ID %d", ranUeId)
 	}
 
-	storedUE, ok := ueAny.(engine.DownlinkSender)
-	if !ok {
-		return nil, fmt.Errorf("type assertion failed for UE from GNB UE POOL with RAN UE ID %d", ranUeId)
-	}
-
-	return storedUE, nil
+	return ue, nil
 }

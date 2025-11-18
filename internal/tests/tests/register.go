@@ -16,14 +16,14 @@ func RegisterAll() error {
 		gnb.NGReset{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
-		// ue.RegistrationSuccess50Sequential{},
+		ue.RegistrationSuccess50Sequential{},
 		ue.AuthenticationWrongKey{},
-		// ue.RegistrationPeriodicUpdateSignalling{},
-		// ue.RegistrationIncorrectGUTI{},
+		ue.RegistrationPeriodicUpdateSignalling{},
+		ue.RegistrationIncorrectGUTI{},
 		ue.Deregistration{},
-		// ue.UEContextRelease{},
-		// ue.ServiceRequestData{},
-		// ue.Connectivity{},
+		ue.UEContextRelease{},
+		ue.ServiceRequestData{},
+		ue.Connectivity{},
 	}
 
 	for _, test := range allTests {

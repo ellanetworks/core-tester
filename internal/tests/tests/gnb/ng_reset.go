@@ -69,9 +69,9 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("timeout waiting for NG Setup Response: %v", err)
 	}
 
 	err = gNodeB.SendNGReset(&gnb.NGResetOpts{
@@ -93,7 +93,7 @@ func (t NGReset) Run(ctx context.Context, env engine.Env) error {
 		zap.Bool("ResetAll", true),
 	)
 
-	fr, err := gNodeB.WaitForNextFrame(200 * time.Millisecond)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGResetAcknowledge, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}

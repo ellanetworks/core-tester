@@ -100,7 +100,7 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
@@ -147,9 +147,9 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("could not send Registration Request: %v", err)
 	}
 
-	fr, err := gNodeB.WaitForNextFrame(100 * time.Millisecond)
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
 	}
 
 	err = utils.ValidateSCTP(fr.Info, 60, 1)

@@ -13,6 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/ngap/ngapType"
 )
 
 type Deregistration struct{}
@@ -96,9 +97,9 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 
 	defer gNodeB.Close()
 
-	err = gNodeB.WaitForNGSetupComplete(100 * time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
