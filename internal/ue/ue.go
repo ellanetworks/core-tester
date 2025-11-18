@@ -699,7 +699,7 @@ func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool) e
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.UeLogger.Debug(
 		"Sent Service Request NAS message",
 		zap.String("IMSI", ue.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),

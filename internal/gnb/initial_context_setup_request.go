@@ -42,7 +42,7 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent Initial Context Setup Response",
 	)
 

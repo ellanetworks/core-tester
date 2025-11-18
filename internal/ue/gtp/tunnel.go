@@ -122,13 +122,13 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 				return
 			}
 
-			logger.Logger.Error("error reading from tun interface", zap.Error(err))
+			logger.UeLogger.Error("error reading from tun interface", zap.Error(err))
 
 			continue
 		}
 
 		if n == 0 {
-			logger.Logger.Info("read 0 bytes")
+			logger.UeLogger.Info("read 0 bytes")
 			continue
 		}
 
@@ -136,11 +136,11 @@ func tunToGtp(conn *net.UDPConn, ifce *water.Interface, lteid uint32) {
 
 		_, err = conn.Write(packet[:n+8])
 		if err != nil {
-			logger.Logger.Error("error writing to GTP", zap.Error(err))
+			logger.UeLogger.Error("error writing to GTP", zap.Error(err))
 			continue
 		}
 
-		logger.Logger.Debug("Sent packet to GTP", zap.Int("length", n))
+		logger.UeLogger.Debug("Sent packet to GTP", zap.Int("length", n))
 	}
 }
 
@@ -159,7 +159,7 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 				return
 			}
 
-			logger.Logger.Error("error reading from tun interface", zap.Error(err))
+			logger.UeLogger.Error("error reading from tun interface", zap.Error(err))
 
 			continue
 		}
@@ -188,11 +188,11 @@ func gtpToTun(conn *net.UDPConn, ifce *water.Interface) {
 
 		_, err = ifce.Write(packet[payloadStart:n])
 		if err != nil {
-			logger.Logger.Error("error writing to tun interface", zap.Error(err))
+			logger.UeLogger.Error("error writing to tun interface", zap.Error(err))
 			continue
 		}
 
-		logger.Logger.Debug("Sent packet to TUN", zap.Int("length", n-payloadStart))
+		logger.UeLogger.Debug("Sent packet to TUN", zap.Int("length", n-payloadStart))
 	}
 }
 

@@ -36,7 +36,7 @@ func handleUEContextReleaseCommand(gnb *GnodeB, uEContextReleaseCommand *ngapTyp
 		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent UE Context Release Complete",
 		zap.Int64("RAN UE NGAP ID", ueNgapIDs.UENGAPIDPair.RANUENGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", ueNgapIDs.UENGAPIDPair.AMFUENGAPID.Value),

@@ -158,7 +158,7 @@ func Start(
 		return nil, fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent NGSetupRequest",
 		zap.String("MCC", opts.Mcc),
 		zap.String("MNC", opts.Mnc),
@@ -183,7 +183,7 @@ func (g *GnodeB) AddUE(ranUENGAPID int64, ue engine.DownlinkSender) {
 
 func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 	if conn == nil {
-		logger.Logger.Error("SCTP connection is nil")
+		logger.GnbLogger.Error("SCTP connection is nil")
 		return
 	}
 
@@ -194,16 +194,16 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 			n, info, err := conn.SCTPRead(buf)
 			if err != nil {
 				if err == io.EOF {
-					logger.Logger.Debug("SCTP connection closed (EOF)")
+					logger.GnbLogger.Debug("SCTP connection closed (EOF)")
 				} else {
-					logger.Logger.Error("could not read SCTP frame", zap.Error(err))
+					logger.GnbLogger.Error("could not read SCTP frame", zap.Error(err))
 				}
 
 				return
 			}
 
 			if n == 0 {
-				logger.Logger.Info("SCTP read returned 0 bytes (connection closed?)")
+				logger.GnbLogger.Info("SCTP read returned 0 bytes (connection closed?)")
 				return
 			}
 
@@ -216,7 +216,7 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 
 			go func(sctpFrame SCTPFrame) {
 				if err := HandleFrame(g, sctpFrame); err != nil {
-					logger.Logger.Error("could not handle SCTP frame", zap.Error(err))
+					logger.GnbLogger.Error("could not handle SCTP frame", zap.Error(err))
 				}
 			}(sctpFrame)
 		}
@@ -246,7 +246,7 @@ func (g *GnodeB) SendUplinkNAS(nasPDU []byte, amfUENGAPID int64, ranUENGAPID int
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent Uplink NAS Transport",
 		zap.Int64("AMF UE NGAP ID", amfUENGAPID),
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
@@ -278,7 +278,7 @@ func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *
 		return fmt.Errorf("could not send InitialUEMessage: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent Initial UE Message",
 		zap.String("GNB ID", g.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),

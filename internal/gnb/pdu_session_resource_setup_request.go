@@ -23,7 +23,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pDUSessionResourceSetupRe
 		}
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Received PDU Session Resource Setup Request",
 		zap.String("GNB ID", gnb.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
@@ -46,7 +46,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pDUSessionResourceSetupRe
 		return fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
 	}
 
-	logger.Logger.Debug(
+	logger.GnbLogger.Debug(
 		"Sent PDUSession Resource Setup Response",
 		zap.String("GNB ID", gnb.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
