@@ -10,9 +10,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
@@ -92,7 +92,6 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -181,11 +180,7 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
 	}
 
-	err = validate.RegistrationReject(&validate.RegistrationRejectOpts{
-		NASPDU: receivedNASPDU,
-		UE:     newUE,
-		Cause:  nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork,
-	})
+	err = validateRegistrationReject(receivedNASPDU, newUE, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
@@ -203,6 +198,39 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func validateRegistrationReject(nasPDU *ngapType.NASPDU, ue *ue.UE, cause uint8) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if msg == nil {
+		return fmt.Errorf("NAS message is nil")
+	}
+
+	if msg.GmmMessage == nil {
+		return fmt.Errorf("NAS message is not a GMM message")
+	}
+
+	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationReject {
+		return fmt.Errorf("NAS message type is not Registration Reject (%d), got (%d)", nas.MsgTypeRegistrationReject, msg.GmmMessage.GetMessageType())
+	}
+
+	if msg.RegistrationReject == nil {
+		return fmt.Errorf("NAS Registration Reject message is nil")
+	}
+
+	if msg.RegistrationReject.GetCauseValue() != cause {
+		return fmt.Errorf("NAS Registration Reject Cause is not Unknown UE (%x), received (%x)", cause, msg.RegistrationReject.GetCauseValue())
+	}
 
 	return nil
 }

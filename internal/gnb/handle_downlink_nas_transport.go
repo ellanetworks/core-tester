@@ -3,7 +3,6 @@ package gnb
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
@@ -32,7 +31,9 @@ func handleDownlinkNASTransport(gnb *GnodeB, downlinkNASTransport *ngapType.Down
 		zap.Int64("RANUENGAPID", ranUENGAPID.Value),
 	)
 
-	ue, err := loadUE(gnb, ranUENGAPID.Value)
+	gnb.UpdateNGAPIDs(ranUENGAPID.Value, amfUENGAPID.Value)
+
+	ue, err := gnb.LoadUE(ranUENGAPID.Value)
 	if err != nil {
 		return fmt.Errorf("cannot find UE for DownlinkNASTransport message: %v", err)
 	}
@@ -43,16 +44,4 @@ func handleDownlinkNASTransport(gnb *GnodeB, downlinkNASTransport *ngapType.Down
 	}
 
 	return nil
-}
-
-func loadUE(gnb *GnodeB, ranUeId int64) (engine.DownlinkSender, error) {
-	gnb.mu.Lock()
-	defer gnb.mu.Unlock()
-
-	ue, ok := gnb.UEPool[ranUeId]
-	if !ok {
-		return nil, fmt.Errorf("UE is not found in GNB UE POOL with RAN UE ID %d", ranUeId)
-	}
-
-	return ue, nil
 }

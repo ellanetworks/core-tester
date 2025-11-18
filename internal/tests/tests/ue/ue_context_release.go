@@ -13,7 +13,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type UEContextRelease struct{}
@@ -89,7 +91,6 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -137,11 +138,10 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
@@ -150,14 +150,37 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
+	err = gNodeB.SendUEContextReleaseRequest(&gnb.UEContextReleaseRequestOpts{
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
-		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
+		Cause:         ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
 	})
 	if err != nil {
-		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
+		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Sent UE Context Release Request",
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
+		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.String("Cause", "ReleaseDueToNgranGeneratedReason"),
+	)
+
+	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	err = validateUEContextReleaseCommand(fr, &ngapType.Cause{
+		Present: ngapType.CausePresentRadioNetwork,
+		RadioNetwork: &ngapType.CauseRadioNetwork{
+			Value: ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason,
+		},
+	},
+	)
+	if err != nil {
+		return fmt.Errorf("UEContextRelease validation failed: %v", err)
 	}
 
 	// Cleanup
@@ -167,6 +190,70 @@ func (t UEContextRelease) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func validateUEContextReleaseCommand(fr gnb.SCTPFrame, ca *ngapType.Cause) error {
+	err := utils.ValidateSCTP(fr.Info, 60, 1)
+	if err != nil {
+		return fmt.Errorf("SCTP validation failed: %v", err)
+	}
+
+	pdu, err := ngap.Decoder(fr.Data)
+	if err != nil {
+		return fmt.Errorf("could not decode NGAP: %v", err)
+	}
+
+	if pdu.InitiatingMessage == nil {
+		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
+	}
+
+	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeUEContextRelease {
+		return fmt.Errorf("NGAP ProcedureCode is not UEContextRelease (%d), received %d", ngapType.ProcedureCodeUEContextRelease, pdu.InitiatingMessage.ProcedureCode.Value)
+	}
+
+	ueContextReleaseCommand := pdu.InitiatingMessage.Value.UEContextReleaseCommand
+	if ueContextReleaseCommand == nil {
+		return fmt.Errorf("UE Context Release Command is nil")
+	}
+
+	var (
+		ueNGAPIDs *ngapType.UENGAPIDs
+		cause     *ngapType.Cause
+	)
+
+	for _, ie := range ueContextReleaseCommand.ProtocolIEs.List {
+		switch ie.Id.Value {
+		case ngapType.ProtocolIEIDUENGAPIDs:
+			ueNGAPIDs = ie.Value.UENGAPIDs
+		case ngapType.ProtocolIEIDCause:
+			cause = ie.Value.Cause
+		default:
+			return fmt.Errorf("UEContextReleaseCommand IE ID (%d) not supported", ie.Id.Value)
+		}
+	}
+
+	if cause.Present != ca.Present {
+		return fmt.Errorf("unexpected Cause Present: got %d, want %d", cause.Present, ca.Present)
+	}
+
+	switch cause.Present {
+	case ngapType.CausePresentRadioNetwork:
+		if cause.RadioNetwork.Value != ca.RadioNetwork.Value {
+			return fmt.Errorf("unexpected RadioNetwork Cause value: got %d, want %d", cause.RadioNetwork.Value, ca.RadioNetwork.Value)
+		}
+	case ngapType.CausePresentNas:
+		if cause.Nas.Value != ca.Nas.Value {
+			return fmt.Errorf("unexpected NAS Cause value: got %d, want %d", cause.Nas.Value, ca.Nas.Value)
+		}
+	default:
+		return fmt.Errorf("unexpected Cause Present type: %d", cause.Present)
+	}
+
+	if ueNGAPIDs == nil {
+		return fmt.Errorf("UENGAPIDs is nil")
+	}
 
 	return nil
 }

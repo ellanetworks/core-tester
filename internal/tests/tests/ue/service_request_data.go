@@ -11,9 +11,11 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type ServiceRequestData struct{}
@@ -89,7 +91,6 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -137,11 +138,10 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -150,8 +150,8 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
+	err = procedure.UEContextRelease(&procedure.UEContextReleaseOpts{
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
@@ -160,7 +160,7 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
-	_, err = procedure.ServiceRequest(ctx, &procedure.ServiceRequestOpts{
+	err = ServiceRequest(&ServiceRequestOpts{
 		PDUSessionStatus: pduSessionStatus,
 		SST:              env.Config.EllaCore.SST,
 		SD:               env.Config.EllaCore.SD,
@@ -173,15 +173,11 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	// Cleanup
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
@@ -193,6 +189,51 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+type ServiceRequestOpts struct {
+	PDUSessionStatus [16]bool
+	SST              int32
+	SD               string
+	RANUENGAPID      int64
+	UE               *ue.UE
+	GnodeB           *gnb.GnodeB
+}
+
+func ServiceRequest(opts *ServiceRequestOpts) error {
+	err := opts.UE.SendServiceRequest(opts.RANUENGAPID, opts.PDUSessionStatus)
+	if err != nil {
+		return fmt.Errorf("could not send Service Request NAS message: %v", err)
+	}
+
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	initialContextSetupReq, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
+	}
+
+	if initialContextSetupReq.PDUSessionResourceSetupListCxtReq == nil {
+		return fmt.Errorf("PDUSessionResourceSetupListCxtReq is nil in Initial Context Setup Request")
+	}
+
+	err = validate.PDUSessionResourceSetupListCxtReq(initialContextSetupReq.PDUSessionResourceSetupListCxtReq, 1, opts.SST, opts.SD)
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupListCxtReq validation failed: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Validated PDUSessionResourceSetupListCxtReq in Initial Context Setup Request for Service Request",
+		zap.String("IMSI", opts.UE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+	)
 
 	return nil
 }

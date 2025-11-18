@@ -29,13 +29,62 @@ type GnodeB struct {
 	TAC            string
 	DNN            string
 	Name           string
-	UEPool         map[int64]engine.DownlinkSender // UeRanNgapId as key
+	UEPool         map[int64]engine.DownlinkSender // RANUENGAPID -> UE
+	NGAPIDs        map[int64]int64                 // RANUENGAPID -> AMFUENGAPID
 	Conn           *sctp.SCTPConn
-	receivedFrames map[int]map[int][]SCTPFrame
+	receivedFrames map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
 	mu             sync.Mutex
 	N3Address      netip.Addr
-	PDUSessionID   int64
-	DownlinkTEID   uint32
+	PDUSessions    map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
+	// DownlinkTEID   uint32
+}
+
+func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.PDUSessions == nil {
+		g.PDUSessions = make(map[int64]*PDUSessionInformation)
+	}
+
+	g.PDUSessions[ranUeId] = pduSessionInfo
+}
+
+func (g *GnodeB) GetPDUSession(ranUeId int64) *PDUSessionInformation {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.PDUSessions[ranUeId]
+}
+
+func (g *GnodeB) GetAMFUENGAPID(ranUeId int64) int64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.NGAPIDs[ranUeId]
+}
+
+func (g *GnodeB) UpdateNGAPIDs(ranUeId int64, amfUeId int64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.NGAPIDs == nil {
+		g.NGAPIDs = make(map[int64]int64)
+	}
+
+	g.NGAPIDs[ranUeId] = amfUeId
+}
+
+func (g *GnodeB) LoadUE(ranUeId int64) (engine.DownlinkSender, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	ue, ok := g.UEPool[ranUeId]
+	if !ok {
+		return nil, fmt.Errorf("UE is not found in GNB UE POOL with RAN UE ID %d", ranUeId)
+	}
+
+	return ue, nil
 }
 
 func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration) (SCTPFrame, error) {
@@ -95,7 +144,6 @@ func Start(
 	coreN2Address string,
 	gnbN2Address string,
 	gnbN3Address string,
-	downlinkTEID uint32,
 ) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
@@ -128,18 +176,16 @@ func Start(
 	}
 
 	gnodeB := &GnodeB{
-		GnbID:        GnbID,
-		MCC:          MCC,
-		MNC:          MNC,
-		SST:          SST,
-		SD:           SD,
-		DNN:          DNN,
-		TAC:          TAC,
-		Name:         Name,
-		Conn:         conn,
-		N3Address:    gnbN3IPAddress,
-		PDUSessionID: 1,
-		DownlinkTEID: downlinkTEID,
+		GnbID:     GnbID,
+		MCC:       MCC,
+		MNC:       MNC,
+		SST:       SST,
+		SD:        SD,
+		DNN:       DNN,
+		TAC:       TAC,
+		Name:      Name,
+		Conn:      conn,
+		N3Address: gnbN3IPAddress,
 	}
 
 	gnodeB.listenAndServe(conn)

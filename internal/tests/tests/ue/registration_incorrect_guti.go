@@ -3,6 +3,8 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
+	"reflect"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -11,6 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasMessage"
@@ -91,7 +94,6 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -150,7 +152,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistrationWithIdentityRequest(ctx, &procedure.InitialRegistrationWithIdentityRequestOpts{
+	err = runInitialRegistrationWithIdentityRequest(&InitialRegistrationWithIdentityRequestOpts{
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		Sst:          env.Config.EllaCore.SST,
@@ -166,15 +168,11 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	}
 
 	// Cleanup
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
@@ -183,6 +181,154 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
+	}
+
+	return nil
+}
+
+type InitialRegistrationWithIdentityRequestOpts struct {
+	Mcc          string
+	Mnc          string
+	Sst          int32
+	Sd           string
+	DNN          string
+	RANUENGAPID  int64
+	PDUSessionID uint8
+	UE           *ue.UE
+	GnodeB       *gnb.GnodeB
+}
+
+func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIdentityRequestOpts) error {
+	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
+	if err != nil {
+		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+	}
+
+	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	downlinkNASTransport, err := validate.DownlinkNASTransport(&validate.DownlinkNASTransportOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("DownlinkNASTransport validation failed: %v", err)
+	}
+
+	err = validateIdentityRequest(utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport), opts.UE)
+	if err != nil {
+		return fmt.Errorf("NAS PDU validation failed: %v", err)
+	}
+
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	req, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+		Frame: fr,
+	})
+	if err != nil {
+		return fmt.Errorf("initial context setup request validation failed: %v", err)
+	}
+
+	err = validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
+		NASPDU: req.NASPDU,
+		UE:     opts.UE,
+		Sst:    opts.Sst,
+		Sd:     opts.Sd,
+		Mcc:    opts.Mcc,
+		Mnc:    opts.Mnc,
+	})
+	if err != nil {
+		return fmt.Errorf("validation failed for registration accept: %v", err)
+	}
+
+	err = opts.UE.SendPDUSessionEstablishmentRequest(opts.GnodeB.GetAMFUENGAPID(opts.RANUENGAPID), opts.RANUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not build PDU Session Establishment Request NAS PDU: %v", err)
+	}
+
+	fr, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	network, err := netip.ParsePrefix("10.45.0.0/16")
+	if err != nil {
+		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+	}
+
+	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
+		Frame:                fr,
+		ExpectedPDUSessionID: opts.PDUSessionID,
+		ExpectedSST:          opts.Sst,
+		ExpectedSD:           opts.Sd,
+		UEIns:                opts.UE,
+		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
+			PDUSessionID: opts.PDUSessionID,
+			UeIPSubnet:   network,
+			Dnn:          opts.DNN,
+			Sst:          opts.Sst,
+			Sd:           opts.Sd,
+			Qfi:          1,
+			FiveQI:       9,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
+
+	return nil
+}
+
+func validateIdentityRequest(nasPDU *ngapType.NASPDU, ue *ue.UE) error {
+	if nasPDU == nil {
+		return fmt.Errorf("NAS PDU is nil")
+	}
+
+	msg, err := ue.DecodeNAS(nasPDU.Value)
+	if err != nil {
+		return fmt.Errorf("could not decode NAS PDU: %v", err)
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.ExtendedProtocolDiscriminator).IsZero() {
+		return fmt.Errorf("extended protocol is missing")
+	}
+
+	if msg.IdentityRequest.GetExtendedProtocolDiscriminator() != 126 {
+		return fmt.Errorf("extended protocol not the expected value")
+	}
+
+	if msg.IdentityRequest.GetSpareHalfOctet() != 0 {
+		return fmt.Errorf("spare half octet not the expected value")
+	}
+
+	if msg.IdentityRequest.GetSecurityHeaderType() != 0 {
+		return fmt.Errorf("security header type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.IdentityRequestMessageIdentity).IsZero() {
+		return fmt.Errorf("message type is missing")
+	}
+
+	if msg.IdentityRequestMessageIdentity.GetMessageType() != 91 {
+		return fmt.Errorf("message type not the expected value")
+	}
+
+	if reflect.ValueOf(msg.IdentityRequest.SpareHalfOctetAndIdentityType).IsZero() {
+		return fmt.Errorf("spare half octet and identity type is missing")
 	}
 
 	return nil

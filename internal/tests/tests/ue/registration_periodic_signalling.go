@@ -91,7 +91,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -139,11 +138,10 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
@@ -152,8 +150,8 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
-	err = procedure.UEContextRelease(ctx, &procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   resp.AMFUENGAPID,
+	err = procedure.UEContextRelease(&procedure.UEContextReleaseOpts{
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
@@ -185,15 +183,11 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	}
 
 	// Cleanup
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)

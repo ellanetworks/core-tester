@@ -89,7 +89,6 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -137,28 +136,23 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	resp, err := procedure.InitialRegistration(ctx, &procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+		RANUENGAPID: RANUENGAPID,
+		UE:          newUE,
+		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	err = procedure.Deregistration(ctx, &procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
-		UE:          newUE,
-		AMFUENGAPID: resp.AMFUENGAPID,
-		RANUENGAPID: RANUENGAPID,
-		MCC:         env.Config.EllaCore.MCC,
-		MNC:         env.Config.EllaCore.MNC,
-		GNBID:       GNBID,
-		TAC:         env.Config.EllaCore.TAC,
-	})
+	err = newUE.SendDeregistrationRequest(gNodeB.GetAMFUENGAPID(RANUENGAPID), RANUENGAPID)
 	if err != nil {
-		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
+	}
+
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	err = ellaCoreEnv.Delete(ctx)

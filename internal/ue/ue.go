@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/engine"
 	"github.com/ellanetworks/core-tester/internal/logger"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
@@ -68,6 +71,39 @@ type UE struct {
 	amfInfo      Amf
 	IMEISV       string
 	Gnb          engine.UplinkSender
+	mu           sync.Mutex
+	PDUSession   PDUSessionInfo
+}
+
+func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+	ue.PDUSession = pduSession
+}
+
+func (ue *UE) GetPDUSession() PDUSessionInfo {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	return ue.PDUSession
+}
+
+func (ue *UE) WaitForPDUSession(timeout time.Duration) (PDUSessionInfo, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ue.mu.Lock()
+		pduSession := ue.PDUSession
+		ue.mu.Unlock()
+
+		if pduSession.PDUSessionID != 0 {
+			return pduSession, nil
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return PDUSessionInfo{}, errors.New("timeout waiting for PDU session")
 }
 
 type UEOpts struct {
@@ -452,6 +488,8 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
 	case nas.MsgTypeServiceAccept:
 		return handleServiceAccept(ue, decodedMsg)
+	case nas.MsgTypeDLNASTransport:
+		return handleDLNASTransport(ue, decodedMsg)
 	default:
 		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
 	}
@@ -644,6 +682,56 @@ func handleIdentityRequest(ue *UE, amfUENGAPID int64, ranUENGAPID int64) error {
 
 func handleServiceAccept(ue *UE, _ *nas.Message) error {
 	logger.UeLogger.Debug("Received Service Accept NAS message", zap.String("IMSI", ue.UeSecurity.Supi))
+	return nil
+}
+
+func handleDLNASTransport(ue *UE, msg *nas.Message) error {
+	pduSessionID := msg.DLNASTransport.GetPduSessionID2Value()
+
+	payloadContainer, err := utils.GetNasPduFromPduAccept(msg)
+	if err != nil {
+		return fmt.Errorf("could not get PDU Session establishment accept: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Received DL NAS Transport NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+		zap.Uint8("PDU Session ID", pduSessionID),
+	)
+
+	pcMsgType := payloadContainer.GsmHeader.GetMessageType()
+
+	switch pcMsgType {
+	case nas.MsgTypePDUSessionEstablishmentAccept:
+		return handlePDUSessionEstablishmentAccept(ue, payloadContainer.PDUSessionEstablishmentAccept)
+	default:
+		return fmt.Errorf("PDU Session Establishment Accept message type %d handling not implemented", pcMsgType)
+	}
+}
+
+type PDUSessionInfo struct {
+	PDUSessionID uint8
+	UEIP         string
+}
+
+func handlePDUSessionEstablishmentAccept(ue *UE, msg *nasMessage.PDUSessionEstablishmentAccept) error {
+	ueIP, err := utils.UEIPFromNAS(msg.GetPDUAddressInformation())
+	if err != nil {
+		return fmt.Errorf("could not get UE IP from NAS PDU Address Information: %v", err)
+	}
+
+	logger.UeLogger.Debug(
+		"Received PDU Session Establishment Accept NAS message",
+		zap.String("IMSI", ue.UeSecurity.Supi),
+		zap.Uint8("PDU Session ID", msg.GetPDUSessionID()),
+		zap.String("UE IP", ueIP.String()),
+	)
+
+	ue.SetPDUSession(PDUSessionInfo{
+		PDUSessionID: msg.GetPDUSessionID(),
+		UEIP:         ueIP.String(),
+	})
+
 	return nil
 }
 
