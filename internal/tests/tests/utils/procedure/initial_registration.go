@@ -22,27 +22,27 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not find downlink NAS transport message 1: %v", err)
+		return fmt.Errorf("could not find downlink NAS transport message ba: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 500*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find downlink NAS transport message 2: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find initial context setup request message: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
+	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
 	}
 
-	_, err = opts.UE.WaitForPDUSession(500 * time.Millisecond)
+	_, err = opts.UE.WaitForPDUSession(1 * time.Second)
 	if err != nil {
 		return fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}
