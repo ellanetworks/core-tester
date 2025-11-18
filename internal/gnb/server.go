@@ -36,7 +36,7 @@ type GnodeB struct {
 	mu             sync.Mutex
 	N3Address      netip.Addr
 	PDUSessions    map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
-	DownlinkTEID   uint32
+	// DownlinkTEID   uint32
 }
 
 func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
@@ -144,7 +144,6 @@ func Start(
 	coreN2Address string,
 	gnbN2Address string,
 	gnbN3Address string,
-	downlinkTEID uint32,
 ) (*GnodeB, error) {
 	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
 	if err != nil {
@@ -187,8 +186,6 @@ func Start(
 		Name:      Name,
 		Conn:      conn,
 		N3Address: gnbN3IPAddress,
-		// PDUSessionID: 1,
-		DownlinkTEID: downlinkTEID,
 	}
 
 	gnodeB.listenAndServe(conn)

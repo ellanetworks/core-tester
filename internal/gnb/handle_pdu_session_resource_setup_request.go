@@ -54,6 +54,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		}
 
 		pduSessionInfo.PDUSessionID = pduSessionID
+		pduSessionInfo.DLTeid = 1657545292 // We will want to use a generator here later
 
 		logger.GnbLogger.Debug(
 			"Parsed PDU Session Resource Setup Request Transfer",
@@ -78,7 +79,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		PDUSessions: [16]*GnbPDUSession{
 			{
 				PDUSessionId: pduSession.PDUSessionID,
-				DownlinkTeid: gnb.DownlinkTEID,
+				DownlinkTeid: pduSession.DLTeid,
 				QFI:          1,
 			},
 		},
@@ -93,7 +94,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
 		zap.Int64("PDU Session ID", pduSession.PDUSessionID),
-		zap.Uint32("Downlink TEID", gnb.DownlinkTEID),
+		zap.Uint32("Downlink TEID", pduSession.DLTeid),
 	)
 
 	return nil
@@ -101,6 +102,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 
 type PDUSessionInformation struct {
 	ULTeid       uint32
+	DLTeid       uint32
 	UpfAddress   string
 	QosId        int64
 	FiveQi       int64

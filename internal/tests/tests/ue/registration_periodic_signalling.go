@@ -91,7 +91,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)

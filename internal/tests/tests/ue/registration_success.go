@@ -25,7 +25,6 @@ const (
 	RANUENGAPID  = 1
 	GNBID        = "000008"
 	PDUSessionID = 1
-	DownlinkTEID = 1657545292
 )
 
 type RegistrationSuccess struct{}
@@ -101,7 +100,6 @@ func (t RegistrationSuccess) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)

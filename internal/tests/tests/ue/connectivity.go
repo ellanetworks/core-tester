@@ -98,7 +98,6 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -173,7 +172,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            pduSessionInformation.ULTeid,
-		Rteid:            DownlinkTEID,
+		Rteid:            pduSessionInformation.DLTeid,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create GTP tunnel: %v", err)
@@ -186,7 +185,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("gNB IP", env.Config.Gnb.N3Address),
 		zap.String("UPF IP", pduSessionInformation.UpfAddress),
 		zap.Uint32("LTEID", pduSessionInformation.ULTeid),
-		zap.Uint32("RTEID", DownlinkTEID),
+		zap.Uint32("RTEID", pduSessionInformation.DLTeid),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)
 
@@ -256,7 +255,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            pduSession.ULTeid,
-		Rteid:            DownlinkTEID,
+		Rteid:            pduSession.DLTeid,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to recreate GTP tunnel after Service Request: %v", err)

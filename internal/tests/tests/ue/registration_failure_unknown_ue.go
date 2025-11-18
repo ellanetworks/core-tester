@@ -92,7 +92,6 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)

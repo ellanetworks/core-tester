@@ -24,7 +24,6 @@ const (
 
 const (
 	GTPInterfaceName = "ellatester0"
-	DownlinkTEID     = 1657545292
 	GTPUPort         = 2152
 )
 
@@ -58,7 +57,6 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		cfg.EllaCoreN2Address,
 		cfg.GnbN2Address,
 		cfg.GnbN3Address,
-		DownlinkTEID,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
@@ -128,7 +126,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		GTPUPort:         GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
 		Lteid:            pduSession.ULTeid,
-		Rteid:            DownlinkTEID,
+		Rteid:            pduSession.DLTeid,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create GTP tunnel: %v", err)
@@ -141,7 +139,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.String("gNB IP", cfg.GnbN3Address),
 		zap.String("UPF IP", pduSession.UpfAddress),
 		zap.Uint32("LTEID", pduSession.ULTeid),
-		zap.Uint32("RTEID", DownlinkTEID),
+		zap.Uint32("RTEID", pduSession.DLTeid),
 		zap.Uint16("GTPU Port", GTPUPort),
 	)
 

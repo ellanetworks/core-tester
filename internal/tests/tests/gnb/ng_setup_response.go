@@ -92,7 +92,6 @@ func ngSetupTest(env engine.Env, index int) error {
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		"1.2.3.4",
-		1,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
