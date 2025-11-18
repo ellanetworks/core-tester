@@ -35,7 +35,5 @@ func handleNGSetupResponse(gnb *GnodeB, nGSetupResponse *ngapType.NGSetupRespons
 		zap.Int("PLMNSupportListCount", len(plmnSupportList.List)),
 	)
 
-	gnb.NGSetupComplete = true
-
 	return nil
 }

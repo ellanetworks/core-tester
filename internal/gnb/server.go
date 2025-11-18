@@ -21,22 +21,21 @@ const (
 )
 
 type GnodeB struct {
-	GnbID           string
-	MCC             string
-	MNC             string
-	SST             int32
-	SD              string
-	TAC             string
-	DNN             string
-	Name            string
-	NGSetupComplete bool
-	UEPool          map[int64]engine.DownlinkSender // UeRanNgapId as key
-	Conn            *sctp.SCTPConn
-	receivedFrames  map[int]map[int][]SCTPFrame
-	mu              sync.Mutex
-	N3Address       netip.Addr
-	PDUSessionID    int64
-	DownlinkTEID    uint32
+	GnbID          string
+	MCC            string
+	MNC            string
+	SST            int32
+	SD             string
+	TAC            string
+	DNN            string
+	Name           string
+	UEPool         map[int64]engine.DownlinkSender // UeRanNgapId as key
+	Conn           *sctp.SCTPConn
+	receivedFrames map[int]map[int][]SCTPFrame
+	mu             sync.Mutex
+	N3Address      netip.Addr
+	PDUSessionID   int64
+	DownlinkTEID   uint32
 }
 
 func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration) (SCTPFrame, error) {
@@ -78,40 +77,6 @@ func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration)
 
 	return SCTPFrame{}, fmt.Errorf("timeout waiting for NGAP message %v", getMessageName(pduType, msgType))
 }
-
-// func (g *GnodeB) WaitForNextFrame(timeout time.Duration) (SCTPFrame, error) {
-// 	deadline := time.Now().Add(timeout)
-
-// 	for time.Now().Before(deadline) {
-// 		if len(g.receivedFrames) > 0 {
-// 			frame := g.receivedFrames[0]
-// 			g.receivedFrames = g.receivedFrames[1:]
-
-// 			return frame, nil
-// 		}
-
-// 		time.Sleep(1 * time.Millisecond)
-// 	}
-
-// 	return SCTPFrame{}, fmt.Errorf("timeout waiting for next SCTP frame")
-// }
-
-// WaitForNGSetupComplete waits until the NG Setup procedure is complete or the timeout is reached.
-// Flushes received frames upon successful completion.
-// func (g *GnodeB) WaitForNGSetupComplete(timeout time.Duration) error {
-// 	deadline := time.Now().Add(timeout)
-
-// 	for time.Now().Before(deadline) {
-// 		if g.NGSetupComplete {
-// 			g.receivedFrames = nil
-// 			return nil
-// 		}
-
-// 		time.Sleep(1 * time.Millisecond)
-// 	}
-
-// 	return fmt.Errorf("timeout waiting for NGSetupComplete")
-// }
 
 type SCTPFrame struct {
 	Data []byte
@@ -163,19 +128,18 @@ func Start(
 	}
 
 	gnodeB := &GnodeB{
-		GnbID:           GnbID,
-		MCC:             MCC,
-		MNC:             MNC,
-		SST:             SST,
-		SD:              SD,
-		DNN:             DNN,
-		TAC:             TAC,
-		Name:            Name,
-		Conn:            conn,
-		NGSetupComplete: false,
-		N3Address:       gnbN3IPAddress,
-		PDUSessionID:    1,
-		DownlinkTEID:    downlinkTEID,
+		GnbID:        GnbID,
+		MCC:          MCC,
+		MNC:          MNC,
+		SST:          SST,
+		SD:           SD,
+		DNN:          DNN,
+		TAC:          TAC,
+		Name:         Name,
+		Conn:         conn,
+		N3Address:    gnbN3IPAddress,
+		PDUSessionID: 1,
+		DownlinkTEID: downlinkTEID,
 	}
 
 	gnodeB.listenAndServe(conn)
