@@ -6,9 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core/client"
-	"go.uber.org/zap"
 )
 
 type SubscriberConfig struct {
@@ -134,34 +132,9 @@ func (c *EllaCoreEnv) updateOperator(ctx context.Context) error {
 		return fmt.Errorf("failed to get operator: %v", err)
 	}
 
-	if c.Config.Operator.HomeNetwork.PrivateKey != "" {
-		privKeyBytes, err := hex.DecodeString(c.Config.Operator.HomeNetwork.PrivateKey)
-		if err != nil {
-			return fmt.Errorf("failed to decode private key: %v", err)
-		}
-
-		privateKey, err := ecdh.X25519().NewPrivateKey(privKeyBytes)
-		if err != nil {
-			return fmt.Errorf("failed to generate ECDH key: %v", err)
-		}
-
-		pubKeyBytes := privateKey.PublicKey().Bytes()
-
-		if opConfig.HomeNetwork.PublicKey != hex.EncodeToString(pubKeyBytes) {
-			logger.Logger.Debug(
-				"Updating public key",
-				zap.String("public_current", opConfig.HomeNetwork.PublicKey),
-				zap.String("public_new", hex.EncodeToString(pubKeyBytes)),
-				zap.String("private_new", hex.EncodeToString(privateKey.Bytes())),
-			)
-
-			err := c.Client.UpdateOperatorHomeNetwork(ctx, &client.UpdateOperatorHomeNetworkOptions{
-				PrivateKey: hex.EncodeToString(privateKey.Bytes()),
-			})
-			if err != nil {
-				return fmt.Errorf("failed to update operator home network: %v", err)
-			}
-		}
+	err = c.updateOperatorHomeNetworkPublicKey(ctx, opConfig)
+	if err != nil {
+		return fmt.Errorf("could not update operator home network public key: %v", err)
 	}
 
 	if opConfig.ID.Mcc != c.Config.Operator.ID.MCC || opConfig.ID.Mnc != c.Config.Operator.ID.MNC {
@@ -205,6 +178,37 @@ func (c *EllaCoreEnv) updateOperator(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to update operator tracking: %v", err)
 		}
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) updateOperatorHomeNetworkPublicKey(ctx context.Context, opConfig *client.Operator) error {
+	if c.Config.Operator.HomeNetwork.PrivateKey == "" {
+		return nil
+	}
+
+	privKeyBytes, err := hex.DecodeString(c.Config.Operator.HomeNetwork.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode private key: %v", err)
+	}
+
+	privateKey, err := ecdh.X25519().NewPrivateKey(privKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to generate ECDH key: %v", err)
+	}
+
+	pubKeyBytes := privateKey.PublicKey().Bytes()
+
+	if opConfig.HomeNetwork.PublicKey == hex.EncodeToString(pubKeyBytes) {
+		return nil
+	}
+
+	err = c.Client.UpdateOperatorHomeNetwork(ctx, &client.UpdateOperatorHomeNetworkOptions{
+		PrivateKey: hex.EncodeToString(privateKey.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update operator home network: %v", err)
 	}
 
 	return nil
