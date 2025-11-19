@@ -82,7 +82,7 @@ func (t RegistrationSuccessNoSD) Run(ctx context.Context, env engine.Env) error 
 		env.Config.EllaCore.MCC,
 		env.Config.EllaCore.MNC,
 		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
+		"", // No SD
 		env.Config.EllaCore.DNN,
 		env.Config.EllaCore.TAC,
 		"Ella-Core-Tester",
