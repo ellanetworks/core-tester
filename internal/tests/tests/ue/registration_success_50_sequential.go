@@ -197,7 +197,7 @@ func ueRegistrationTest(env engine.Env, index int, gNodeB *gnb.GnodeB, subscribe
 		GnodeB:      gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("initial registration procedure failed: %v", err)
+		return fmt.Errorf("initial registration procedure failed for subscriber %v: %v", newUE.UeSecurity.Msin, err)
 	}
 
 	// Cleanup

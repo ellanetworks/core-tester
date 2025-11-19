@@ -17,7 +17,7 @@ func RegisterAll() error {
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationSuccess50Sequential{},
-		ue.RegistrationSuccess20Parallel{},
+		ue.RegistrationSuccess50Parallel{},
 		ue.AuthenticationWrongKey{},
 		ue.RegistrationPeriodicUpdateSignalling{},
 		ue.RegistrationIncorrectGUTI{},
