@@ -6,44 +6,84 @@ import (
 	"github.com/free5gc/nas/nasMessage"
 )
 
-const (
-	Cause5GMMIllegalUE                                      uint8 = 0x03
-	Cause5GMMPEINotAccepted                                 uint8 = 0x05
-	Cause5GMMIllegalME                                      uint8 = 0x06
-	Cause5GMM5GSServicesNotAllowed                          uint8 = 0x07
-	Cause5GMMUEIdentityCannotBeDerivedByTheNetwork          uint8 = 0x09
-	Cause5GMMImplicitlyDeregistered                         uint8 = 0x0a
-	Cause5GMMPLMNNotAllowed                                 uint8 = 0x0b
-	Cause5GMMTrackingAreaNotAllowed                         uint8 = 0x0c
-	Cause5GMMRoamingNotAllowedInThisTrackingArea            uint8 = 0x0d
-	Cause5GMMNoSuitableCellsInTrackingArea                  uint8 = 0x0f
-	Cause5GMMMACFailure                                     uint8 = 0x14
-	Cause5GMMSynchFailure                                   uint8 = 0x15
-	Cause5GMMCongestion                                     uint8 = 0x16
-	Cause5GMMUESecurityCapabilitiesMismatch                 uint8 = 0x17
-	Cause5GMMSecurityModeRejectedUnspecified                uint8 = 0x18
-	Cause5GMMNon5GAuthenticationUnacceptable                uint8 = 0x1a
-	Cause5GMMN1ModeNotAllowed                               uint8 = 0x1b
-	Cause5GMMRestrictedServiceArea                          uint8 = 0x1c
-	Cause5GMMLADNNotAvailable                               uint8 = 0x2b
-	Cause5GMMMaximumNumberOfPDUSessionsReached              uint8 = 0x41
-	Cause5GMMInsufficientResourcesForSpecificSliceAndDNN    uint8 = 0x43
-	Cause5GMMInsufficientResourcesForSpecificSlice          uint8 = 0x45
-	Cause5GMMngKSIAlreadyInUse                              uint8 = 0x47
-	Cause5GMMNon3GPPAccessTo5GCNNotAllowed                  uint8 = 0x48
-	Cause5GMMServingNetworkNotAuthorized                    uint8 = 0x49
-	Cause5GMMPayloadWasNotForwarded                         uint8 = 0x5a
-	Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice       uint8 = 0x5b
-	Cause5GMMInsufficientUserPlaneResourcesForThePDUSession uint8 = 0x5c
-	Cause5GMMSemanticallyIncorrectMessage                   uint8 = 0x5f
-	Cause5GMMInvalidMandatoryInformation                    uint8 = 0x60
-	Cause5GMMMessageTypeNonExistentOrNotImplemented         uint8 = 0x61
-	Cause5GMMMessageTypeNotCompatibleWithTheProtocolState   uint8 = 0x62
-	Cause5GMMInformationElementNonExistentOrNotImplemented  uint8 = 0x63
-	Cause5GMMConditionalIEError                             uint8 = 0x64
-	Cause5GMMMessageNotCompatibleWithTheProtocolState       uint8 = 0x65
-	Cause5GMMProtocolErrorUnspecified                       uint8 = 0x6f
-)
+func cause5GMMToString(cause uint8) string {
+	switch cause {
+	case nasMessage.Cause5GMMIllegalUE:
+		return "Illegal UE"
+	case nasMessage.Cause5GMMPEINotAccepted:
+		return "PEI Not Accepted"
+	case nasMessage.Cause5GMMIllegalME:
+		return "Illegal ME"
+	case nasMessage.Cause5GMM5GSServicesNotAllowed:
+		return "5GS Services Not Allowed"
+	case nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork:
+		return "UE Identity Cannot Be Derived By The Network"
+	case nasMessage.Cause5GMMImplicitlyDeregistered:
+		return "Implicitly Deregistered"
+	case nasMessage.Cause5GMMPLMNNotAllowed:
+		return "PLMN Not Allowed"
+	case nasMessage.Cause5GMMTrackingAreaNotAllowed:
+		return "Tracking Area Not Allowed"
+	case nasMessage.Cause5GMMRoamingNotAllowedInThisTrackingArea:
+		return "Roaming Not Allowed In This Tracking Area"
+	case nasMessage.Cause5GMMNoSuitableCellsInTrackingArea:
+		return "No Suitable Cells In Tracking Area"
+	case nasMessage.Cause5GMMMACFailure:
+		return "MAC Failure"
+	case nasMessage.Cause5GMMSynchFailure:
+		return "Synch Failure"
+	case nasMessage.Cause5GMMCongestion:
+		return "Congestion"
+	case nasMessage.Cause5GMMUESecurityCapabilitiesMismatch:
+		return "UE Security Capabilities Mismatch"
+	case nasMessage.Cause5GMMSecurityModeRejectedUnspecified:
+		return "Security Mode Rejected Unspecified"
+	case nasMessage.Cause5GMMNon5GAuthenticationUnacceptable:
+		return "Non-5G Authentication Unacceptable"
+	case nasMessage.Cause5GMMN1ModeNotAllowed:
+		return "N1 Mode Not Allowed"
+	case nasMessage.Cause5GMMRestrictedServiceArea:
+		return "Restricted Service Area"
+	case nasMessage.Cause5GMMLADNNotAvailable:
+		return "LADN Not Available"
+	case nasMessage.Cause5GMMMaximumNumberOfPDUSessionsReached:
+		return "Maximum Number Of PDU Sessions Reached"
+	case nasMessage.Cause5GMMInsufficientResourcesForSpecificSliceAndDNN:
+		return "Insufficient Resources For Specific Slice And DNN"
+	case nasMessage.Cause5GMMInsufficientResourcesForSpecificSlice:
+		return "Insufficient Resources For Specific Slice"
+	case nasMessage.Cause5GMMngKSIAlreadyInUse:
+		return "ngKSI Already In Use"
+	case nasMessage.Cause5GMMNon3GPPAccessTo5GCNNotAllowed:
+		return "Non-3GPP Access To 5GCN Not Allowed"
+	case nasMessage.Cause5GMMServingNetworkNotAuthorized:
+		return "Serving Network Not Authorized"
+	case nasMessage.Cause5GMMPayloadWasNotForwarded:
+		return "Payload Was Not Forwarded"
+	case nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice:
+		return "DNN Not Supported Or Not Subscribed In The Slice"
+	case nasMessage.Cause5GMMInsufficientUserPlaneResourcesForThePDUSession:
+		return "Insufficient User Plane Resources For The PDU Session"
+	case nasMessage.Cause5GMMSemanticallyIncorrectMessage:
+		return "Semantically Incorrect Message"
+	case nasMessage.Cause5GMMInvalidMandatoryInformation:
+		return "Invalid Mandatory Information"
+	case nasMessage.Cause5GMMMessageTypeNonExistentOrNotImplemented:
+		return "Message Type Non Existent Or Not Implemented"
+	case nasMessage.Cause5GMMMessageTypeNotCompatibleWithTheProtocolState:
+		return "Message Type Not Compatible With The Protocol State"
+	case nasMessage.Cause5GMMInformationElementNonExistentOrNotImplemented:
+		return "Information Element Non Existent Or Not Implemented"
+	case nasMessage.Cause5GMMConditionalIEError:
+		return "Conditional IE Error"
+	case nasMessage.Cause5GMMMessageNotCompatibleWithTheProtocolState:
+		return "Message Not Compatible With The Protocol State"
+	case nasMessage.Cause5GMMProtocolErrorUnspecified:
+		return "Protocol Error Unspecified"
+	default:
+		return fmt.Sprintf("Unknown Cause (%d)", cause)
+	}
+}
 
 func cause5GSMToString(cause uint8) string {
 	switch cause {

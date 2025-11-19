@@ -2,6 +2,8 @@ package ue
 
 import (
 	"context"
+	"crypto/ecdh"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -12,24 +14,22 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
-type RegistrationReject_UnknownUE struct{}
+type RegistrationRejectInvalidHomeNetworkPublicKey struct{}
 
-func (RegistrationReject_UnknownUE) Meta() engine.Meta {
+func (RegistrationRejectInvalidHomeNetworkPublicKey) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_reject/unknown_ue",
-		Summary: "UE registration reject test for unknown UE",
+		ID:      "ue/registration_reject_invalid_home_network_public_key",
+		Summary: "UE registration test validating the Registration Request and Authentication procedures with wrong key associated to Profile A SUCI protection",
 		Timeout: 2 * time.Second,
 	}
 }
 
-func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationRejectInvalidHomeNetworkPublicKey) Run(ctx context.Context, env engine.Env) error {
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
 			ID: core.OperatorID{
@@ -101,40 +101,50 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	secCap := utils.UeSecurityCapability{
-		Integrity: utils.IntegrityAlgorithms{
-			Nia2: true,
-		},
-		Ciphering: utils.CipheringAlgorithms{
-			Nea0: true,
-			Nea2: true,
-		},
+	// This key will (very very very likely) not match Ella Core's randomly generated private key
+	key, err := hex.DecodeString("68863be1b86661a38a720217ec17170c5feda91e891cb3f53d4b74fbabb10247")
+	if err != nil {
+		return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
 	}
 
-	newUEOpts := &ue.UEOpts{
-		GnodeB: gNodeB,
-		Msin:   "1234567890", // Unknown MSIN
-		K:      env.Config.Subscriber.Key,
-		OpC:    env.Config.Subscriber.OPC,
-		Amf:    "80000000000000000000000000000000",
-		Sqn:    env.Config.Subscriber.SequenceNumber,
-		Mcc:    env.Config.EllaCore.MCC,
-		Mnc:    env.Config.EllaCore.MNC,
+	publicKey, err := ecdh.X25519().NewPublicKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
+	}
+
+	newUE, err := ue.NewUE(&ue.UEOpts{
+		PDUSessionID: PDUSessionID,
+		GnodeB:       gNodeB,
+		Msin:         env.Config.Subscriber.IMSI[5:],
+		K:            env.Config.Subscriber.Key,
+		OpC:          env.Config.Subscriber.OPC,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Mcc:          env.Config.EllaCore.MCC,
+		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-			ProtectionScheme: "0",
-			PublicKeyID:      "0",
+			ProtectionScheme: sidf.ProfileAScheme,
+			PublicKeyID:      "1",
+			PublicKey:        publicKey,
 		},
-		RoutingIndicator:     "0000",
-		DNN:                  env.Config.EllaCore.DNN,
-		Sst:                  env.Config.EllaCore.SST,
-		Sd:                   env.Config.EllaCore.SD,
-		UeSecurityCapability: utils.GetUESecurityCapability(&secCap),
-	}
-
-	newUE, err := ue.NewUE(newUEOpts)
+		RoutingIndicator: "0000",
+		DNN:              env.Config.EllaCore.DNN,
+		Sst:              env.Config.EllaCore.SST,
+		Sd:               env.Config.EllaCore.SD,
+		IMEISV:           "3569380356438091",
+		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
+			Integrity: utils.IntegrityAlgorithms{
+				Nia2: true,
+			},
+			Ciphering: utils.CipheringAlgorithms{
+				Nea0: true,
+				Nea2: true,
+			},
+		}),
+	})
 	if err != nil {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
@@ -185,52 +195,12 @@ func (t RegistrationReject_UnknownUE) Run(ctx context.Context, env engine.Env) e
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
 
-	logger.Logger.Debug(
-		"Received Registration Reject",
-		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.String("Cause", "UE Identity Cannot Be Derived By The Network"),
-	)
-
-	// Cleanup
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
 
 	logger.Logger.Debug("Deleted EllaCore environment")
-
-	return nil
-}
-
-func validateRegistrationReject(nasPDU *ngapType.NASPDU, ue *ue.UE, cause uint8) error {
-	if nasPDU == nil {
-		return fmt.Errorf("NAS PDU is nil")
-	}
-
-	msg, err := ue.DecodeNAS(nasPDU.Value)
-	if err != nil {
-		return fmt.Errorf("could not decode NAS PDU: %v", err)
-	}
-
-	if msg == nil {
-		return fmt.Errorf("NAS message is nil")
-	}
-
-	if msg.GmmMessage == nil {
-		return fmt.Errorf("NAS message is not a GMM message")
-	}
-
-	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationReject {
-		return fmt.Errorf("NAS message type is not Registration Reject (%d), got (%d)", nas.MsgTypeRegistrationReject, msg.GmmMessage.GetMessageType())
-	}
-
-	if msg.RegistrationReject == nil {
-		return fmt.Errorf("NAS Registration Reject message is nil")
-	}
-
-	if msg.RegistrationReject.GetCauseValue() != cause {
-		return fmt.Errorf("NAS Registration Reject Cause is not Unknown UE (%x), received (%x)", cause, msg.RegistrationReject.GetCauseValue())
-	}
 
 	return nil
 }

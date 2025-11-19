@@ -114,7 +114,7 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-			ProtectionScheme: "0",
+			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",

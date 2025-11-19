@@ -78,7 +78,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		Mcc:  cfg.MCC,
 		Mnc:  cfg.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-			ProtectionScheme: "0",
+			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
