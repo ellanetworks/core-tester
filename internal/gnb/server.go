@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/air"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas/nasType"
@@ -29,14 +29,13 @@ type GnodeB struct {
 	TAC            string
 	DNN            string
 	Name           string
-	UEPool         map[int64]engine.DownlinkSender // RANUENGAPID -> UE
-	NGAPIDs        map[int64]int64                 // RANUENGAPID -> AMFUENGAPID
+	UEPool         map[int64]air.DownlinkSender // RANUENGAPID -> UE
+	NGAPIDs        map[int64]int64              // RANUENGAPID -> AMFUENGAPID
 	Conn           *sctp.SCTPConn
 	receivedFrames map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
 	mu             sync.Mutex
 	N3Address      netip.Addr
 	PDUSessions    map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
-	// DownlinkTEID   uint32
 }
 
 func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
@@ -75,7 +74,7 @@ func (g *GnodeB) UpdateNGAPIDs(ranUeId int64, amfUeId int64) {
 	g.NGAPIDs[ranUeId] = amfUeId
 }
 
-func (g *GnodeB) LoadUE(ranUeId int64) (engine.DownlinkSender, error) {
+func (g *GnodeB) LoadUE(ranUeId int64) (air.DownlinkSender, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -216,12 +215,12 @@ func Start(
 	return gnodeB, nil
 }
 
-func (g *GnodeB) AddUE(ranUENGAPID int64, ue engine.DownlinkSender) {
+func (g *GnodeB) AddUE(ranUENGAPID int64, ue air.DownlinkSender) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	if g.UEPool == nil {
-		g.UEPool = make(map[int64]engine.DownlinkSender)
+		g.UEPool = make(map[int64]air.DownlinkSender)
 	}
 
 	g.UEPool[ranUENGAPID] = ue

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/engine"
+	"github.com/ellanetworks/core-tester/internal/air"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
@@ -70,7 +70,7 @@ type UE struct {
 	Snssai       models.Snssai
 	amfInfo      Amf
 	IMEISV       string
-	Gnb          engine.UplinkSender
+	Gnb          air.UplinkSender
 	mu           sync.Mutex
 	PDUSession   PDUSessionInfo
 }
@@ -123,7 +123,7 @@ type UEOpts struct {
 	Sd                   string
 	IMEISV               string
 	Guti                 *nasType.GUTI5G
-	GnodeB               engine.UplinkSender
+	GnodeB               air.UplinkSender
 }
 
 func NewUE(opts *UEOpts) (*UE, error) {
