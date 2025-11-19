@@ -76,10 +76,10 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
 		N3GnbIp:     gnb.N3Address,
-		PDUSessions: [16]*GnbPDUSession{
+		PDUSessions: [16]*PDUSessionInformation{
 			{
-				PDUSessionId: pduSession.PDUSessionID,
-				DownlinkTeid: pduSession.DLTeid,
+				PDUSessionID: pduSession.PDUSessionID,
+				DLTeid:       pduSession.DLTeid,
 				QFI:          1,
 			},
 		},
@@ -105,6 +105,7 @@ type PDUSessionInformation struct {
 	DLTeid       uint32
 	UpfAddress   string
 	QosId        int64
+	QFI          int64
 	FiveQi       int64
 	PriArp       int64
 	PduSType     uint64
