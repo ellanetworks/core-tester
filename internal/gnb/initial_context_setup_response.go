@@ -10,17 +10,11 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type GnbPDUSession struct {
-	PDUSessionId int64
-	DownlinkTeid uint32
-	QFI          int64
-}
-
 type InitialContextSetupResponseOpts struct {
 	AMFUENGAPID int64
 	RANUENGAPID int64
 	N3GnbIp     netip.Addr
-	PDUSessions [16]*GnbPDUSession
+	PDUSessions [16]*PDUSessionInformation
 }
 
 func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ngapType.NGAPPDU, error) {
@@ -75,12 +69,12 @@ func BuildInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) (ng
 
 		pDUSessionResourceSetupItemCxtRes := ngapType.PDUSessionResourceSetupItemCxtRes{}
 
-		transferData, err := GetPDUSessionResourceSetupResponseTransfer(opts.N3GnbIp, pduSession.DownlinkTeid, pduSession.QFI)
+		transferData, err := GetPDUSessionResourceSetupResponseTransfer(opts.N3GnbIp, pduSession.DLTeid, pduSession.QFI)
 		if err != nil {
 			return pdu, fmt.Errorf("failed to get PDUSessionResourceSetupResponseTransfer: %v", err)
 		}
 
-		pDUSessionResourceSetupItemCxtRes.PDUSessionID.Value = pduSession.PDUSessionId
+		pDUSessionResourceSetupItemCxtRes.PDUSessionID.Value = pduSession.PDUSessionID
 		pDUSessionResourceSetupItemCxtRes.PDUSessionResourceSetupResponseTransfer = transferData
 		PDUSessionResourceSetupListCxtRes.List = append(PDUSessionResourceSetupListCxtRes.List, pDUSessionResourceSetupItemCxtRes)
 	}

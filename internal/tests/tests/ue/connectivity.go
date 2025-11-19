@@ -266,6 +266,9 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
+		zap.Uint32("LTEID", pduSession.ULTeid),
+		zap.Uint32("RTEID", pduSession.DLTeid),
+		zap.String("UPF Address", pduSession.UpfAddress),
 	)
 
 	cmd = exec.Command("ping", "-I", GTPInterfaceName, PingDestination, "-c", "3", "-W", "1")

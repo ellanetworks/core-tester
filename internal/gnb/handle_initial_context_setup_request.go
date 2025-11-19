@@ -44,6 +44,7 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 			}
 
 			pduSessionInfo.PDUSessionID = pduSessionID
+			pduSessionInfo.DLTeid = 1657545292 // We will want to use a generator here later
 
 			logger.GnbLogger.Debug(
 				"Parsed PDU Session Resource Setup Request",
@@ -60,9 +61,19 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		}
 	}
 
+	pduSessions := [16]*PDUSessionInformation{}
+
+	pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
+
+	if pduSession != nil {
+		pduSessions[0] = pduSession
+	}
+
 	err := gnb.SendInitialContextSetupResponse(&InitialContextSetupResponseOpts{
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
+		N3GnbIp:     gnb.N3Address,
+		PDUSessions: pduSessions,
 	})
 	if err != nil {
 		return fmt.Errorf("could not send InitialContextSetupResponse: %v", err)
