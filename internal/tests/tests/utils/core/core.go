@@ -241,20 +241,28 @@ func (c *EllaCoreEnv) createSubs(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
-	subs, err := c.Client.ListSubscribers(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list subscribers: %v", err)
-	}
+	perPage := 100
 
-	for _, sub := range subs.Items {
-		err := c.Client.DeleteSubscriber(ctx, &client.DeleteSubscriberOptions{
-			ID: sub.Imsi,
+	for {
+		subs, err := c.Client.ListSubscribers(ctx, &client.ListParams{
+			Page:    1,
+			PerPage: perPage,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete subscriber %s: %v", sub.Imsi, err)
+			return fmt.Errorf("failed to list subscribers: %v", err)
+		}
+
+		for _, sub := range subs.Items {
+			err := c.Client.DeleteSubscriber(ctx, &client.DeleteSubscriberOptions{
+				ID: sub.Imsi,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to delete subscriber %s: %v", sub.Imsi, err)
+			}
+		}
+
+		if len(subs.Items) < perPage {
+			break
 		}
 	}
 

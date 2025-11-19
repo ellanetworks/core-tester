@@ -14,20 +14,20 @@ import (
 )
 
 const (
-	NumSubscribersParallel = 20
+	NumSubscribersParallel = 50
 )
 
-type RegistrationSuccess20Parallel struct{}
+type RegistrationSuccess50Parallel struct{}
 
-func (RegistrationSuccess20Parallel) Meta() engine.Meta {
+func (RegistrationSuccess50Parallel) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success_20_parallel",
-		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with 20 UEs",
+		ID:      "ue/registration_success_50_parallel",
+		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with 50 UEs",
 		Timeout: 60 * time.Second,
 	}
 }
 
-func (t RegistrationSuccess20Parallel) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) error {
 	subs, err := buildSubscriberConfig(NumSubscribersParallel, testStartIMSI)
 	if err != nil {
 		return fmt.Errorf("could not build subscriber config: %v", err)
@@ -111,7 +111,7 @@ func (t RegistrationSuccess20Parallel) Run(ctx context.Context, env engine.Env) 
 
 	err = eg.Wait()
 	if err != nil {
-		return fmt.Errorf("NGSetupResponse test failed: %v", err)
+		return fmt.Errorf("error during UE registrations: %v", err)
 	}
 
 	err = ellaCoreEnv.Delete(ctx)

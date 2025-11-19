@@ -24,7 +24,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 
 	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("failed to wait for UE Context Release Command: %v", err)
 	}
 
 	return nil
