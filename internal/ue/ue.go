@@ -324,11 +324,6 @@ func reverse(s string) string {
 	return aux
 }
 
-var (
-	ErrMACFailure = errors.New("milenage MAC failure")
-	ErrSQNFailure = errors.New("sequence number out of range")
-)
-
 func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription, RAND []byte, snName string, AUTN []byte) ([]byte, error) {
 	OPC, err := hex.DecodeString(authSubs.EncOpcKey)
 	if err != nil {
@@ -347,7 +342,7 @@ func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription,
 
 	sqnHn, AK, IK, CK, RES, err := milenage.GenerateKeysWithAUTN(OPC, K, RAND, AUTN)
 	if err != nil {
-		return nil, ErrMACFailure
+		return nil, errors.New("milenage MAC failure")
 	}
 
 	if bytes.Compare(sqnUe, sqnHn) > 0 {
@@ -356,7 +351,7 @@ func (ue *UE) DeriveRESstarAndSetKey(authSubs models.AuthenticationSubscription,
 			return auts, fmt.Errorf("AUTS generation error: %v", err)
 		}
 
-		return auts, ErrSQNFailure
+		return auts, errors.New("sequence number out of range")
 	}
 
 	authSubs.SequenceNumber = &models.SequenceNumber{

@@ -2,8 +2,10 @@ package ue
 
 import (
 	"context"
+	"crypto/ecdh"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -17,58 +19,23 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
-const (
-	NumSubscribersSequential = 50
-	testStartIMSI            = "001017271246546"
-)
+type RegistrationSuccessProfileA struct{}
 
-type RegistrationSuccess50Sequential struct{}
-
-func (RegistrationSuccess50Sequential) Meta() engine.Meta {
+func (RegistrationSuccessProfileA) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success_50_sequential",
-		Summary: "UE sequential registration success test validating the Registration Request and Authentication procedures with 50 UEs",
-		Timeout: 60 * time.Second,
+		ID:      "ue/registration_success_profile_a",
+		Summary: "UE registration test validating the Registration Request and Authentication procedures with Profile A SUCI protection",
+		Timeout: 2 * time.Second,
 	}
 }
 
-func computeIMSI(baseIMSI string, increment int) (string, error) {
-	intBaseImsi, err := strconv.Atoi(baseIMSI)
+func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) error {
+	privateKey, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
-		return "", fmt.Errorf("failed to convert base IMSI to int: %v", err)
+		return fmt.Errorf("failed to generate ECDH key: %v", err)
 	}
 
-	newIMSI := intBaseImsi + increment
-
-	return fmt.Sprintf("%015d", newIMSI), nil
-}
-
-func buildSubscriberConfig(numSubscribers int, startIMSI string) ([]core.SubscriberConfig, error) {
-	subs := []core.SubscriberConfig{}
-
-	for i := range numSubscribers {
-		imsi, err := computeIMSI(startIMSI, i)
-		if err != nil {
-			return nil, fmt.Errorf("failed to compute IMSI: %v", err)
-		}
-
-		subs = append(subs, core.SubscriberConfig{
-			Imsi:           imsi,
-			Key:            "640f441067cd56f1474cbcacd7a0588f",
-			SequenceNumber: "000000000022",
-			OPc:            "cb698a2341629c3241ae01de9d89de4f",
-			PolicyName:     "bbb",
-		})
-	}
-
-	return subs, nil
-}
-
-func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env) error {
-	subs, err := buildSubscriberConfig(NumSubscribersSequential, testStartIMSI)
-	if err != nil {
-		return fmt.Errorf("could not build subscriber config: %v", err)
-	}
+	privHex := hex.EncodeToString(privateKey.Bytes())
 
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
@@ -82,6 +49,9 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{env.Config.EllaCore.TAC},
+			},
+			HomeNetwork: core.OperatorHomeNetwork{
+				PrivateKey: privHex,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -102,7 +72,15 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 				DataNetworkName: env.Config.EllaCore.DNN,
 			},
 		},
-		Subscribers: subs,
+		Subscribers: []core.SubscriberConfig{
+			{
+				Imsi:           env.Config.Subscriber.IMSI,
+				Key:            env.Config.Subscriber.Key,
+				SequenceNumber: env.Config.Subscriber.SequenceNumber,
+				OPc:            env.Config.Subscriber.OPC,
+				PolicyName:     env.Config.Subscriber.PolicyName,
+			},
+		},
 	})
 
 	err = ellaCoreEnv.Create(ctx)
@@ -136,39 +114,36 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	for i := range NumSubscribersSequential {
-		err := ueRegistrationTest(env, i, gNodeB, subs[i])
-		if err != nil {
-			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
-		}
-	}
+	// publicKeyBytes, err := hex.DecodeString(env.Config.EllaCore.HomeNetworkPublicKey)
+	// if err != nil {
+	// 	return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
+	// }
 
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
+	// privateKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	// if err != nil {
+	// 	log.Fatalf("failed to generate ECDH key: %v", err)
+	// }
 
-	logger.Logger.Debug("Deleted EllaCore environment")
-
-	return nil
-}
-
-func ueRegistrationTest(env engine.Env, index int, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
-	ranUENGAPID := RANUENGAPID + int64(index)
+	// publicKey, err := ecdh.X25519().NewPublicKey(publicKeyBytes)
+	// if err != nil {
+	// 	return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
+	// }
+	publicKey := privateKey.PublicKey()
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,
-		Msin:         subscriber.Imsi[5:],
-		K:            subscriber.Key,
-		OpC:          subscriber.OPc,
+		GnodeB:       gNodeB,
+		Msin:         env.Config.Subscriber.IMSI[5:],
+		K:            env.Config.Subscriber.Key,
+		OpC:          env.Config.Subscriber.OPC,
 		Amf:          "80000000000000000000000000000000",
 		Sqn:          env.Config.Subscriber.SequenceNumber,
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-			ProtectionScheme: sidf.NullScheme,
-			PublicKeyID:      "0",
+			ProtectionScheme: sidf.ProfileAScheme,
+			PublicKeyID:      "1",
+			PublicKey:        publicKey,
 		},
 		RoutingIndicator: "0000",
 		DNN:              env.Config.EllaCore.DNN,
@@ -189,27 +164,23 @@ func ueRegistrationTest(env engine.Env, index int, gNodeB *gnb.GnodeB, subscribe
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gNodeB.AddUE(ranUENGAPID, newUE)
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: ranUENGAPID,
+		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 		GnodeB:      gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("initial registration procedure failed for subscriber %v: %v", newUE.UeSecurity.Msin, err)
+		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
-	// Cleanup
-	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
-		UE:          newUE,
-		AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
-		RANUENGAPID: ranUENGAPID,
-	})
+	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
-		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
 	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

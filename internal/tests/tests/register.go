@@ -18,6 +18,8 @@ func RegisterAll() error {
 		ue.RegistrationSuccess{},
 		ue.RegistrationSuccess50Sequential{},
 		ue.RegistrationSuccess50Parallel{},
+		ue.RegistrationSuccessProfileA{},
+		ue.RegistrationRejectInvalidHomeNetworkPublicKey{},
 		ue.RegistrationSuccessNoSD{},
 		ue.AuthenticationWrongKey{},
 		ue.RegistrationPeriodicUpdateSignalling{},
