@@ -114,20 +114,6 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	// publicKeyBytes, err := hex.DecodeString(env.Config.EllaCore.HomeNetworkPublicKey)
-	// if err != nil {
-	// 	return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
-	// }
-
-	// privateKey, err := ecdh.X25519().GenerateKey(rand.Reader)
-	// if err != nil {
-	// 	log.Fatalf("failed to generate ECDH key: %v", err)
-	// }
-
-	// publicKey, err := ecdh.X25519().NewPublicKey(publicKeyBytes)
-	// if err != nil {
-	// 	return fmt.Errorf("invalid Home Network Public Key in configuration for Profile A: %w", err)
-	// }
 	publicKey := privateKey.PublicKey()
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
