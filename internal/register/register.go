@@ -10,7 +10,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
@@ -119,18 +118,15 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	ueIP := newUE.GetPDUSession().UEIP + "/16"
 
-	_, err = gtp.NewTunnel(&gtp.TunnelOptions{
+	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
-		GnbIP:            cfg.GnbN3Address,
 		UpfIP:            pduSession.UpfAddress,
-		LGTPUPort:        GTPUPort,
-		RGTPUPort:        GTPUPort,
 		TunInterfaceName: GTPInterfaceName,
-		Lteid:            pduSession.ULTeid,
-		Rteid:            pduSession.DLTeid,
+		ULteid:           pduSession.ULTeid,
+		DLteid:           pduSession.DLTeid,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create GTP tunnel: %v", err)
+		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", GTPInterfaceName, pduSession.DLTeid, err)
 	}
 
 	logger.Logger.Info(

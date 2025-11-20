@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,21 +22,24 @@ const (
 )
 
 type GnodeB struct {
-	GnbID          string
-	MCC            string
-	MNC            string
-	SST            int32
-	SD             string
-	TAC            string
-	DNN            string
-	Name           string
-	UEPool         map[int64]air.DownlinkSender // RANUENGAPID -> UE
-	NGAPIDs        map[int64]int64              // RANUENGAPID -> AMFUENGAPID
-	Conn           *sctp.SCTPConn
-	receivedFrames map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
-	mu             sync.Mutex
-	N3Address      netip.Addr
-	PDUSessions    map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
+	GnbID             string
+	MCC               string
+	MNC               string
+	SST               int32
+	SD                string
+	TAC               string
+	DNN               string
+	Name              string
+	UEPool            map[int64]air.DownlinkSender // RANUENGAPID -> UE
+	NGAPIDs           map[int64]int64              // RANUENGAPID -> AMFUENGAPID
+	N2Conn            *sctp.SCTPConn
+	N3Conn            *net.UDPConn
+	tunnels           map[uint32]*Tunnel // local TEID -> Tunnel
+	lastGeneratedTEID uint32
+	receivedFrames    map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
+	mu                sync.Mutex
+	N3Address         netip.Addr
+	PDUSessions       map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
 }
 
 func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
@@ -155,7 +159,7 @@ func Start(
 		},
 	}
 
-	conn, err := sctp.DialSCTPExt(
+	n2Conn, err := sctp.DialSCTPExt(
 		"sctp",
 		localAddr,
 		rem,
@@ -164,14 +168,30 @@ func Start(
 		return nil, fmt.Errorf("could not dial SCTP: %w", err)
 	}
 
-	err = conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
+	err = n2Conn.SubscribeEvents(sctp.SCTP_EVENT_DATA_IO)
 	if err != nil {
 		return nil, fmt.Errorf("could not subscribe SCTP events: %w", err)
 	}
 
-	gnbN3IPAddress, err := netip.ParseAddr(gnbN3Address)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
+	var n3Conn *net.UDPConn
+
+	var gnbN3IPAddress netip.Addr
+
+	if gnbN3Address != "" {
+		laddr := &net.UDPAddr{
+			IP:   net.ParseIP(gnbN3Address),
+			Port: 2152,
+		}
+
+		n3Conn, err = net.ListenUDP("udp", laddr)
+		if err != nil {
+			return nil, fmt.Errorf("could not listen on GTP-U UDP address: %v", err)
+		}
+
+		gnbN3IPAddress, err = netip.ParseAddr(gnbN3Address)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
+		}
 	}
 
 	gnodeB := &GnodeB{
@@ -183,11 +203,17 @@ func Start(
 		DNN:       DNN,
 		TAC:       TAC,
 		Name:      Name,
-		Conn:      conn,
+		N2Conn:    n2Conn,
+		N3Conn:    n3Conn,
+		tunnels:   make(map[uint32]*Tunnel),
 		N3Address: gnbN3IPAddress,
 	}
 
-	gnodeB.listenAndServe(conn)
+	if n3Conn != nil {
+		go gnodeB.gtpReader()
+	}
+
+	gnodeB.listenAndServe(n2Conn)
 
 	opts := &NGSetupRequestOpts{
 		GnbID: gnodeB.GnbID,
@@ -213,6 +239,15 @@ func Start(
 	)
 
 	return gnodeB, nil
+}
+
+func (g *GnodeB) GenerateTEID() uint32 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.lastGeneratedTEID++
+
+	return g.lastGeneratedTEID
 }
 
 func (g *GnodeB) AddUE(ranUENGAPID int64, ue air.DownlinkSender) {
@@ -269,10 +304,17 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 }
 
 func (g *GnodeB) Close() {
-	if g.Conn != nil {
-		err := g.Conn.Close()
+	if g.N2Conn != nil {
+		err := g.N2Conn.Close()
 		if err != nil {
 			fmt.Println("could not close SCTP connection:", err)
+		}
+	}
+
+	if g.N3Conn != nil {
+		err := g.N3Conn.Close()
+		if err != nil {
+			fmt.Println("could not close GTP-U UDP connection:", err)
 		}
 	}
 }
@@ -333,4 +375,15 @@ func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *
 	)
 
 	return nil
+}
+
+func isClosedErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	s := err.Error()
+
+	return strings.Contains(s, "use of closed network connection") ||
+		strings.Contains(s, "file already closed")
 }

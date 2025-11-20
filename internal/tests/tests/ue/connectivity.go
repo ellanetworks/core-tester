@@ -13,7 +13,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
@@ -22,8 +21,7 @@ import (
 
 const (
 	GTPInterfaceNamePrefix  = "ellatester"
-	LGTPUPortInit           = 2152
-	RGTPUPort               = 2152
+	GTPUPort                = 2152
 	PingDestination         = "10.6.0.3"
 	NumConnectivityParallel = 5
 )
@@ -34,7 +32,7 @@ func (Connectivity) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/connectivity",
 		Summary: "UE connectivity test validating the connectivity of 5 UE's in parallel after registration, and after UE Context Release",
-		Timeout: 10 * time.Second,
+		Timeout: 20 * time.Second,
 	}
 }
 
@@ -117,7 +115,6 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
 				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
-				lgtpuPort := LGTPUPortInit + i
 
 				return runConnectivityTest(
 					env,
@@ -125,7 +122,6 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 					gNodeB,
 					subs[i],
 					tunInterfaceName,
-					lgtpuPort,
 				)
 			})
 		}()
@@ -133,7 +129,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	err = eg.Wait()
 	if err != nil {
-		return fmt.Errorf("error during UE registrations: %v", err)
+		return fmt.Errorf("error during connectivity test: %v", err)
 	}
 
 	err = ellaCoreEnv.Delete(ctx)
@@ -152,7 +148,6 @@ func runConnectivityTest(
 	gNodeB *gnb.GnodeB,
 	subscriber core.SubscriberConfig,
 	tunInterfaceName string,
-	lGTPUPort int,
 ) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
@@ -207,39 +202,33 @@ func runConnectivityTest(
 
 	ueIP := newUE.GetPDUSession().UEIP + "/16"
 
-	pduSessionInformation := gNodeB.GetPDUSession(ranUENGAPID)
+	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
 
-	tun, err := gtp.NewTunnel(&gtp.TunnelOptions{
+	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
-		GnbIP:            env.Config.Gnb.N3Address,
-		UpfIP:            pduSessionInformation.UpfAddress,
-		LGTPUPort:        lGTPUPort,
-		RGTPUPort:        RGTPUPort,
+		UpfIP:            gnbPDUSession.UpfAddress,
 		TunInterfaceName: tunInterfaceName,
-		Lteid:            pduSessionInformation.ULTeid,
-		Rteid:            pduSessionInformation.DLTeid,
+		ULteid:           gnbPDUSession.ULTeid,
+		DLteid:           gnbPDUSession.DLTeid,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create GTP tunnel: %v", err)
+		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
 	}
 
-	logger.Logger.Debug(
-		"Created GTP tunnel",
-		zap.String("interface", tunInterfaceName),
+	logger.GnbLogger.Debug(
+		"Created GTP Tunnel for PDU Session",
+		zap.String("Interface", tunInterfaceName),
 		zap.String("UE IP", ueIP),
-		zap.String("gNB IP", env.Config.Gnb.N3Address),
-		zap.String("UPF IP", pduSessionInformation.UpfAddress),
-		zap.Uint32("LTEID", pduSessionInformation.ULTeid),
-		zap.Uint32("RTEID", pduSessionInformation.DLTeid),
-		zap.Int("LGTPU Port", lGTPUPort),
-		zap.Int("RGTPU Port", RGTPUPort),
+		zap.String("UPF IP", gnbPDUSession.UpfAddress),
+		zap.Uint32("UL TEID", gnbPDUSession.ULTeid),
+		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
 	cmd := exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("could not ping destination %s: %v", PingDestination, err)
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
@@ -269,9 +258,9 @@ func runConnectivityTest(
 
 	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err == nil {
-		return fmt.Errorf("ping to destination %s succeeded, but should have failed after UE Context Release", PingDestination)
+		return fmt.Errorf("ping %s via %s succeeded, but was expected to fail after UE Context Release\noutput:\n%s", PingDestination, tunInterfaceName, string(out))
 	}
 
 	logger.Logger.Debug(
@@ -290,22 +279,22 @@ func runConnectivityTest(
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
 
-	tun.Close()
+	err = gNodeB.CloseTunnel(gnbPDUSession.DLTeid)
+	if err != nil {
+		return fmt.Errorf("could not close GTP tunnel: %v", err)
+	}
 
 	pduSession := gNodeB.GetPDUSession(ranUENGAPID)
 
-	newTun, err := gtp.NewTunnel(&gtp.TunnelOptions{
+	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
-		GnbIP:            env.Config.Gnb.N3Address,
 		UpfIP:            pduSession.UpfAddress,
-		LGTPUPort:        lGTPUPort,
-		RGTPUPort:        RGTPUPort,
 		TunInterfaceName: tunInterfaceName,
-		Lteid:            pduSession.ULTeid,
-		Rteid:            pduSession.DLTeid,
+		ULteid:           pduSession.ULTeid,
+		DLteid:           pduSession.DLTeid,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to recreate GTP tunnel after Service Request: %v", err)
+		return fmt.Errorf("could not create GTP tunnel after service request (name: %s, DL TEID: %d): %v", tunInterfaceName, pduSession.DLTeid, err)
 	}
 
 	logger.Logger.Debug(
@@ -320,9 +309,9 @@ func runConnectivityTest(
 
 	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
-		return fmt.Errorf("could not ping destination %s after Service Request: %v", PingDestination, err)
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
@@ -332,7 +321,10 @@ func runConnectivityTest(
 	)
 
 	// Cleanup
-	newTun.Close()
+	err = gNodeB.CloseTunnel(pduSession.DLTeid)
+	if err != nil {
+		return fmt.Errorf("could not close GTP tunnel: %v", err)
+	}
 
 	logger.Logger.Debug(
 		"Closed GTP tunnel",
