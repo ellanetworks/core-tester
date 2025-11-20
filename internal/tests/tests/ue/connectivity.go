@@ -13,16 +13,17 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
-	"github.com/ellanetworks/core-tester/internal/ue/gtp"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	GTPInterfaceName = "ellatester0"
-	GTPUPort         = 2152
-	PingDestination  = "10.6.0.3"
+	GTPInterfaceNamePrefix  = "ellatester"
+	GTPUPort                = 2152
+	PingDestination         = "10.6.0.3"
+	NumConnectivityParallel = 5
 )
 
 type Connectivity struct{}
@@ -30,12 +31,17 @@ type Connectivity struct{}
 func (Connectivity) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/connectivity",
-		Summary: "UE connectivity test validating the connectivity after registration, and after UE Context Release",
-		Timeout: 10 * time.Second,
+		Summary: "UE connectivity test validating the connectivity of 5 UE's in parallel after registration, and after UE Context Release",
+		Timeout: 20 * time.Second,
 	}
 }
 
 func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
+	subs, err := buildSubscriberConfig(NumConnectivityParallel, testStartIMSI)
+	if err != nil {
+		return fmt.Errorf("could not build subscriber config: %v", err)
+	}
+
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
 			ID: core.OperatorID{
@@ -68,18 +74,10 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 				DataNetworkName: env.Config.EllaCore.DNN,
 			},
 		},
-		Subscribers: []core.SubscriberConfig{
-			{
-				Imsi:           env.Config.Subscriber.IMSI,
-				Key:            env.Config.Subscriber.Key,
-				SequenceNumber: env.Config.Subscriber.SequenceNumber,
-				OPc:            env.Config.Subscriber.OPC,
-				PolicyName:     env.Config.Subscriber.PolicyName,
-			},
-		},
+		Subscribers: subs,
 	})
 
-	err := ellaCoreEnv.Create(ctx)
+	err = ellaCoreEnv.Create(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
@@ -110,14 +108,55 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
+	eg := errgroup.Group{}
+
+	for i := range NumConnectivityParallel {
+		func() {
+			eg.Go(func() error {
+				ranUENGAPID := RANUENGAPID + int64(i)
+				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
+
+				return runConnectivityTest(
+					env,
+					ranUENGAPID,
+					gNodeB,
+					subs[i],
+					tunInterfaceName,
+				)
+			})
+		}()
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		return fmt.Errorf("error during connectivity test: %v", err)
+	}
+
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
+	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func runConnectivityTest(
+	env engine.Env,
+	ranUENGAPID int64,
+	gNodeB *gnb.GnodeB,
+	subscriber core.SubscriberConfig,
+	tunInterfaceName string,
+) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,
-		Msin:         env.Config.Subscriber.IMSI[5:],
-		K:            env.Config.Subscriber.Key,
-		OpC:          env.Config.Subscriber.OPC,
+		Msin:         subscriber.Imsi[5:],
+		K:            subscriber.Key,
+		OpC:          subscriber.OPc,
 		Amf:          "80000000000000000000000000000000",
-		Sqn:          env.Config.Subscriber.SequenceNumber,
+		Sqn:          subscriber.SequenceNumber,
 		Mcc:          env.Config.EllaCore.MCC,
 		Mnc:          env.Config.EllaCore.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
@@ -143,10 +182,10 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gNodeB.AddUE(RANUENGAPID, newUE)
+	gNodeB.AddUE(ranUENGAPID, newUE)
 
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
+		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
 		GnodeB:      gNodeB,
 	})
@@ -157,48 +196,44 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	logger.Logger.Debug(
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 	)
 
 	ueIP := newUE.GetPDUSession().UEIP + "/16"
 
-	pduSessionInformation := gNodeB.GetPDUSession(RANUENGAPID)
+	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
 
-	tun, err := gtp.NewTunnel(&gtp.TunnelOptions{
+	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
-		GnbIP:            env.Config.Gnb.N3Address,
-		UpfIP:            pduSessionInformation.UpfAddress,
-		GTPUPort:         GTPUPort,
-		TunInterfaceName: GTPInterfaceName,
-		Lteid:            pduSessionInformation.ULTeid,
-		Rteid:            pduSessionInformation.DLTeid,
+		UpfIP:            gnbPDUSession.UpfAddress,
+		TunInterfaceName: tunInterfaceName,
+		ULteid:           gnbPDUSession.ULTeid,
+		DLteid:           gnbPDUSession.DLTeid,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create GTP tunnel: %v", err)
+		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
 	}
 
-	logger.Logger.Debug(
-		"Created GTP tunnel",
-		zap.String("interface", GTPInterfaceName),
+	logger.GnbLogger.Debug(
+		"Created GTP Tunnel for PDU Session",
+		zap.String("Interface", tunInterfaceName),
 		zap.String("UE IP", ueIP),
-		zap.String("gNB IP", env.Config.Gnb.N3Address),
-		zap.String("UPF IP", pduSessionInformation.UpfAddress),
-		zap.Uint32("LTEID", pduSessionInformation.ULTeid),
-		zap.Uint32("RTEID", pduSessionInformation.DLTeid),
-		zap.Uint16("GTPU Port", GTPUPort),
+		zap.String("UPF IP", gnbPDUSession.UpfAddress),
+		zap.Uint32("UL TEID", gnbPDUSession.ULTeid),
+		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
-	cmd := exec.Command("ping", "-I", GTPInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd := exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("could not ping destination %s: %v", PingDestination, err)
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful",
-		zap.String("interface", GTPInterfaceName),
+		zap.String("interface", tunInterfaceName),
 		zap.String("destination", PingDestination),
 	)
 
@@ -206,8 +241,8 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	pduSessionStatus[PDUSessionID] = true
 
 	err = procedure.UEContextRelease(&procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
-		RANUENGAPID:   RANUENGAPID,
+		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(ranUENGAPID),
+		RANUENGAPID:   ranUENGAPID,
 		GnodeB:        gNodeB,
 		PDUSessionIDs: pduSessionStatus,
 	})
@@ -217,26 +252,26 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug(
 		"Completed UE Context Release Procedure",
-		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
-	cmd = exec.Command("ping", "-I", GTPInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err == nil {
-		return fmt.Errorf("ping to destination %s succeeded, but should have failed after UE Context Release", PingDestination)
+		return fmt.Errorf("ping %s via %s succeeded, but was expected to fail after UE Context Release\noutput:\n%s", PingDestination, tunInterfaceName, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping failed as expected after UE Context Release",
-		zap.String("interface", GTPInterfaceName),
+		zap.String("interface", tunInterfaceName),
 		zap.String("destination", PingDestination),
 	)
 
 	err = procedure.ServiceRequest(&procedure.ServiceRequestOpts{
 		PDUSessionStatus: pduSessionStatus,
-		RANUENGAPID:      RANUENGAPID,
+		RANUENGAPID:      ranUENGAPID,
 		UE:               newUE,
 		GnodeB:           gNodeB,
 	})
@@ -244,69 +279,67 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
 
-	tun.Close()
+	err = gNodeB.CloseTunnel(gnbPDUSession.DLTeid)
+	if err != nil {
+		return fmt.Errorf("could not close GTP tunnel: %v", err)
+	}
 
-	pduSession := gNodeB.GetPDUSession(RANUENGAPID)
+	pduSession := gNodeB.GetPDUSession(ranUENGAPID)
 
-	newTun, err := gtp.NewTunnel(&gtp.TunnelOptions{
+	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
-		GnbIP:            env.Config.Gnb.N3Address,
 		UpfIP:            pduSession.UpfAddress,
-		GTPUPort:         GTPUPort,
-		TunInterfaceName: GTPInterfaceName,
-		Lteid:            pduSession.ULTeid,
-		Rteid:            pduSession.DLTeid,
+		TunInterfaceName: tunInterfaceName,
+		ULteid:           pduSession.ULTeid,
+		DLteid:           pduSession.DLTeid,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to recreate GTP tunnel after Service Request: %v", err)
+		return fmt.Errorf("could not create GTP tunnel after service request (name: %s, DL TEID: %d): %v", tunInterfaceName, pduSession.DLTeid, err)
 	}
 
 	logger.Logger.Debug(
 		"Completed Service Request Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 		zap.Uint32("LTEID", pduSession.ULTeid),
 		zap.Uint32("RTEID", pduSession.DLTeid),
 		zap.String("UPF Address", pduSession.UpfAddress),
 	)
 
-	cmd = exec.Command("ping", "-I", GTPInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
 
-	err = cmd.Run()
+	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
-		return fmt.Errorf("could not ping destination %s after Service Request: %v", PingDestination, err)
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful after Service Request",
-		zap.String("interface", GTPInterfaceName),
+		zap.String("interface", tunInterfaceName),
 		zap.String("destination", PingDestination),
 	)
 
 	// Cleanup
-	newTun.Close()
+	err = gNodeB.CloseTunnel(pduSession.DLTeid)
+	if err != nil {
+		return fmt.Errorf("could not close GTP tunnel: %v", err)
+	}
 
-	logger.Logger.Debug("Closed GTP tunnel",
-		zap.String("interface", GTPInterfaceName),
+	logger.Logger.Debug(
+		"Closed GTP tunnel",
+		zap.String("interface", tunInterfaceName),
 	)
 
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		GnodeB:      gNodeB,
 		UE:          newUE,
-		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
-		RANUENGAPID: RANUENGAPID,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
+		RANUENGAPID: ranUENGAPID,
 	})
 	if err != nil {
 		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
 	}
-
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
-
-	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

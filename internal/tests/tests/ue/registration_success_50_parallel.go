@@ -104,7 +104,8 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 	for i := range NumSubscribersParallel {
 		func() {
 			eg.Go(func() error {
-				return ueRegistrationTest(env, i, gNodeB, subs[i])
+				ranUENGAPID := RANUENGAPID + int64(i)
+				return ueRegistrationTest(env, ranUENGAPID, gNodeB, subs[i])
 			})
 		}()
 	}

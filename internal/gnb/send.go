@@ -118,11 +118,11 @@ func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) erro
 }
 
 func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
-	if g.Conn == nil {
+	if g.N2Conn == nil {
 		return fmt.Errorf("ran conn is nil")
 	}
 
-	if g.Conn.RemoteAddr() == nil {
+	if g.N2Conn.RemoteAddr() == nil {
 		return fmt.Errorf("ran address is nil")
 	}
 
@@ -146,7 +146,7 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 		Stream: sid,
 		PPID:   ngap.PPID,
 	}
-	if _, err := g.Conn.SCTPWrite(packet, &info); err != nil {
+	if _, err := g.N2Conn.SCTPWrite(packet, &info); err != nil {
 		return fmt.Errorf("send write to sctp connection: %s", err.Error())
 	}
 

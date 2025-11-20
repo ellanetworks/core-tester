@@ -137,7 +137,9 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	}
 
 	for i := range NumSubscribersSequential {
-		err := ueRegistrationTest(env, i, gNodeB, subs[i])
+		ranUENGAPID := RANUENGAPID + int64(i)
+
+		err := ueRegistrationTest(env, ranUENGAPID, gNodeB, subs[i])
 		if err != nil {
 			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
 		}
@@ -153,9 +155,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	return nil
 }
 
-func ueRegistrationTest(env engine.Env, index int, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
-	ranUENGAPID := RANUENGAPID + int64(index)
-
+func ueRegistrationTest(env engine.Env, ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,

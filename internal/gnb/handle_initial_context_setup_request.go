@@ -44,7 +44,7 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 			}
 
 			pduSessionInfo.PDUSessionID = pduSessionID
-			pduSessionInfo.DLTeid = 1657545292 // We will want to use a generator here later
+			pduSessionInfo.DLTeid = gnb.GenerateTEID()
 
 			logger.GnbLogger.Debug(
 				"Parsed PDU Session Resource Setup Request",
