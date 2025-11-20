@@ -22,7 +22,8 @@ import (
 
 const (
 	GTPInterfaceNamePrefix  = "ellatester"
-	GTPUPortInit            = 2152
+	LGTPUPortInit           = 2152
+	RGTPUPort               = 2152
 	PingDestination         = "10.6.0.3"
 	NumConnectivityParallel = 5
 )
@@ -116,7 +117,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
 				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
-				gtpuPort := GTPUPortInit + i
+				lgtpuPort := LGTPUPortInit + i
 
 				return runConnectivityTest(
 					env,
@@ -124,7 +125,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 					gNodeB,
 					subs[i],
 					tunInterfaceName,
-					gtpuPort,
+					lgtpuPort,
 				)
 			})
 		}()
@@ -151,7 +152,7 @@ func runConnectivityTest(
 	gNodeB *gnb.GnodeB,
 	subscriber core.SubscriberConfig,
 	tunInterfaceName string,
-	gtpuPort int,
+	lGTPUPort int,
 ) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
@@ -212,7 +213,8 @@ func runConnectivityTest(
 		UEIP:             ueIP,
 		GnbIP:            env.Config.Gnb.N3Address,
 		UpfIP:            pduSessionInformation.UpfAddress,
-		GTPUPort:         gtpuPort,
+		LGTPUPort:        lGTPUPort,
+		RGTPUPort:        RGTPUPort,
 		TunInterfaceName: tunInterfaceName,
 		Lteid:            pduSessionInformation.ULTeid,
 		Rteid:            pduSessionInformation.DLTeid,
@@ -229,7 +231,8 @@ func runConnectivityTest(
 		zap.String("UPF IP", pduSessionInformation.UpfAddress),
 		zap.Uint32("LTEID", pduSessionInformation.ULTeid),
 		zap.Uint32("RTEID", pduSessionInformation.DLTeid),
-		zap.Int("GTPU Port", gtpuPort),
+		zap.Int("LGTPU Port", lGTPUPort),
+		zap.Int("RGTPU Port", RGTPUPort),
 	)
 
 	cmd := exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
@@ -295,7 +298,8 @@ func runConnectivityTest(
 		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
 		GnbIP:            env.Config.Gnb.N3Address,
 		UpfIP:            pduSession.UpfAddress,
-		GTPUPort:         gtpuPort,
+		LGTPUPort:        lGTPUPort,
+		RGTPUPort:        RGTPUPort,
 		TunInterfaceName: tunInterfaceName,
 		Lteid:            pduSession.ULTeid,
 		Rteid:            pduSession.DLTeid,

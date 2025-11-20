@@ -27,7 +27,8 @@ type TunnelOptions struct {
 	UEIP             string
 	GnbIP            string
 	UpfIP            string
-	GTPUPort         int
+	LGTPUPort        int
+	RGTPUPort        int
 	TunInterfaceName string
 	Lteid            uint32
 	Rteid            uint32
@@ -36,12 +37,12 @@ type TunnelOptions struct {
 func NewTunnel(opts *TunnelOptions) (*Tunnel, error) {
 	laddr := &net.UDPAddr{
 		IP:   net.ParseIP(opts.GnbIP),
-		Port: opts.GTPUPort,
+		Port: opts.LGTPUPort,
 	}
 
 	raddr := &net.UDPAddr{
 		IP:   net.ParseIP(opts.UpfIP),
-		Port: opts.GTPUPort,
+		Port: opts.RGTPUPort,
 	}
 
 	conn, err := net.DialUDP("udp", laddr, raddr)
