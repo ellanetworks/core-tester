@@ -271,6 +271,11 @@ func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
 		buf := make([]byte, SCTPReadBufferSize)
 
 		for {
+			if conn == nil {
+				logger.GnbLogger.Info("SCTP connection is nil, stopping listener")
+				return
+			}
+
 			n, info, err := conn.SCTPRead(buf)
 			if err != nil {
 				if err == io.EOF {
