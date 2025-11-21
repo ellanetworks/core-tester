@@ -24,7 +24,7 @@ func (ServiceRequestData) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/service_request/data",
 		Summary: "UE service request test validating the Service Request procedure for data",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

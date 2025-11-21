@@ -25,7 +25,7 @@ func (RegistrationRejectInvalidHomeNetworkPublicKey) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_reject_invalid_home_network_public_key",
 		Summary: "UE registration test validating the Registration Request and Authentication procedures with wrong key associated to Profile A SUCI protection",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

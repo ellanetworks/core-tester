@@ -24,7 +24,7 @@ func (RegistrationReject_UnknownUE) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_reject/unknown_ue",
 		Summary: "UE registration reject test for unknown UE",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

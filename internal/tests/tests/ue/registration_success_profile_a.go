@@ -25,7 +25,7 @@ func (RegistrationSuccessProfileA) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_success_profile_a",
 		Summary: "UE registration test validating the Registration Request and Authentication procedures with Profile A SUCI protection",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

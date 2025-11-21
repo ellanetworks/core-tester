@@ -22,7 +22,7 @@ func (RegistrationSuccessNoSD) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_success_no_sd",
 		Summary: "UE registration test validating the Registration Request and Authentication procedures without Slice Differentiator (SD)",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

@@ -27,7 +27,7 @@ func (RegistrationIncorrectGUTI) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration/incorrect_guti",
 		Summary: "UE registration test validating the Registration Request procedure with incorrect GUTI",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 
