@@ -74,9 +74,11 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 		},
 	}
 
-	go tunToGtp(g.N3Conn, tunnel)
-
+	g.mu.Lock()
 	g.tunnels[opts.DLteid] = tunnel
+	g.mu.Unlock()
+
+	go tunToGtp(g.N3Conn, tunnel)
 
 	return tunnel, nil
 }
@@ -129,7 +131,7 @@ func (g *GnodeB) gtpReader() {
 
 		t, ok := g.tunnels[teid]
 		if !ok {
-			logger.GnbLogger.Debug("unknown TEID, dropping packet", zap.Uint32("teid", teid))
+			logger.GnbLogger.Warn("unknown TEID, dropping packet", zap.Uint32("teid", teid))
 			continue
 		}
 

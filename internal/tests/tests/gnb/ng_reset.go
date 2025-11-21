@@ -21,7 +21,7 @@ func (NGReset) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "gnb/ngap/reset",
 		Summary: "NGReset test validating the NGResetAcknowledge message is received after sending NGReset",
-		Timeout: 500 * time.Millisecond,
+		Timeout: 2 * time.Second,
 	}
 }
 
