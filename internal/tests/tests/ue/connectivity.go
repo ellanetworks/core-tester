@@ -22,7 +22,6 @@ import (
 const (
 	GTPInterfaceNamePrefix  = "ellatester"
 	GTPUPort                = 2152
-	PingDestination         = "10.6.0.3"
 	NumConnectivityParallel = 5
 )
 
@@ -224,17 +223,17 @@ func runConnectivityTest(
 		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
-	cmd := exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd := exec.Command("ping", "-I", tunInterfaceName, env.Config.Subscriber.PingDestination, "-c", "3", "-W", "1")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful",
 		zap.String("interface", tunInterfaceName),
-		zap.String("destination", PingDestination),
+		zap.String("destination", env.Config.Subscriber.PingDestination),
 	)
 
 	pduSessionStatus := [16]bool{}
@@ -256,17 +255,17 @@ func runConnectivityTest(
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
-	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.Command("ping", "-I", tunInterfaceName, env.Config.Subscriber.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err == nil {
-		return fmt.Errorf("ping %s via %s succeeded, but was expected to fail after UE Context Release\noutput:\n%s", PingDestination, tunInterfaceName, string(out))
+		return fmt.Errorf("ping %s via %s succeeded, but was expected to fail after UE Context Release\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping failed as expected after UE Context Release",
 		zap.String("interface", tunInterfaceName),
-		zap.String("destination", PingDestination),
+		zap.String("destination", env.Config.Subscriber.PingDestination),
 	)
 
 	err = procedure.ServiceRequest(&procedure.ServiceRequestOpts{
@@ -307,17 +306,17 @@ func runConnectivityTest(
 		zap.String("UPF Address", pduSession.UpfAddress),
 	)
 
-	cmd = exec.Command("ping", "-I", tunInterfaceName, PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.Command("ping", "-I", tunInterfaceName, env.Config.Subscriber.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful after Service Request",
 		zap.String("interface", tunInterfaceName),
-		zap.String("destination", PingDestination),
+		zap.String("destination", env.Config.Subscriber.PingDestination),
 	)
 
 	// Cleanup

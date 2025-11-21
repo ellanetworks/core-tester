@@ -38,11 +38,12 @@ type GnbConfig struct {
 }
 
 type SubscriberConfig struct {
-	IMSI           string
-	Key            string
-	OPC            string
-	SequenceNumber string
-	PolicyName     string
+	IMSI            string
+	Key             string
+	OPC             string
+	SequenceNumber  string
+	PolicyName      string
+	PingDestination string
 }
 
 type Config struct {
