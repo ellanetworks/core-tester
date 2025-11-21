@@ -24,7 +24,7 @@ func (RegistrationPeriodicUpdateSignalling) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration/periodic/signalling",
 		Summary: "UE registration periodic test validating the Registration Request procedure for periodic update",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

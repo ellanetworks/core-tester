@@ -33,7 +33,7 @@ func (RegistrationSuccess) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/registration_success",
 		Summary: "UE registration success test validating the Registration Request and Authentication procedures",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

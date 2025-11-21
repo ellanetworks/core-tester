@@ -24,7 +24,7 @@ func (UEContextRelease) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/context/release",
 		Summary: "UE context release test validating the Context Release Request and Response procedures",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

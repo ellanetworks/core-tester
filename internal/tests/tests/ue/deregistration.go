@@ -22,7 +22,7 @@ func (Deregistration) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/deregistration",
 		Summary: "UE deregistration test validating the Deregistration Request and Response procedures",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 

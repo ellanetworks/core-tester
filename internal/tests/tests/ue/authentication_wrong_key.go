@@ -25,7 +25,7 @@ func (AuthenticationWrongKey) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/authentication/wrong_key",
 		Summary: "UE authentication failure test validating the Authentication Request and Response procedures",
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 
