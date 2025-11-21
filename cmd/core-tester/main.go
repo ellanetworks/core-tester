@@ -34,6 +34,7 @@ var (
 	ellaCoreAPIAddress string
 	ellaCoreAPIToken   string
 	verbose            bool
+	pingDestination    string
 )
 
 var rootCmd = &cobra.Command{
@@ -76,6 +77,7 @@ func main() {
 	testCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
 	testCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
 	testCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
+	testCmd.Flags().StringVar(&pingDestination, "ping-destination", "10.6.0.3", "Destination to ping when testing UE connectivity")
 	_ = testCmd.MarkFlagRequired("ella-core-api-address")
 	_ = testCmd.MarkFlagRequired("ella-core-api-token")
 	_ = testCmd.MarkFlagRequired("ella-core-n2-address")
@@ -122,11 +124,12 @@ func main() {
 func Test(cmd *cobra.Command, args []string) {
 	testConfig := engine.Config{
 		Subscriber: engine.SubscriberConfig{
-			IMSI:           "001017271246546",
-			Key:            "640f441067cd56f1474cbcacd7a0588f",
-			OPC:            "cb698a2341629c3241ae01de9d89de4f",
-			SequenceNumber: "000000000022",
-			PolicyName:     "bbb",
+			IMSI:            "001017271246546",
+			Key:             "640f441067cd56f1474cbcacd7a0588f",
+			OPC:             "cb698a2341629c3241ae01de9d89de4f",
+			SequenceNumber:  "000000000022",
+			PolicyName:      "bbb",
+			PingDestination: pingDestination,
 		},
 		EllaCore: engine.EllaCoreConfig{
 			N2Address: ellaCoreN2Address,
