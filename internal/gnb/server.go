@@ -262,11 +262,6 @@ func (g *GnodeB) AddUE(ranUENGAPID int64, ue air.DownlinkSender) {
 }
 
 func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
-	if conn == nil {
-		logger.GnbLogger.Error("SCTP connection is nil")
-		return
-	}
-
 	go func() {
 		buf := make([]byte, SCTPReadBufferSize)
 
