@@ -216,6 +216,7 @@ func runConnectivityTest(
 
 	logger.GnbLogger.Debug(
 		"Created GTP Tunnel for PDU Session",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
 		zap.String("Interface", tunInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("UPF IP", gnbPDUSession.UpfAddress),
@@ -227,7 +228,7 @@ func runConnectivityTest(
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s failed after initial registration: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(
@@ -278,6 +279,13 @@ func runConnectivityTest(
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
 
+	logger.Logger.Debug(
+		"Completed Service Request Procedure",
+		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
+		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
+	)
+
 	err = gNodeB.CloseTunnel(gnbPDUSession.DLTeid)
 	if err != nil {
 		return fmt.Errorf("could not close GTP tunnel: %v", err)
@@ -296,21 +304,21 @@ func runConnectivityTest(
 		return fmt.Errorf("could not create GTP tunnel after service request (name: %s, DL TEID: %d): %v", tunInterfaceName, pduSession.DLTeid, err)
 	}
 
-	logger.Logger.Debug(
-		"Completed Service Request Procedure",
+	logger.GnbLogger.Debug(
+		"Created GTP Tunnel for PDU Session after Service Request",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
-		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
-		zap.Uint32("LTEID", pduSession.ULTeid),
-		zap.Uint32("RTEID", pduSession.DLTeid),
-		zap.String("UPF Address", pduSession.UpfAddress),
+		zap.String("Interface", tunInterfaceName),
+		zap.String("UE IP", ueIP),
+		zap.String("UPF IP", pduSession.UpfAddress),
+		zap.Uint32("UL TEID", pduSession.ULTeid),
+		zap.Uint32("DL TEID", pduSession.DLTeid),
 	)
 
 	cmd = exec.Command("ping", "-I", tunInterfaceName, env.Config.Subscriber.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s failed after service request: %v\noutput:\n%s", env.Config.Subscriber.PingDestination, tunInterfaceName, err, string(out))
 	}
 
 	logger.Logger.Debug(

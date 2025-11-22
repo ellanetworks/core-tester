@@ -6,6 +6,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -42,6 +43,11 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, timeoutPerMessage)
 	if err != nil {
 		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
+	}
+
+	_, err = opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, timeoutPerMessage)
+	if err != nil {
+		return fmt.Errorf("timeout waiting for PDU session establishment accept: %v", err)
 	}
 
 	_, err = opts.UE.WaitForPDUSession(timeoutPerMessage)

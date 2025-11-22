@@ -67,16 +67,18 @@ type PDUSessionInfo struct {
 }
 
 type UE struct {
-	UeSecurity   *UESecurity
-	StateMM      int
-	DNN          string
-	PDUSessionID uint8
-	Snssai       models.Snssai
-	amfInfo      Amf
-	IMEISV       string
-	Gnb          air.UplinkSender
-	mu           sync.Mutex
-	PDUSession   PDUSessionInfo
+	UeSecurity             *UESecurity
+	StateMM                int
+	DNN                    string
+	PDUSessionID           uint8
+	Snssai                 models.Snssai
+	amfInfo                Amf
+	IMEISV                 string
+	Gnb                    air.UplinkSender
+	mu                     sync.Mutex
+	PDUSession             PDUSessionInfo
+	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
+	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
 }
 
 func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
@@ -164,6 +166,9 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.DNN = opts.DNN
 
 	ue.IMEISV = opts.IMEISV
+
+	ue.receivedNASGMMMessages = make(map[uint8][]*nas.Message)
+	ue.receivedNASGSMMessages = make(map[uint8][]*nas.Message)
 
 	suci, err := ue.EncodeSuci()
 	if err != nil {
@@ -468,6 +473,8 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return fmt.Errorf("could not decode NAS message: %v", err)
 	}
 
+	updateReceivedGMMMessages(ue, decodedMsg)
+
 	msgType := decodedMsg.GmmMessage.GetMessageType()
 
 	switch msgType {
@@ -492,6 +499,93 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 	default:
 		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
 	}
+}
+
+func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	msgType := msg.GmmMessage.GetMessageType()
+	ue.receivedNASGMMMessages[msgType] = append(ue.receivedNASGMMMessages[msgType], msg)
+
+	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
+}
+
+func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	msgType := msg.GsmMessage.GetMessageType()
+	ue.receivedNASGSMMessages[msgType] = append(ue.receivedNASGSMMessages[msgType], msg)
+
+	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
+}
+
+func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ue.mu.Lock()
+
+		msgs, ok := ue.receivedNASGMMMessages[msgType]
+		if !ok {
+			ue.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
+		}
+
+		msg := msgs[0]
+
+		if len(msgs) == 1 {
+			delete(ue.receivedNASGMMMessages, msgType)
+			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", 0))
+		} else {
+			ue.receivedNASGMMMessages[msgType] = msgs[1:]
+			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
+		}
+
+		ue.receivedNASGMMMessages[msgType] = msgs[1:]
+		logger.GnbLogger.Debug("Updated receivedNASGMMMessages map after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
+
+		ue.mu.Unlock()
+
+		return msg, nil
+	}
+
+	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
+}
+
+func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ue.mu.Lock()
+
+		msgs, ok := ue.receivedNASGSMMessages[msgType]
+		if !ok {
+			ue.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
+		}
+
+		msg := msgs[0]
+
+		if len(msgs) == 1 {
+			delete(ue.receivedNASGSMMessages, msgType)
+		} else {
+			ue.receivedNASGSMMessages[msgType] = msgs[1:]
+		}
+
+		ue.receivedNASGSMMessages[msgType] = msgs[1:]
+
+		ue.mu.Unlock()
+
+		return msg, nil
+	}
+
+	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
 }
 
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {

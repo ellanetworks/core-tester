@@ -48,6 +48,8 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 
 			logger.GnbLogger.Debug(
 				"Parsed PDU Session Resource Setup Request",
+				zap.Int64("AMFUENGAPID", amfueNGAPID.Value),
+				zap.Int64("RANUENGAPID", ranueNGAPID.Value),
 				zap.Int64("PDU Session ID", pduSessionID),
 				zap.Uint32("UL TEID", pduSessionInfo.ULTeid),
 				zap.String("UPF Address", pduSessionInfo.UpfAddress),
