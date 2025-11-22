@@ -526,6 +526,7 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 
 	for time.Now().Before(deadline) {
 		ue.mu.Lock()
+
 		msgs, ok := ue.receivedNASGMMMessages[msgType]
 		if !ok {
 			ue.mu.Unlock()
@@ -560,6 +561,7 @@ func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.M
 
 	for time.Now().Before(deadline) {
 		ue.mu.Lock()
+
 		msgs, ok := ue.receivedNASGSMMessages[msgType]
 		if !ok {
 			ue.mu.Unlock()
