@@ -23,6 +23,8 @@ func handleDLNASTransport(ue *UE, msg *nas.Message) error {
 		zap.Uint8("PDU Session ID", pduSessionID),
 	)
 
+	updateReceivedGSMMessages(ue, payloadContainer)
+
 	pcMsgType := payloadContainer.GsmHeader.GetMessageType()
 
 	switch pcMsgType {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/ue"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -25,6 +26,11 @@ func ServiceRequest(opts *ServiceRequestOpts) error {
 	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	_, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeServiceAccept, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
 	}
 
 	return nil

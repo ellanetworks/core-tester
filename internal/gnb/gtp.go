@@ -84,12 +84,18 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 }
 
 func (g *GnodeB) CloseTunnel(dlteid uint32) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	t, ok := g.tunnels[dlteid]
 	if !ok {
 		return fmt.Errorf("no tunnel with DL TEID %d", dlteid)
 	}
 
-	_ = t.tunIF.Close()
+	err := t.tunIF.Close()
+	if err != nil {
+		logger.GnbLogger.Error("error closing TUN interface", zap.String("if", t.Name), zap.Error(err))
+	}
 
 	link, err := netlink.LinkByName(t.Name)
 	if err == nil {
