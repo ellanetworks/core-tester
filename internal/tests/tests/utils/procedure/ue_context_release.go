@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -12,6 +13,7 @@ type UEContextReleaseOpts struct {
 	AMFUENGAPID   int64
 	RANUENGAPID   int64
 	GnodeB        *gnb.GnodeB
+	UE            *ue.UE
 	PDUSessionIDs [16]bool
 }
 
@@ -26,9 +28,9 @@ func UEContextRelease(opts *UEContextReleaseOpts) error {
 		return fmt.Errorf("could not send UEContextReleaseComplete: %v", err)
 	}
 
-	_, err = opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	err = opts.UE.WaitForRRCRelease(1 * time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("could not receive RRC Release: %v", err)
 	}
 
 	return nil

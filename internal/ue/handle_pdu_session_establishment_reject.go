@@ -1,12 +1,18 @@
 package ue
 
 import (
+	"fmt"
+
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/nas/nasMessage"
 	"go.uber.org/zap"
 )
 
 func handlePDUSessionEstablishmentReject(ue *UE, msg *nasMessage.PDUSessionEstablishmentReject) error {
+	if msg == nil {
+		return fmt.Errorf("received nil NAS message in PDU Session Establishment Reject handler")
+	}
+
 	cause := msg.GetCauseValue()
 
 	logger.UeLogger.Debug(

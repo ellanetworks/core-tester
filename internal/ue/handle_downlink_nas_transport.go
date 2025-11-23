@@ -23,16 +23,24 @@ func handleDLNASTransport(ue *UE, msg *nas.Message) error {
 		zap.Uint8("PDU Session ID", pduSessionID),
 	)
 
-	updateReceivedGSMMessages(ue, payloadContainer)
-
 	pcMsgType := payloadContainer.GsmHeader.GetMessageType()
 
 	switch pcMsgType {
 	case nas.MsgTypePDUSessionEstablishmentAccept:
-		return handlePDUSessionEstablishmentAccept(ue, payloadContainer.PDUSessionEstablishmentAccept)
+		err := handlePDUSessionEstablishmentAccept(ue, payloadContainer.PDUSessionEstablishmentAccept)
+		if err != nil {
+			return fmt.Errorf("could not handle PDU Session Establishment Accept: %v", err)
+		}
 	case nas.MsgTypePDUSessionEstablishmentReject:
-		return handlePDUSessionEstablishmentReject(ue, payloadContainer.PDUSessionEstablishmentReject)
+		err := handlePDUSessionEstablishmentReject(ue, payloadContainer.PDUSessionEstablishmentReject)
+		if err != nil {
+			return fmt.Errorf("could not handle PDU Session Establishment Reject: %v", err)
+		}
 	default:
-		return fmt.Errorf("message type not implemented: %v", getMessageName(pcMsgType))
+		logger.UeLogger.Warn("Message type not implemented", zap.String("Message Type", getGSMMessageName(pcMsgType)))
 	}
+
+	updateReceivedGSMMessages(ue, payloadContainer)
+
+	return nil
 }

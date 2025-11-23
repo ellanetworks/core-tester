@@ -10,11 +10,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/ngap/ngapType"
 )
 
 type RegistrationAcceptOpts struct {
-	NASPDU *ngapType.NASPDU
+	NASMsg *nas.Message
 	UE     *ue.UE
 	Sst    int32
 	Sd     string
@@ -23,75 +22,66 @@ type RegistrationAcceptOpts struct {
 }
 
 func RegistrationAccept(opts *RegistrationAcceptOpts) error {
-	if opts.NASPDU == nil {
-		return fmt.Errorf("NAS PDU is nil")
-	}
-
-	msg, err := opts.UE.DecodeNAS(opts.NASPDU.Value)
-	if err != nil {
-		return fmt.Errorf("could not decode NAS PDU: %v", err)
-	}
-
-	if msg == nil {
+	if opts.NASMsg == nil {
 		return fmt.Errorf("NAS message is nil")
 	}
 
-	if msg.GmmMessage == nil {
+	if opts.NASMsg.GmmMessage == nil {
 		return fmt.Errorf("NAS message is not a GMM message")
 	}
 
-	if msg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationAccept {
-		return fmt.Errorf("NAS message type is not Registration Accept (%d), got (%d)", nas.MsgTypeRegistrationAccept, msg.GmmMessage.GetMessageType())
+	if opts.NASMsg.GmmMessage.GetMessageType() != nas.MsgTypeRegistrationAccept {
+		return fmt.Errorf("NAS message type is not Registration Accept (%d), got (%d)", nas.MsgTypeRegistrationAccept, opts.NASMsg.GmmMessage.GetMessageType())
 	}
 
-	if msg.RegistrationAccept == nil {
+	if opts.NASMsg.RegistrationAccept == nil {
 		return fmt.Errorf("NAS Registration Accept message is nil")
 	}
 
-	if reflect.ValueOf(msg.RegistrationAccept.ExtendedProtocolDiscriminator).IsZero() {
+	if reflect.ValueOf(opts.NASMsg.RegistrationAccept.ExtendedProtocolDiscriminator).IsZero() {
 		return fmt.Errorf("extended protocol is missing")
 	}
 
-	if msg.RegistrationAccept.GetExtendedProtocolDiscriminator() != 126 {
+	if opts.NASMsg.RegistrationAccept.GetExtendedProtocolDiscriminator() != 126 {
 		return fmt.Errorf("extended protocol not the expected value")
 	}
 
-	if msg.RegistrationAccept.GetSpareHalfOctet() != 0 {
+	if opts.NASMsg.RegistrationAccept.GetSpareHalfOctet() != 0 {
 		return fmt.Errorf("spare half octet not the expected value")
 	}
 
-	if msg.RegistrationAccept.GetSecurityHeaderType() != 0 {
+	if opts.NASMsg.RegistrationAccept.GetSecurityHeaderType() != 0 {
 		return fmt.Errorf("security header type not the expected value")
 	}
 
-	if reflect.ValueOf(msg.RegistrationAccept.RegistrationAcceptMessageIdentity).IsZero() {
+	if reflect.ValueOf(opts.NASMsg.RegistrationAccept.RegistrationAcceptMessageIdentity).IsZero() {
 		return fmt.Errorf("message type is missing")
 	}
 
-	if msg.RegistrationAcceptMessageIdentity.GetMessageType() != 66 {
+	if opts.NASMsg.RegistrationAcceptMessageIdentity.GetMessageType() != 66 {
 		return fmt.Errorf("message type not the expected value")
 	}
 
-	if reflect.ValueOf(msg.RegistrationAccept.RegistrationResult5GS).IsZero() {
+	if reflect.ValueOf(opts.NASMsg.RegistrationAccept.RegistrationResult5GS).IsZero() {
 		return fmt.Errorf("registration result 5GS is missing")
 	}
 
-	if msg.GetRegistrationResultValue5GS() != 1 {
+	if opts.NASMsg.GetRegistrationResultValue5GS() != 1 {
 		return fmt.Errorf("registration result 5GS not the expected value")
 	}
 
-	if msg.RegistrationAccept.GUTI5G == nil {
+	if opts.NASMsg.RegistrationAccept.GUTI5G == nil {
 		return fmt.Errorf("GUTI5G is nil")
 	}
 
-	guti5GStr := buildGUTI5G(*msg.RegistrationAccept.GUTI5G)
+	guti5GStr := buildGUTI5G(*opts.NASMsg.RegistrationAccept.GUTI5G)
 
 	prefix := fmt.Sprintf("%s%scafe", opts.Mcc, opts.Mnc)
 	if !strings.HasPrefix(guti5GStr, prefix) {
 		return fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, prefix)
 	}
 
-	snssai := msg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
+	snssai := opts.NASMsg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
 
 	if len(snssai) == 0 {
 		return fmt.Errorf("allowed NSSAI is missing")
@@ -108,11 +98,11 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) error {
 		return fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, opts.Sd)
 	}
 
-	if msg.T3512Value == nil {
+	if opts.NASMsg.T3512Value == nil {
 		return fmt.Errorf("T3512 value is nil")
 	}
 
-	timerInSeconds := utils.NasToGPRSTimer3(msg.T3512Value.Octet)
+	timerInSeconds := utils.NasToGPRSTimer3(opts.NASMsg.T3512Value.Octet)
 	if timerInSeconds != 3600 {
 		return fmt.Errorf("T3512 timer in seconds not the expected value, got: %d, want: 3600", timerInSeconds)
 	}

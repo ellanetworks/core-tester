@@ -79,6 +79,7 @@ type UE struct {
 	PDUSession             PDUSessionInfo
 	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
 	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
+	receivedRRCRelease     bool
 }
 
 func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
@@ -473,32 +474,65 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return fmt.Errorf("could not decode NAS message: %v", err)
 	}
 
-	updateReceivedGMMMessages(ue, decodedMsg)
-
 	msgType := decodedMsg.GmmMessage.GetMessageType()
 
 	switch msgType {
 	case nas.MsgTypeAuthenticationReject:
-		return handleAuthenticationReject(ue, decodedMsg)
+		err := handleAuthenticationReject(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Authentication Reject: %v", err)
+		}
 	case nas.MsgTypeAuthenticationRequest:
-		return handleAuthenticationRequest(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleAuthenticationRequest(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Authentication Request: %v", err)
+		}
 	case nas.MsgTypeSecurityModeCommand:
-		return handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Security Mode Command: %v", err)
+		}
 	case nas.MsgTypeRegistrationAccept:
-		return handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Registration Accept: %v", err)
+		}
 	case nas.MsgTypeRegistrationReject:
-		return handleRegistrationReject(ue, decodedMsg)
+		err := handleRegistrationReject(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Registration Reject: %v", err)
+		}
 	case nas.MsgTypeDeregistrationRequestUETerminatedDeregistration:
-		return handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Deregistration Request UE Terminated: %v", err)
+		}
 	case nas.MsgTypeIdentityRequest:
-		return handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
+		err := handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Identity Request: %v", err)
+		}
 	case nas.MsgTypeServiceAccept:
-		return handleServiceAccept(ue, decodedMsg)
+		err := handleServiceAccept(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Service Accept: %v", err)
+		}
 	case nas.MsgTypeDLNASTransport:
-		return handleDLNASTransport(ue, decodedMsg)
+		err := handleDLNASTransport(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle DL NAS Transport: %v", err)
+		}
 	default:
-		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
+		logger.UeLogger.Warn("NAS message type not implemented", zap.Uint8("msgType", msgType))
 	}
+
+	updateReceivedGMMMessages(ue, decodedMsg)
+
+	return nil
+}
+
+func (ue *UE) RRCRelease() {
+	ue.receivedRRCRelease = true
 }
 
 func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
@@ -508,7 +542,7 @@ func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
 	msgType := msg.GmmMessage.GetMessageType()
 	ue.receivedNASGMMMessages[msgType] = append(ue.receivedNASGMMMessages[msgType], msg)
 
-	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
+	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.String("msgType", getGMMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
 }
 
 func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
@@ -518,7 +552,7 @@ func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
 	msgType := msg.GsmMessage.GetMessageType()
 	ue.receivedNASGSMMessages[msgType] = append(ue.receivedNASGSMMessages[msgType], msg)
 
-	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
+	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.String("msgType", getGSMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
 }
 
 func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
@@ -535,22 +569,24 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 			continue
 		}
 
-		msg := msgs[0]
+		if len(msgs) == 0 {
+			ue.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
+		}
 
 		if len(msgs) == 1 {
 			delete(ue.receivedNASGMMMessages, msgType)
-			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", 0))
 		} else {
 			ue.receivedNASGMMMessages[msgType] = msgs[1:]
-			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
 		}
 
 		ue.receivedNASGMMMessages[msgType] = msgs[1:]
-		logger.GnbLogger.Debug("Updated receivedNASGMMMessages map after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
 
 		ue.mu.Unlock()
 
-		return msg, nil
+		return msgs[0], nil
 	}
 
 	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
@@ -586,6 +622,24 @@ func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.M
 	}
 
 	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
+}
+
+func (ue *UE) WaitForRRCRelease(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ue.mu.Lock()
+		received := ue.receivedRRCRelease
+		ue.mu.Unlock()
+
+		if received {
+			return nil
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return errors.New("timeout waiting for RRC Release")
 }
 
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {

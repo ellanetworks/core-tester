@@ -186,7 +186,6 @@ func runConnectivityTest(
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -244,6 +243,7 @@ func runConnectivityTest(
 		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(ranUENGAPID),
 		RANUENGAPID:   ranUENGAPID,
 		GnodeB:        gNodeB,
+		UE:            newUE,
 		PDUSessionIDs: pduSessionStatus,
 	})
 	if err != nil {
@@ -273,7 +273,6 @@ func runConnectivityTest(
 		PDUSessionStatus: pduSessionStatus,
 		RANUENGAPID:      ranUENGAPID,
 		UE:               newUE,
-		GnodeB:           gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)
@@ -339,7 +338,6 @@ func runConnectivityTest(
 	)
 
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
 		UE:          newUE,
 		AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
 		RANUENGAPID: ranUENGAPID,

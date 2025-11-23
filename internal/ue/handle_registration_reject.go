@@ -1,12 +1,18 @@
 package ue
 
 import (
+	"fmt"
+
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/nas"
 	"go.uber.org/zap"
 )
 
 func handleRegistrationReject(ue *UE, msg *nas.Message) error {
+	if msg == nil {
+		return fmt.Errorf("received nil NAS message in Registration Reject handler")
+	}
+
 	cause := msg.RegistrationReject.GetCauseValue()
 
 	logger.UeLogger.Debug(

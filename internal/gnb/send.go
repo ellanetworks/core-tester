@@ -3,9 +3,11 @@ package gnb
 import (
 	"fmt"
 
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/ishidawataru/sctp"
+	"go.uber.org/zap"
 )
 
 type NGAPProcedure string
@@ -64,7 +66,17 @@ func (g *GnodeB) SendUEContextReleaseRequest(opts *UEContextReleaseRequestOpts) 
 		return fmt.Errorf("couldn't build UEContextReleaseRequest: %s", err.Error())
 	}
 
-	return g.SendMessage(pdu, NGAPProcedureUEContextReleaseRequest)
+	err = g.SendMessage(pdu, NGAPProcedureUEContextReleaseRequest)
+	if err != nil {
+		return fmt.Errorf("couldn't send UEContextReleaseRequest: %s", err.Error())
+	}
+
+	logger.GnbLogger.Debug("Sent UE Context Release Request",
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Int64("AMF UE NGAP ID", opts.AMFUENGAPID),
+	)
+
+	return nil
 }
 
 func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {
@@ -100,7 +112,12 @@ func (g *GnodeB) SendUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts
 		return fmt.Errorf("couldn't build UEContextReleaseComplete: %s", err.Error())
 	}
 
-	return g.SendMessage(pdu, NGAPProcedureUEContextReleaseComplete)
+	err = g.SendMessage(pdu, NGAPProcedureUEContextReleaseComplete)
+	if err != nil {
+		return fmt.Errorf("couldn't send UEContextReleaseComplete: %s", err.Error())
+	}
+
+	return nil
 }
 
 func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) error {
@@ -134,7 +151,7 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 	defer func() {
 		err := recover()
 		if err != nil {
-			fmt.Printf("panic recovered: %s\n", err)
+			logger.GnbLogger.Error("panic recovered", zap.Any("error", err))
 		}
 	}()
 

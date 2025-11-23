@@ -11,9 +11,9 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
@@ -141,7 +141,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
@@ -154,6 +153,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
+		UE:            newUE,
 		PDUSessionIDs: pduSessionStatus,
 	})
 	if err != nil {
@@ -165,26 +165,34 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("could not send Registration Request for periodic update: %v", err)
 	}
 
-	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	_, err = newUE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("could not receive Registration Accept for periodic update: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
-	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
+	logger.UeLogger.Debug("Received Registration Accept for periodic update")
 
-	_, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("initial context setup request validation failed: %v", err)
-	}
+	// fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	// if err != nil {
+	// 	return fmt.Errorf("could not receive SCTP frame: %v", err)
+	// }
+
+	// err = utils.ValidateSCTP(fr.Info, 60, 1)
+	// if err != nil {
+	// 	return fmt.Errorf("SCTP validation failed: %v", err)
+	// }
+
+	// _, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
+	// 	Frame: fr,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("initial context setup request validation failed: %v", err)
+	// }
+
+	// time.Sleep(1 * time.Second)
 
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
 		UE:          newUE,
 		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
