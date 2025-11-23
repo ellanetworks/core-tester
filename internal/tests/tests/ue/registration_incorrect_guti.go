@@ -209,7 +209,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("could not receive Registration Accept: %v", err)
 	}
 
-	err = validateIdentityRequest(nasMsg, opts.UE)
+	err = validateIdentityRequest(nasMsg)
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
@@ -269,7 +269,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 	return nil
 }
 
-func validateIdentityRequest(nasMsg *nas.Message, ue *ue.UE) error {
+func validateIdentityRequest(nasMsg *nas.Message) error {
 	if nasMsg == nil {
 		return fmt.Errorf("NAS message is nil")
 	}

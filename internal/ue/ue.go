@@ -531,9 +531,8 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 	return nil
 }
 
-func (ue *UE) RRCRelease() error {
+func (ue *UE) RRCRelease() {
 	ue.receivedRRCRelease = true
-	return nil
 }
 
 func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {

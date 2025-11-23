@@ -209,7 +209,6 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 
 	err = validateSecurityModeCommand(
 		nasMsg,
-		opts.UE,
 	)
 	if err != nil {
 		return fmt.Errorf("could not validate NAS PDU Security Mode Command: %v", err)
@@ -325,7 +324,7 @@ func validateAuthenticationRequest(nasMsg *nas.Message) error {
 	return nil
 }
 
-func validateSecurityModeCommand(nasMsg *nas.Message, ue *ue.UE) error {
+func validateSecurityModeCommand(nasMsg *nas.Message) error {
 	if nasMsg == nil {
 		return fmt.Errorf("NAS PDU is nil")
 	}

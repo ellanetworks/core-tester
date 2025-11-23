@@ -66,7 +66,7 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) error {
 		return fmt.Errorf("registration result 5GS is missing")
 	}
 
-	if opts.NASMsg.RegistrationAccept.GetRegistrationResultValue5GS() != 1 {
+	if opts.NASMsg.GetRegistrationResultValue5GS() != 1 {
 		return fmt.Errorf("registration result 5GS not the expected value")
 	}
 
@@ -98,11 +98,11 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) error {
 		return fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, opts.Sd)
 	}
 
-	if opts.NASMsg.RegistrationAccept.T3512Value == nil {
+	if opts.NASMsg.T3512Value == nil {
 		return fmt.Errorf("T3512 value is nil")
 	}
 
-	timerInSeconds := utils.NasToGPRSTimer3(opts.NASMsg.RegistrationAccept.T3512Value.Octet)
+	timerInSeconds := utils.NasToGPRSTimer3(opts.NASMsg.T3512Value.Octet)
 	if timerInSeconds != 3600 {
 		return fmt.Errorf("T3512 timer in seconds not the expected value, got: %d, want: 3600", timerInSeconds)
 	}
