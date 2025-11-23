@@ -28,7 +28,14 @@ func handleUEContextReleaseCommand(gnb *GnodeB, uEContextReleaseCommand *ngapTyp
 		zap.Any("UE NGAP IDs", ueNgapIDs),
 	)
 
-	err := gnb.SendUEContextReleaseComplete(&UEContextReleaseCompleteOpts{
+	ue, err := gnb.LoadUE(ueNgapIDs.UENGAPIDPair.RANUENGAPID.Value)
+	if err != nil {
+		return fmt.Errorf("cannot find UE for UEContextReleaseCommand message: %v", err)
+	}
+
+	ue.RRCRelease()
+
+	err = gnb.SendUEContextReleaseComplete(&UEContextReleaseCompleteOpts{
 		AMFUENGAPID: ueNgapIDs.UENGAPIDPair.AMFUENGAPID.Value,
 		RANUENGAPID: ueNgapIDs.UENGAPIDPair.RANUENGAPID.Value,
 	})

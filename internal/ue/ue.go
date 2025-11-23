@@ -79,6 +79,7 @@ type UE struct {
 	PDUSession             PDUSessionInfo
 	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
 	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
+	receivedRRCRelease     bool
 }
 
 func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
@@ -530,6 +531,11 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 	return nil
 }
 
+func (ue *UE) RRCRelease() error {
+	ue.receivedRRCRelease = true
+	return nil
+}
+
 func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
 	ue.mu.Lock()
 	defer ue.mu.Unlock()
@@ -617,6 +623,24 @@ func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.M
 	}
 
 	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
+}
+
+func (ue *UE) WaitForRRCRelease(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ue.mu.Lock()
+		received := ue.receivedRRCRelease
+		ue.mu.Unlock()
+
+		if received {
+			return nil
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return errors.New("timeout waiting for RRC Release")
 }
 
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {

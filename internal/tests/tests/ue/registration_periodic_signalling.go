@@ -153,6 +153,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
+		UE:            newUE,
 		PDUSessionIDs: pduSessionStatus,
 	})
 	if err != nil {
@@ -192,7 +193,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
 		UE:          newUE,
 		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,

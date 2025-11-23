@@ -201,7 +201,6 @@ func ueRegistrationTest(env engine.Env, ranUENGAPID int64, gNodeB *gnb.GnodeB, s
 
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
 		UE:          newUE,
 		AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
 		RANUENGAPID: ranUENGAPID,

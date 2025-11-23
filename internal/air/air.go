@@ -7,6 +7,7 @@ import (
 
 type DownlinkSender interface {
 	SendDownlinkNAS(nasPDU []byte, amfUENGAPID int64, ranUENGAPID int64) error
+	RRCRelease() error
 }
 
 type UplinkSender interface {

@@ -152,6 +152,7 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID:   RANUENGAPID,
 		GnodeB:        gNodeB,
+		UE:            newUE,
 		PDUSessionIDs: pduSessionStatus,
 	})
 	if err != nil {
@@ -165,7 +166,6 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
-		GnodeB:      gNodeB,
 		UE:          newUE,
 		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 		RANUENGAPID: RANUENGAPID,
