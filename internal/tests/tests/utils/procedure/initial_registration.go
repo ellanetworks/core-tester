@@ -22,6 +22,11 @@ func InitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
 
+	_, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, timeoutPerMessage)
+	if err != nil {
+		return fmt.Errorf("could not receive Registration Accept for periodic update: %v", err)
+	}
+
 	_, err = opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, timeoutPerMessage)
 	if err != nil {
 		return fmt.Errorf("timeout waiting for PDU session establishment accept: %v", err)

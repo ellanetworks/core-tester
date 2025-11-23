@@ -537,7 +537,7 @@ func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
 	msgType := msg.GmmMessage.GetMessageType()
 	ue.receivedNASGMMMessages[msgType] = append(ue.receivedNASGMMMessages[msgType], msg)
 
-	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
+	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.String("msgType", getGMMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
 }
 
 func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
@@ -547,7 +547,7 @@ func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
 	msgType := msg.GsmMessage.GetMessageType()
 	ue.receivedNASGSMMessages[msgType] = append(ue.receivedNASGSMMessages[msgType], msg)
 
-	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.Uint8("msgType", msgType), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
+	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.String("msgType", getGSMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
 }
 
 func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
@@ -564,7 +564,12 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 			continue
 		}
 
-		msg := msgs[0]
+		if len(msgs) == 0 {
+			ue.mu.Unlock()
+			time.Sleep(1 * time.Millisecond)
+
+			continue
+		}
 
 		if len(msgs) == 1 {
 			delete(ue.receivedNASGMMMessages, msgType)
@@ -576,7 +581,7 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 
 		ue.mu.Unlock()
 
-		return msg, nil
+		return msgs[0], nil
 	}
 
 	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)

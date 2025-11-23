@@ -37,7 +37,7 @@ func handleDLNASTransport(ue *UE, msg *nas.Message) error {
 			return fmt.Errorf("could not handle PDU Session Establishment Reject: %v", err)
 		}
 	default:
-		logger.UeLogger.Warn("Message type not implemented", zap.String("Message Type", getMessageName(pcMsgType)))
+		logger.UeLogger.Warn("Message type not implemented", zap.String("Message Type", getGSMMessageName(pcMsgType)))
 	}
 
 	updateReceivedGSMMessages(ue, payloadContainer)
