@@ -30,14 +30,33 @@ func HandleFrame(gnb *GnodeB, sctpFrame SCTPFrame) error {
 
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
+		err := handleNGAPInitiatingMessage(gnb, pdu)
+		if err != nil {
+			return fmt.Errorf("could not handle NGAP InitiatingMessage: %v", err)
+		}
+
 		updateReceivedFramesMap(gnb, pdu.Present, pdu.InitiatingMessage.Value.Present, sctpFrame)
-		return handleNGAPInitiatingMessage(gnb, pdu)
+
+		return nil
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
+		err := handleNGAPSuccessfulOutcome(pdu)
+		if err != nil {
+			return fmt.Errorf("could not handle NGAP SuccessfulOutcome: %v", err)
+		}
+
 		updateReceivedFramesMap(gnb, pdu.Present, pdu.SuccessfulOutcome.Value.Present, sctpFrame)
-		return handleNGAPSuccessfulOutcome(pdu)
+
+		return nil
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
+		err := handleNGAPUnsuccessfulOutcome(pdu)
+		if err != nil {
+			return fmt.Errorf("could not handle NGAP UnsuccessfulOutcome: %v", err)
+		}
+
 		updateReceivedFramesMap(gnb, pdu.Present, pdu.UnsuccessfulOutcome.Value.Present, sctpFrame)
-		return handleNGAPUnsuccessfulOutcome(pdu)
+
+		return nil
+
 	default:
 		return fmt.Errorf("NGAP PDU Present is invalid: %d", pdu.Present)
 	}

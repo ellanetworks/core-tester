@@ -186,7 +186,6 @@ func runConnectivityTest(
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -273,7 +272,6 @@ func runConnectivityTest(
 		PDUSessionStatus: pduSessionStatus,
 		RANUENGAPID:      ranUENGAPID,
 		UE:               newUE,
-		GnodeB:           gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)

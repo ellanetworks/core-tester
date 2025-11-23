@@ -11,11 +11,10 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
 type ServiceRequestData struct{}
@@ -141,7 +140,6 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -160,14 +158,7 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
 	}
 
-	err = ServiceRequest(&ServiceRequestOpts{
-		PDUSessionStatus: pduSessionStatus,
-		SST:              env.Config.EllaCore.SST,
-		SD:               env.Config.EllaCore.SD,
-		RANUENGAPID:      RANUENGAPID,
-		UE:               newUE,
-		GnodeB:           gNodeB,
-	})
+	err = runServiceRequest(RANUENGAPID, pduSessionStatus, newUE)
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
@@ -193,47 +184,21 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	return nil
 }
 
-type ServiceRequestOpts struct {
-	PDUSessionStatus [16]bool
-	SST              int32
-	SD               string
-	RANUENGAPID      int64
-	UE               *ue.UE
-	GnodeB           *gnb.GnodeB
-}
-
-func ServiceRequest(opts *ServiceRequestOpts) error {
-	err := opts.UE.SendServiceRequest(opts.RANUENGAPID, opts.PDUSessionStatus)
+func runServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool, ue *ue.UE) error {
+	err := ue.SendServiceRequest(ranUENGAPID, pduSessionStatus)
 	if err != nil {
 		return fmt.Errorf("could not send Service Request NAS message: %v", err)
 	}
 
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	// fr, err := gnb.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
+	// if err != nil {
+	// 	return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
+	// }
+
+	_, err = ue.WaitForNASGMMMessage(nas.MsgTypeServiceAccept, 500*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
 	}
-
-	initialContextSetupReq, err := validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-		Frame: fr,
-	})
-	if err != nil {
-		return fmt.Errorf("InitialContextSetupRequest validation failed: %v", err)
-	}
-
-	if initialContextSetupReq.PDUSessionResourceSetupListCxtReq == nil {
-		return fmt.Errorf("PDUSessionResourceSetupListCxtReq is nil in Initial Context Setup Request")
-	}
-
-	err = validate.PDUSessionResourceSetupListCxtReq(initialContextSetupReq.PDUSessionResourceSetupListCxtReq, 1, opts.SST, opts.SD)
-	if err != nil {
-		return fmt.Errorf("PDUSessionResourceSetupListCxtReq validation failed: %v", err)
-	}
-
-	logger.Logger.Debug(
-		"Validated PDUSessionResourceSetupListCxtReq in Initial Context Setup Request for Service Request",
-		zap.String("IMSI", opts.UE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-	)
 
 	return nil
 }

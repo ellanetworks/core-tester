@@ -102,7 +102,6 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

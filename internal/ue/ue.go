@@ -473,32 +473,61 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		return fmt.Errorf("could not decode NAS message: %v", err)
 	}
 
-	updateReceivedGMMMessages(ue, decodedMsg)
-
 	msgType := decodedMsg.GmmMessage.GetMessageType()
 
 	switch msgType {
 	case nas.MsgTypeAuthenticationReject:
-		return handleAuthenticationReject(ue, decodedMsg)
+		err := handleAuthenticationReject(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Authentication Reject: %v", err)
+		}
 	case nas.MsgTypeAuthenticationRequest:
-		return handleAuthenticationRequest(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleAuthenticationRequest(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Authentication Request: %v", err)
+		}
 	case nas.MsgTypeSecurityModeCommand:
-		return handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleSecurityModeCommand(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Security Mode Command: %v", err)
+		}
 	case nas.MsgTypeRegistrationAccept:
-		return handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleRegistrationAccept(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Registration Accept: %v", err)
+		}
 	case nas.MsgTypeRegistrationReject:
-		return handleRegistrationReject(ue, decodedMsg)
+		err := handleRegistrationReject(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Registration Reject: %v", err)
+		}
 	case nas.MsgTypeDeregistrationRequestUETerminatedDeregistration:
-		return handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		err := handleDeregistrationRequestUETerminated(ue, decodedMsg, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Deregistration Request UE Terminated: %v", err)
+		}
 	case nas.MsgTypeIdentityRequest:
-		return handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
+		err := handleIdentityRequest(ue, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Identity Request: %v", err)
+		}
 	case nas.MsgTypeServiceAccept:
-		return handleServiceAccept(ue, decodedMsg)
+		err := handleServiceAccept(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle Service Accept: %v", err)
+		}
 	case nas.MsgTypeDLNASTransport:
-		return handleDLNASTransport(ue, decodedMsg)
+		err := handleDLNASTransport(ue, decodedMsg)
+		if err != nil {
+			return fmt.Errorf("could not handle DL NAS Transport: %v", err)
+		}
 	default:
-		return fmt.Errorf("NAS message type %d handling not implemented", msgType)
+		logger.UeLogger.Warn("NAS message type not implemented", zap.Uint8("msgType", msgType))
 	}
+
+	updateReceivedGMMMessages(ue, decodedMsg)
+
+	return nil
 }
 
 func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
@@ -539,14 +568,11 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 
 		if len(msgs) == 1 {
 			delete(ue.receivedNASGMMMessages, msgType)
-			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", 0))
 		} else {
 			ue.receivedNASGMMMessages[msgType] = msgs[1:]
-			logger.GnbLogger.Debug("Removed stored NAS Message after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
 		}
 
 		ue.receivedNASGMMMessages[msgType] = msgs[1:]
-		logger.GnbLogger.Debug("Updated receivedNASGMMMessages map after retrieval", zap.Uint8("msgType", msgType), zap.Int("remainingFrames", len(ue.receivedNASGMMMessages[msgType])))
 
 		ue.mu.Unlock()
 

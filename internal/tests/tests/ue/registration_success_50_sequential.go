@@ -194,7 +194,6 @@ func ueRegistrationTest(env engine.Env, ranUENGAPID int64, gNodeB *gnb.GnodeB, s
 	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
-		GnodeB:      gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed for subscriber %v: %v", newUE.UeSecurity.Msin, err)
