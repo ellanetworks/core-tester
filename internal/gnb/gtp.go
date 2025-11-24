@@ -100,7 +100,7 @@ func (g *GnodeB) CloseTunnel(dlteid uint32) error {
 	link, err := netlink.LinkByName(t.Name)
 	if err == nil {
 		if err = netlink.LinkDel(link); err != nil {
-			return fmt.Errorf("failed deleting tun interface %s: %v", t.Name, err)
+			logger.GnbLogger.Error("error deleting TUN interface", zap.String("if", t.Name), zap.Error(err))
 		}
 	}
 
