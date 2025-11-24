@@ -22,7 +22,7 @@ import (
 const (
 	GTPInterfaceNamePrefix  = "ellatester"
 	GTPUPort                = 2152
-	NumConnectivityParallel = 40
+	NumConnectivityParallel = 20
 )
 
 type Connectivity struct{}

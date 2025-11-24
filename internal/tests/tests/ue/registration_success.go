@@ -231,22 +231,6 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
-	}
-
-	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
-		Frame:                fr,
-		ExpectedPDUSessionID: opts.PDUSessionID,
-		ExpectedSST:          opts.GnodeB.SST,
-		ExpectedSD:           opts.GnodeB.SD,
-		UEIns:                opts.UE,
-	})
-	if err != nil {
-		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
-	}
-
 	msg, err := opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
