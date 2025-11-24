@@ -172,25 +172,6 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	logger.UeLogger.Debug("Received Registration Accept for periodic update")
 
-	// fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
-	// if err != nil {
-	// 	return fmt.Errorf("could not receive SCTP frame: %v", err)
-	// }
-
-	// err = utils.ValidateSCTP(fr.Info, 60, 1)
-	// if err != nil {
-	// 	return fmt.Errorf("SCTP validation failed: %v", err)
-	// }
-
-	// _, err = validate.InitialContextSetupRequest(&validate.InitialContextSetupRequestOpts{
-	// 	Frame: fr,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("initial context setup request validation failed: %v", err)
-	// }
-
-	// time.Sleep(1 * time.Second)
-
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		UE:          newUE,

@@ -149,9 +149,9 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
 	}
 
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentUEContextReleaseCommand, 500*time.Millisecond)
+	err = newUE.WaitForRRCRelease(500 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("could not receive RRC Release: %v", err)
 	}
 
 	err = ellaCoreEnv.Delete(ctx)
