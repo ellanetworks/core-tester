@@ -202,6 +202,10 @@ func runConnectivityTest(
 
 	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
 
+	if gnbPDUSession == nil {
+		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d", ranUENGAPID)
+	}
+
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
 		UpfIP:            gnbPDUSession.UpfAddress,
