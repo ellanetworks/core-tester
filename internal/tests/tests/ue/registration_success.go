@@ -236,26 +236,35 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 		return fmt.Errorf("could not find PDU session resource setup request message: %v", err)
 	}
 
-	network, err := netip.ParsePrefix("10.45.0.0/16")
-	if err != nil {
-		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
-	}
-
 	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
 		Frame:                fr,
 		ExpectedPDUSessionID: opts.PDUSessionID,
 		ExpectedSST:          opts.GnodeB.SST,
 		ExpectedSD:           opts.GnodeB.SD,
 		UEIns:                opts.UE,
-		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
-			PDUSessionID: opts.PDUSessionID,
-			UeIPSubnet:   network,
-			Dnn:          opts.GnodeB.DNN,
-			Sst:          opts.GnodeB.SST,
-			Sd:           opts.GnodeB.SD,
-			Qfi:          1,
-			FiveQI:       9,
-		},
+	})
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
+	}
+
+	msg, err := opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, 500*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	network, err := netip.ParsePrefix("10.45.0.0/16")
+	if err != nil {
+		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+	}
+
+	err = validate.PDUSessionEstablishmentAccept(msg, &validate.ExpectedPDUSessionEstablishmentAccept{
+		PDUSessionID: opts.PDUSessionID,
+		UeIPSubnet:   network,
+		Dnn:          opts.GnodeB.DNN,
+		Sst:          opts.GnodeB.SST,
+		Sd:           opts.GnodeB.SD,
+		Qfi:          1,
+		FiveQI:       9,
 	})
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)

@@ -134,10 +134,12 @@ func (g *GnodeB) gtpReader() {
 		}
 
 		teid := binary.BigEndian.Uint32(buf[4:8])
+
 		g.mu.Lock()
 
 		t, ok := g.tunnels[teid]
 		g.mu.Unlock()
+
 		if !ok {
 			logger.GnbLogger.Warn("unknown TEID, dropping packet", zap.Uint32("teid", teid))
 			continue
