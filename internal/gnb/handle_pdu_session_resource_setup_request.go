@@ -58,6 +58,8 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 
 		logger.GnbLogger.Debug(
 			"Parsed PDU Session Resource Setup Request Transfer",
+			zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
+			zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 			zap.Int64("PDU Session ID", pduSessionID),
 			zap.Uint32("UL TEID", pduSessionInfo.ULTeid),
 			zap.String("UPF Address", pduSessionInfo.UpfAddress),

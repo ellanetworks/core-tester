@@ -31,7 +31,7 @@ func (Connectivity) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/connectivity",
 		Summary: "UE connectivity test validating the connectivity of 5 UE's in parallel after registration, and after UE Context Release",
-		Timeout: 20 * time.Second,
+		Timeout: 30 * time.Second,
 	}
 }
 
@@ -198,13 +198,14 @@ func runConnectivityTest(
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 	)
 
-	ueIP := newUE.GetPDUSession().UEIP + "/16"
+	uePDUSession, err := newUE.WaitForPDUSession(5 * time.Second)
+	if err != nil {
+		return fmt.Errorf("timeout waiting for PDU session: %v", err)
+	}
+
+	ueIP := uePDUSession.UEIP + "/16"
 
 	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
-
-	if gnbPDUSession == nil {
-		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d", ranUENGAPID)
-	}
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,

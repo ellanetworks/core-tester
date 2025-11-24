@@ -236,7 +236,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("could not build PDU Session Establishment Request NAS PDU: %v", err)
 	}
 
-	fr, err := opts.GnodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 500*time.Millisecond)
+	msg, err := opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
@@ -246,21 +246,14 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
 	}
 
-	err = validate.PDUSessionResourceSetupRequest(&validate.PDUSessionResourceSetupRequestOpts{
-		Frame:                fr,
-		ExpectedPDUSessionID: opts.PDUSessionID,
-		ExpectedSST:          opts.Sst,
-		ExpectedSD:           opts.Sd,
-		UEIns:                opts.UE,
-		ExpectedPDUSessionEstablishmentAccept: &validate.ExpectedPDUSessionEstablishmentAccept{
-			PDUSessionID: opts.PDUSessionID,
-			UeIPSubnet:   network,
-			Dnn:          opts.DNN,
-			Sst:          opts.Sst,
-			Sd:           opts.Sd,
-			Qfi:          1,
-			FiveQI:       9,
-		},
+	err = validate.PDUSessionEstablishmentAccept(msg, &validate.ExpectedPDUSessionEstablishmentAccept{
+		PDUSessionID: opts.PDUSessionID,
+		UeIPSubnet:   network,
+		Dnn:          opts.DNN,
+		Sst:          opts.Sst,
+		Sd:           opts.Sd,
+		Qfi:          1,
+		FiveQI:       9,
 	})
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
