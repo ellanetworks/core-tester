@@ -22,7 +22,7 @@ import (
 const (
 	GTPInterfaceNamePrefix  = "ellatester"
 	GTPUPort                = 2152
-	NumConnectivityParallel = 20
+	NumConnectivityParallel = 5
 )
 
 type Connectivity struct{}
@@ -205,10 +205,7 @@ func runConnectivityTest(
 
 	ueIP := uePDUSession.UEIP + "/16"
 
-	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, 5*time.Second)
-	if err != nil {
-		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
-	}
+	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
