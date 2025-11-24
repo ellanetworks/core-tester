@@ -14,8 +14,8 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -156,41 +156,12 @@ func (t RegistrationRejectInvalidHomeNetworkPublicKey) Run(ctx context.Context, 
 		return fmt.Errorf("could not send Registration Request: %v", err)
 	}
 
-	fr, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentDownlinkNASTransport, 200*time.Millisecond)
+	msg, err := newUE.WaitForNASGMMMessage(nas.MsgTypeRegistrationReject, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("timeout waiting for NGSetupComplete: %v", err)
+		return fmt.Errorf("could not receive Authentication Reject: %v", err)
 	}
 
-	err = utils.ValidateSCTP(fr.Info, 60, 1)
-	if err != nil {
-		return fmt.Errorf("SCTP validation failed: %v", err)
-	}
-
-	pdu, err := ngap.Decoder(fr.Data)
-	if err != nil {
-		return fmt.Errorf("could not decode NGAP: %v", err)
-	}
-
-	if pdu.InitiatingMessage == nil {
-		return fmt.Errorf("NGAP PDU is not a InitiatingMessage")
-	}
-
-	if pdu.InitiatingMessage.ProcedureCode.Value != ngapType.ProcedureCodeDownlinkNASTransport {
-		return fmt.Errorf("NGAP ProcedureCode is not DownlinkNASTransport (%d)", ngapType.ProcedureCodeDownlinkNASTransport)
-	}
-
-	downlinkNASTransport := pdu.InitiatingMessage.Value.DownlinkNASTransport
-	if downlinkNASTransport == nil {
-		return fmt.Errorf("DownlinkNASTransport is nil")
-	}
-
-	receivedNASPDU := utils.GetNASPDUFromDownlinkNasTransport(downlinkNASTransport)
-
-	if receivedNASPDU == nil {
-		return fmt.Errorf("could not get NAS PDU from DownlinkNASTransport")
-	}
-
-	err = validateRegistrationReject(receivedNASPDU, newUE, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
+	err = validateRegistrationReject(msg, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 	if err != nil {
 		return fmt.Errorf("NAS PDU validation failed: %v", err)
 	}
