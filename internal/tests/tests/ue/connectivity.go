@@ -198,12 +198,16 @@ func runConnectivityTest(
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 	)
 
-	ueIP := newUE.GetPDUSession().UEIP + "/16"
+	uePDUSession, err := newUE.WaitForPDUSession(5 * time.Second)
+	if err != nil {
+		return fmt.Errorf("timeout waiting for PDU session: %v", err)
+	}
 
-	gnbPDUSession := gNodeB.GetPDUSession(ranUENGAPID)
+	ueIP := uePDUSession.UEIP + "/16"
 
-	if gnbPDUSession == nil {
-		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d", ranUENGAPID)
+	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
 	}
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
