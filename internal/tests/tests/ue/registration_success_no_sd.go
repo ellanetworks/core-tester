@@ -144,6 +144,16 @@ func (t RegistrationSuccessNoSD) Run(ctx context.Context, env engine.Env) error 
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
+	// Cleanup
+	err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		UE:          newUE,
+		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
+		RANUENGAPID: RANUENGAPID,
+	})
+	if err != nil {
+		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+	}
+
 	err = ellaCoreEnv.Delete(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete EllaCore environment: %v", err)
