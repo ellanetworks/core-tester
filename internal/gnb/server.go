@@ -60,6 +60,25 @@ func (g *GnodeB) GetPDUSession(ranUeId int64) *PDUSessionInformation {
 	return g.PDUSessions[ranUeId]
 }
 
+func (g *GnodeB) WaitForPDUSession(ranUeId int64, timeout time.Duration) (*PDUSessionInformation, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		g.mu.Lock()
+
+		pduSession, ok := g.PDUSessions[ranUeId]
+		g.mu.Unlock()
+
+		if ok {
+			return pduSession, nil
+		}
+
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	return nil, fmt.Errorf("timeout waiting for PDU session for RAN UE ID %d", ranUeId)
+}
+
 func (g *GnodeB) GetAMFUENGAPID(ranUeId int64) int64 {
 	g.mu.Lock()
 	defer g.mu.Unlock()
