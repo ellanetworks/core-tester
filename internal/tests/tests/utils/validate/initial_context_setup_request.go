@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"go.uber.org/zap"
 )
 
 type InitialContextSetupRequestOpts struct {
@@ -90,6 +92,7 @@ func PDUSessionResourceSetupListCxtReq(
 	expectedSD string,
 ) error {
 	if len(pDUSessionResourceSetupListCxtReq.List) != 1 {
+		logger.GnbLogger.Error("got", zap.Any("pducxtlist", pDUSessionResourceSetupListCxtReq.List))
 		return fmt.Errorf("PDUSessionResourceSetupListCxtReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListCxtReq.List))
 	}
 

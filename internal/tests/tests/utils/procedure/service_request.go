@@ -6,6 +6,7 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
 )
 
 type ServiceRequestOpts struct {
@@ -15,7 +16,7 @@ type ServiceRequestOpts struct {
 }
 
 func ServiceRequest(opts *ServiceRequestOpts) error {
-	err := opts.UE.SendServiceRequest(opts.RANUENGAPID, opts.PDUSessionStatus)
+	err := opts.UE.SendServiceRequest(opts.RANUENGAPID, opts.PDUSessionStatus, nasMessage.ServiceTypeData)
 	if err != nil {
 		return fmt.Errorf("could not send Service Request NAS message: %v", err)
 	}

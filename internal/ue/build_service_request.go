@@ -47,9 +47,11 @@ func BuildServiceRequest(opts *ServiceRequestOpts) ([]byte, error) {
 	serviceRequest.PDUSessionStatus.Buffer = make([]byte, 2)
 	binary.LittleEndian.PutUint16(serviceRequest.PDUSessionStatus.Buffer, pduFlag)
 
-	serviceRequest.UplinkDataStatus = nasType.NewUplinkDataStatus(nasMessage.ServiceRequestUplinkDataStatusType)
-	serviceRequest.UplinkDataStatus.SetLen(2)
-	serviceRequest.UplinkDataStatus.Buffer = serviceRequest.PDUSessionStatus.Buffer
+	if opts.ServiceType == nasMessage.ServiceTypeData {
+		serviceRequest.UplinkDataStatus = nasType.NewUplinkDataStatus(nasMessage.ServiceRequestUplinkDataStatusType)
+		serviceRequest.UplinkDataStatus.SetLen(2)
+		serviceRequest.UplinkDataStatus.Buffer = serviceRequest.PDUSessionStatus.Buffer
+	}
 
 	m.ServiceRequest = serviceRequest
 
