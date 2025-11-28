@@ -43,6 +43,11 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 	for _, pduSession := range protocolIEIDPDUSessionResourceSetupListSUReq.List {
 		pduSessionID := pduSession.PDUSessionID.Value
 
+		if pduSession.PDUSessionNASPDU == nil {
+			logger.GnbLogger.Debug("PDU Session Resource Setup Request contains an invalid pduSession", zap.Any("pduSession", pduSession))
+			return fmt.Errorf("PDU Session Resource Setup Request contains an invalid pduSession: %v", pduSession)
+		}
+
 		err = ue.SendDownlinkNAS(pduSession.PDUSessionNASPDU.Value, amfueNGAPID.Value, ranueNGAPID.Value)
 		if err != nil {
 			return fmt.Errorf("HandleDownlinkNASTransport failed: %v", err)

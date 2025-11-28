@@ -11,6 +11,12 @@ Ella Core Tester is a tool for testing [Ella Core](https://github.com/ellanetwor
 
 ## Getting Started
 
+Install dependencies:
+
+```shell
+sudo apt install libpcap-dev
+```
+
 Build the project:
 ```shell
 go build cmd/core-tester/main.go

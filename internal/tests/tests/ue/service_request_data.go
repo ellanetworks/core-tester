@@ -14,6 +14,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -185,15 +186,10 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 }
 
 func runServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool, ue *ue.UE) error {
-	err := ue.SendServiceRequest(ranUENGAPID, pduSessionStatus)
+	err := ue.SendServiceRequest(ranUENGAPID, pduSessionStatus, nasMessage.ServiceTypeData)
 	if err != nil {
 		return fmt.Errorf("could not send Service Request NAS message: %v", err)
 	}
-
-	// fr, err := gnb.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
-	// if err != nil {
-	// 	return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
-	// }
 
 	_, err = ue.WaitForNASGMMMessage(nas.MsgTypeServiceAccept, 500*time.Millisecond)
 	if err != nil {

@@ -28,6 +28,7 @@ func RegisterAll() error {
 		ue.UEContextRelease{},
 		ue.ServiceRequestData{},
 		ue.Connectivity{},
+		ue.DownlinkDataPaging{},
 	}
 
 	for _, test := range allTests {

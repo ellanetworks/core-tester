@@ -522,6 +522,11 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 		if err != nil {
 			return fmt.Errorf("could not handle DL NAS Transport: %v", err)
 		}
+	case nas.MsgTypeConfigurationUpdateCommand:
+		err := handleConfigurationUpdateCommand(ue, decodedMsg.ConfigurationUpdateCommand, amfUENGAPID, ranUENGAPID)
+		if err != nil {
+			return fmt.Errorf("could not handle Configuration Update Command: %v", err)
+		}
 	default:
 		logger.UeLogger.Warn("NAS message type not implemented", zap.Uint8("msgType", msgType))
 	}
@@ -671,9 +676,9 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 	return nil
 }
 
-func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool) error {
+func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool, serviceType uint8) error {
 	serviceRequest, err := BuildServiceRequest(&ServiceRequestOpts{
-		ServiceType:      nasMessage.ServiceTypeData,
+		ServiceType:      serviceType,
 		AMFSetID:         ue.GetAmfSetId(),
 		AMFPointer:       ue.GetAmfPointer(),
 		TMSI5G:           ue.GetTMSI5G(),
@@ -689,7 +694,12 @@ func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool) e
 		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
 	}
 
-	err = ue.Gnb.SendInitialUEMessage(encodedPdu, ranUENGAPID, ue.UeSecurity.Guti, ngapType.RRCEstablishmentCausePresentMoData)
+	establishmentCause := ngapType.RRCEstablishmentCausePresentMoData
+	if serviceType == nasMessage.ServiceTypeMobileTerminatedServices {
+		establishmentCause = ngapType.RRCEstablishmentCausePresentMtAccess
+	}
+
+	err = ue.Gnb.SendInitialUEMessage(encodedPdu, ranUENGAPID, ue.UeSecurity.Guti, establishmentCause)
 	if err != nil {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
