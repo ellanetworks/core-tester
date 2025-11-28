@@ -67,20 +67,19 @@ type PDUSessionInfo struct {
 }
 
 type UE struct {
-	UeSecurity                   *UESecurity
-	StateMM                      int
-	DNN                          string
-	PDUSessionID                 uint8
-	Snssai                       models.Snssai
-	amfInfo                      Amf
-	IMEISV                       string
-	Gnb                          air.UplinkSender
-	mu                           sync.Mutex
-	PDUSession                   PDUSessionInfo
-	receivedNASGMMMessages       map[uint8][]*nas.Message // msgType -> gmm messages
-	receivedNASGSMMessages       map[uint8][]*nas.Message // msgType -> gsm messages
-	receivedRRCRelease           bool
-	configurationUpdateListeners []chan bool
+	UeSecurity             *UESecurity
+	StateMM                int
+	DNN                    string
+	PDUSessionID           uint8
+	Snssai                 models.Snssai
+	amfInfo                Amf
+	IMEISV                 string
+	Gnb                    air.UplinkSender
+	mu                     sync.Mutex
+	PDUSession             PDUSessionInfo
+	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
+	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
+	receivedRRCRelease     bool
 }
 
 func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
@@ -186,8 +185,6 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	}
 
 	ue.StateMM = MM5G_NULL
-
-	ue.configurationUpdateListeners = make([]chan bool, 0)
 
 	return &ue, nil
 }
@@ -777,16 +774,4 @@ func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID 
 	)
 
 	return nil
-}
-
-func (ue *UE) ListenForConfigurationUpdateCommand(ch chan bool) {
-	ue.configurationUpdateListeners = append(ue.configurationUpdateListeners, ch)
-}
-
-func (ue *UE) NotifyConfigurationUpdateCommand() {
-	for _, l := range ue.configurationUpdateListeners {
-		l <- true
-	}
-
-	ue.configurationUpdateListeners = make([]chan bool, 0)
 }

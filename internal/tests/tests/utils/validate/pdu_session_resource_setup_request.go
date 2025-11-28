@@ -6,14 +6,12 @@ import (
 	"reflect"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
-	"go.uber.org/zap"
 )
 
 type PDUSessionResourceSetupRequestOpts struct {
@@ -102,7 +100,6 @@ func pduSessionResourceSetupListSUReq(
 	ueIns *ue.UE,
 ) error {
 	if len(pDUSessionResourceSetupListSUReq.List) != 1 {
-		logger.UeLogger.Error("PDUSessionResourceSetupListSUReq", zap.Any("list", pDUSessionResourceSetupListSUReq.List))
 		return fmt.Errorf("PDUSessionResourceSetupListSUReq should have exactly one item, got: %d", len(pDUSessionResourceSetupListSUReq.List))
 	}
 

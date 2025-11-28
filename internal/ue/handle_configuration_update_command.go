@@ -32,7 +32,5 @@ func handleConfigurationUpdateCommand(ue *UE, cfgUpdCmd *nasMessage.Configuratio
 		zap.String("IMSI", ue.UeSecurity.Supi),
 	)
 
-	ue.NotifyConfigurationUpdateCommand()
-
 	return nil
 }

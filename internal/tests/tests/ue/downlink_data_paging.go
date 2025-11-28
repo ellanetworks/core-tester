@@ -15,6 +15,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/google/gopacket/layers"
@@ -271,17 +272,12 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 
 	err = NWOriginatedServiceRequest(&NWOriginatedServiceRequestOpts{
 		PDUSessionStatus: pduSessionStatus,
-		SST:              env.Config.EllaCore.SST,
-		SD:               env.Config.EllaCore.SD,
 		RANUENGAPID:      RANUENGAPID,
 		UE:               newUE,
-		GnodeB:           gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
-
-	time.Sleep(1 * time.Second)
 
 	gnbPDUSession = gNodeB.GetPDUSession(RANUENGAPID)
 
@@ -331,32 +327,33 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 
 type NWOriginatedServiceRequestOpts struct {
 	PDUSessionStatus [16]bool
-	SST              int32
-	SD               string
 	RANUENGAPID      int64
 	UE               *ue.UE
-	GnodeB           *gnb.GnodeB
 }
 
 func NWOriginatedServiceRequest(opts *NWOriginatedServiceRequestOpts) error {
 	guti := opts.UE.Get5gGuti()
-	ch := make(chan bool, 1)
-	opts.UE.ListenForConfigurationUpdateCommand(ch)
 
 	err := opts.UE.SendServiceRequest(opts.RANUENGAPID, opts.PDUSessionStatus, nasMessage.ServiceTypeMobileTerminatedServices)
 	if err != nil {
 		return fmt.Errorf("could not send Service Request NAS message: %v", err)
 	}
 
-	select {
-	case <-ch:
-		break
-	case <-time.After(5 * time.Second):
-		return fmt.Errorf("timed out waiting for Configuration Update Command")
+	msg, err := opts.UE.WaitForNASGMMMessage(nas.MsgTypeConfigurationUpdateCommand, 1*time.Second)
+	if err != nil {
+		return fmt.Errorf("did not receive expected Configuration Update Command: %v", err)
+	}
+
+	if msg.ConfigurationUpdateCommand.GUTI5G == nil {
+		return fmt.Errorf("missing GUTI in Configuration Update Command")
+	}
+
+	if msg.ConfigurationUpdateCommand.GUTI5G == guti {
+		return fmt.Errorf("GUTI was not changed by Configuration Update Command")
 	}
 
 	if guti == opts.UE.Get5gGuti() {
-		return fmt.Errorf("GUTI was not changed by Configuration Update Command")
+		return fmt.Errorf("UE did not process GUTI change")
 	}
 
 	return nil

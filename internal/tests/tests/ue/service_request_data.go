@@ -191,11 +191,6 @@ func runServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool, ue *ue.UE) 
 		return fmt.Errorf("could not send Service Request NAS message: %v", err)
 	}
 
-	// fr, err = gnb.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentInitialContextSetupRequest, 500*time.Millisecond)
-	// if err != nil {
-	// 	return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
-	// }
-
 	_, err = ue.WaitForNASGMMMessage(nas.MsgTypeServiceAccept, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
