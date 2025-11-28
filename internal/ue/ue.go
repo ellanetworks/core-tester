@@ -67,19 +67,19 @@ type PDUSessionInfo struct {
 }
 
 type UE struct {
-	UeSecurity             *UESecurity
-	StateMM                int
-	DNN                    string
-	PDUSessionID           uint8
-	Snssai                 models.Snssai
-	amfInfo                Amf
-	IMEISV                 string
-	Gnb                    air.UplinkSender
-	mu                     sync.Mutex
-	PDUSession             PDUSessionInfo
-	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
-	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
-	receivedRRCRelease     bool
+	UeSecurity                   *UESecurity
+	StateMM                      int
+	DNN                          string
+	PDUSessionID                 uint8
+	Snssai                       models.Snssai
+	amfInfo                      Amf
+	IMEISV                       string
+	Gnb                          air.UplinkSender
+	mu                           sync.Mutex
+	PDUSession                   PDUSessionInfo
+	receivedNASGMMMessages       map[uint8][]*nas.Message // msgType -> gmm messages
+	receivedNASGSMMessages       map[uint8][]*nas.Message // msgType -> gsm messages
+	receivedRRCRelease           bool
 	configurationUpdateListeners []chan bool
 }
 
@@ -787,5 +787,6 @@ func (ue *UE) NotifyConfigurationUpdateCommand() {
 	for _, l := range ue.configurationUpdateListeners {
 		l <- true
 	}
+
 	ue.configurationUpdateListeners = make([]chan bool, 0)
 }
