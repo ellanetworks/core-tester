@@ -334,6 +334,18 @@ func runConnectivityTest(
 		zap.String("destination", env.Config.Subscriber.PingDestination),
 	)
 
+	uplinkBytes, downlinkBytes, err := core.WaitForUsage(env.EllaCoreClient, subscriber.Imsi, 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("error waiting for usage: %v", err)
+	}
+
+	logger.Logger.Debug(
+		"Data usage detected",
+		zap.String("IMSI", subscriber.Imsi),
+		zap.Uint64("uplink bytes", uplinkBytes),
+		zap.Uint64("downlink bytes", downlinkBytes),
+	)
+
 	// Cleanup
 	err = gNodeB.CloseTunnel(pduSession.DLTeid)
 	if err != nil {
