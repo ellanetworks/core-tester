@@ -16,6 +16,9 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Install dependencies
+        run: sudo apt install libpcap-dev
+
       - name: go build
         run: |
           go build ./...
