@@ -33,6 +33,7 @@ var (
 	ellaCoreN2Address  string
 	ellaCoreAPIAddress string
 	ellaCoreAPIToken   string
+	environment        string
 	verbose            bool
 	pingDestination    string
 )
@@ -76,6 +77,7 @@ func main() {
 	testCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
 	testCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
 	testCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
+	testCmd.Flags().StringVar(&environment, "environment", "", "Test environment (unset or `lab`)")
 	testCmd.Flags().StringVarP(&outputFile, "write", "w", "", "Write test results (JSON) to file")
 	testCmd.Flags().StringVar(&pingDestination, "ping-destination", "10.6.0.3", "Destination to ping when testing UE connectivity")
 	_ = testCmd.MarkFlagRequired("ella-core-api-address")
@@ -146,7 +148,9 @@ func Test(cmd *cobra.Command, args []string) {
 		},
 	}
 
-	err := tests.RegisterAll()
+	labEnv := environment == "lab"
+
+	err := tests.RegisterAll(labEnv)
 	if err != nil {
 		logger.Logger.Fatal("Could not register tests", zap.Error(err))
 	}

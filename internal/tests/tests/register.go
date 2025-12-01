@@ -8,7 +8,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/ue"
 )
 
-func RegisterAll() error {
+func RegisterAll(labEnv bool) error {
 	allTests := []engine.Test{
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
@@ -32,6 +32,11 @@ func RegisterAll() error {
 	}
 
 	for _, test := range allTests {
+		// Skip lab-only tests if not in lab environment
+		if !labEnv && test.Meta().Environment == "lab" {
+			continue
+		}
+
 		err := engine.Register(test)
 		if err != nil {
 			return fmt.Errorf("could not register test %T: %v", test, err)
