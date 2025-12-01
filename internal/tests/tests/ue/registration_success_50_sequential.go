@@ -56,10 +56,10 @@ func buildSubscriberConfig(numSubscribers int, startIMSI string) ([]core.Subscri
 
 		subs = append(subs, core.SubscriberConfig{
 			Imsi:           imsi,
-			Key:            "640f441067cd56f1474cbcacd7a0588f",
-			SequenceNumber: "000000000022",
-			OPc:            "cb698a2341629c3241ae01de9d89de4f",
-			PolicyName:     "bbb",
+			Key:            DefaultKey,
+			SequenceNumber: DefaultSequenceNumber,
+			OPc:            DefaultOPC,
+			PolicyName:     DefaultPolicyName,
 		})
 	}
 
