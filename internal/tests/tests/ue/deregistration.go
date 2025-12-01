@@ -95,7 +95,7 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 	})

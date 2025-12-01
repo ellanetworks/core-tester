@@ -183,7 +183,7 @@ func runConnectivityTest(
 
 	gNodeB.AddUE(ranUENGAPID, newUE)
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
 	})

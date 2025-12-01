@@ -3,6 +3,7 @@ package ue
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
@@ -54,10 +56,10 @@ func buildSubscriberConfig(numSubscribers int, startIMSI string) ([]core.Subscri
 
 		subs = append(subs, core.SubscriberConfig{
 			Imsi:           imsi,
-			Key:            "640f441067cd56f1474cbcacd7a0588f",
-			SequenceNumber: "000000000022",
-			OPc:            "cb698a2341629c3241ae01de9d89de4f",
-			PolicyName:     "bbb",
+			Key:            DefaultKey,
+			SequenceNumber: DefaultSequenceNumber,
+			OPc:            DefaultOPC,
+			PolicyName:     DefaultPolicyName,
 		})
 	}
 
@@ -136,10 +138,27 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
+	network, err := netip.ParsePrefix("10.45.0.0/16")
+	if err != nil {
+		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+	}
+
 	for i := range NumSubscribersSequential {
 		ranUENGAPID := RANUENGAPID + int64(i)
 
-		err := ueRegistrationTest(ranUENGAPID, gNodeB, subs[i])
+		exp := &validate.ExpectedPDUSessionEstablishmentAccept{
+			PDUSessionID:               PDUSessionID,
+			UeIPSubnet:                 network,
+			Dnn:                        DefaultDNN,
+			Sst:                        DefaultSST,
+			Sd:                         DefaultSD,
+			MaximumBitRateUplinkMbps:   100,
+			MaximumBitRateDownlinkMbps: 100,
+			Qfi:                        1,
+			FiveQI:                     9,
+		}
+
+		err := ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], exp)
 		if err != nil {
 			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
 		}
@@ -155,7 +174,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	return nil
 }
 
-func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
+func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig, expectedPDUSessionAccept *validate.ExpectedPDUSessionEstablishmentAccept) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,
@@ -191,12 +210,17 @@ func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.S
 
 	gNodeB.AddUE(ranUENGAPID, newUE)
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	pduSessAcceptMsg, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed for subscriber %v: %v", newUE.UeSecurity.Msin, err)
+	}
+
+	err = validate.PDUSessionEstablishmentAccept(pduSessAcceptMsg, expectedPDUSessionAccept)
+	if err != nil {
+		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
 	}
 
 	// Cleanup

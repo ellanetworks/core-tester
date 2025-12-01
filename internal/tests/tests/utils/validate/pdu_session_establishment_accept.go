@@ -7,16 +7,19 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasMessage"
 )
 
 type ExpectedPDUSessionEstablishmentAccept struct {
-	PDUSessionID uint8
-	UeIPSubnet   netip.Prefix
-	Dnn          string
-	Sst          int32
-	Sd           string
-	Qfi          uint8
-	FiveQI       uint8
+	PDUSessionID               uint8
+	UeIPSubnet                 netip.Prefix
+	Dnn                        string
+	Sst                        int32
+	Sd                         string
+	MaximumBitRateUplinkMbps   uint64
+	MaximumBitRateDownlinkMbps uint64
+	Qfi                        uint8
+	FiveQI                     uint8
 }
 
 func PDUSessionEstablishmentAccept(nasMsg *nas.Message, opts *ExpectedPDUSessionEstablishmentAccept) error {
@@ -63,6 +66,32 @@ func PDUSessionEstablishmentAccept(nasMsg *nas.Message, opts *ExpectedPDUSession
 
 	if reflect.ValueOf(nasMsg.PDUSessionEstablishmentAccept.SessionAMBR).IsZero() {
 		return fmt.Errorf("session ambr is missing")
+	}
+
+	// validate that bitrate is equal to 100 Mbps
+	downlinkValue := nasMsg.PDUSessionEstablishmentAccept.GetSessionAMBRForDownlink()
+	uplinkValue := nasMsg.PDUSessionEstablishmentAccept.GetSessionAMBRForUplink()
+
+	uplinkUint64 := uint64(uplinkValue[0])<<8 | uint64(uplinkValue[1])
+	downlinkUint64 := uint64(downlinkValue[0])<<8 | uint64(downlinkValue[1])
+
+	if uplinkUint64 != opts.MaximumBitRateUplinkMbps {
+		return fmt.Errorf("uplink ambr value not expected, got: %d, expected: %d", uplinkUint64, opts.MaximumBitRateUplinkMbps)
+	}
+
+	if downlinkUint64 != opts.MaximumBitRateDownlinkMbps {
+		return fmt.Errorf("downlink ambr value not expected, got: %d, expected: %d", downlinkUint64, opts.MaximumBitRateDownlinkMbps)
+	}
+
+	downlinkUnit := nasMsg.PDUSessionEstablishmentAccept.GetUnitForSessionAMBRForDownlink()
+	uplinkUnit := nasMsg.PDUSessionEstablishmentAccept.GetUnitForSessionAMBRForUplink()
+
+	if downlinkUnit != nasMessage.SessionAMBRUnit1Mbps {
+		return fmt.Errorf("downlink ambr unit not expected, got: %d, expected: %d", downlinkUnit, nasMessage.SessionAMBRUnit1Mbps)
+	}
+
+	if uplinkUnit != nasMessage.SessionAMBRUnit1Mbps {
+		return fmt.Errorf("uplink ambr unit not expected, got: %d, expected: %d", uplinkUnit, nasMessage.SessionAMBRUnit1Mbps)
 	}
 
 	pduSessionId := nasMsg.PDUSessionEstablishmentAccept.GetPDUSessionID()

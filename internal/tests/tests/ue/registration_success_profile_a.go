@@ -152,7 +152,7 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 	})

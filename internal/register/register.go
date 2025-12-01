@@ -99,7 +99,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 	})

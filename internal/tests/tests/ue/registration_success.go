@@ -201,13 +201,15 @@ func runInitialRegistration(opts *InitialRegistrationOpts) error {
 	}
 
 	err = validate.PDUSessionEstablishmentAccept(msg, &validate.ExpectedPDUSessionEstablishmentAccept{
-		PDUSessionID: opts.PDUSessionID,
-		UeIPSubnet:   network,
-		Dnn:          opts.GnodeB.DNN,
-		Sst:          opts.GnodeB.SST,
-		Sd:           opts.GnodeB.SD,
-		Qfi:          1,
-		FiveQI:       9,
+		PDUSessionID:               opts.PDUSessionID,
+		UeIPSubnet:                 network,
+		Dnn:                        opts.GnodeB.DNN,
+		Sst:                        opts.GnodeB.SST,
+		Sd:                         opts.GnodeB.SD,
+		MaximumBitRateUplinkMbps:   100,
+		MaximumBitRateDownlinkMbps: 100,
+		Qfi:                        1,
+		FiveQI:                     9,
 	})
 	if err != nil {
 		return fmt.Errorf("PDUSessionResourceSetupRequest validation failed: %v", err)
