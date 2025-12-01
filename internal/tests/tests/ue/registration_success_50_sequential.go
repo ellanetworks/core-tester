@@ -73,20 +73,20 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
 			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
+				MCC: DefaultMCC,
+				MNC: DefaultMNC,
 			},
 			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
+				SST: DefaultSST,
+				SD:  DefaultSD,
 			},
 			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
+				SupportedTACs: []string{DefaultTAC},
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
 			{
-				Name:   env.Config.EllaCore.DNN,
+				Name:   DefaultDNN,
 				IPPool: "10.45.0.0/16",
 				DNS:    "8.8.8.8",
 				Mtu:    1500,
@@ -94,12 +94,12 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            env.Config.Subscriber.PolicyName,
+				Name:            DefaultPolicyName,
 				BitrateUplink:   "100 Mbps",
 				BitrateDownlink: "100 Mbps",
 				Var5qi:          9,
 				Arp:             15,
-				DataNetworkName: env.Config.EllaCore.DNN,
+				DataNetworkName: DefaultDNN,
 			},
 		},
 		Subscribers: subs,
@@ -114,12 +114,12 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 	gNodeB, err := gnb.Start(
 		GNBID,
-		env.Config.EllaCore.MCC,
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMCC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
@@ -139,7 +139,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	for i := range NumSubscribersSequential {
 		ranUENGAPID := RANUENGAPID + int64(i)
 
-		err := ueRegistrationTest(env, ranUENGAPID, gNodeB, subs[i])
+		err := ueRegistrationTest(ranUENGAPID, gNodeB, subs[i])
 		if err != nil {
 			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
 		}
@@ -155,7 +155,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	return nil
 }
 
-func ueRegistrationTest(env engine.Env, ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
+func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,
@@ -163,17 +163,17 @@ func ueRegistrationTest(env engine.Env, ranUENGAPID int64, gNodeB *gnb.GnodeB, s
 		K:            subscriber.Key,
 		OpC:          subscriber.OPc,
 		Amf:          "80000000000000000000000000000000",
-		Sqn:          env.Config.Subscriber.SequenceNumber,
-		Mcc:          env.Config.EllaCore.MCC,
-		Mnc:          env.Config.EllaCore.MNC,
+		Sqn:          DefaultSequenceNumber,
+		Mcc:          DefaultMCC,
+		Mnc:          DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              env.Config.EllaCore.DNN,
-		Sst:              env.Config.EllaCore.SST,
-		Sd:               env.Config.EllaCore.SD,
+		DNN:              DefaultDNN,
+		Sst:              DefaultSST,
+		Sd:               DefaultSD,
 		IMEISV:           "3569380356438091",
 		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
 			Integrity: utils.IntegrityAlgorithms{

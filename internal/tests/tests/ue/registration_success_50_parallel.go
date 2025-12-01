@@ -36,20 +36,20 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
 			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
+				MCC: DefaultMCC,
+				MNC: DefaultMNC,
 			},
 			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
+				SST: DefaultSST,
+				SD:  DefaultSD,
 			},
 			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
+				SupportedTACs: []string{DefaultTAC},
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
 			{
-				Name:   env.Config.EllaCore.DNN,
+				Name:   DefaultDNN,
 				IPPool: "10.45.0.0/16",
 				DNS:    "8.8.8.8",
 				Mtu:    1500,
@@ -57,12 +57,12 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            env.Config.Subscriber.PolicyName,
+				Name:            DefaultPolicyName,
 				BitrateUplink:   "100 Mbps",
 				BitrateDownlink: "100 Mbps",
 				Var5qi:          9,
 				Arp:             15,
-				DataNetworkName: env.Config.EllaCore.DNN,
+				DataNetworkName: DefaultDNN,
 			},
 		},
 		Subscribers: subs,
@@ -77,12 +77,12 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 
 	gNodeB, err := gnb.Start(
 		GNBID,
-		env.Config.EllaCore.MCC,
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMCC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
@@ -105,7 +105,7 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 		func() {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
-				return ueRegistrationTest(env, ranUENGAPID, gNodeB, subs[i])
+				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i])
 			})
 		}()
 	}

@@ -24,12 +24,6 @@ type Meta struct {
 
 type EllaCoreConfig struct {
 	N2Address string
-	MCC       string
-	MNC       string
-	SST       int32
-	SD        string
-	TAC       string
-	DNN       string
 }
 
 type GnbConfig struct {
@@ -37,19 +31,10 @@ type GnbConfig struct {
 	N3Address string
 }
 
-type SubscriberConfig struct {
-	IMSI            string
-	Key             string
-	OPC             string
-	SequenceNumber  string
-	PolicyName      string
-	PingDestination string
-}
-
 type Config struct {
-	EllaCore   EllaCoreConfig
-	Gnb        GnbConfig
-	Subscriber SubscriberConfig
+	EllaCore        EllaCoreConfig
+	Gnb             GnbConfig
+	PingDestination string
 }
 
 type Env struct {

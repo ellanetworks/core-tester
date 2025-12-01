@@ -25,21 +25,7 @@ func (SCTPBasic) Meta() engine.Meta {
 }
 
 func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
-	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
-		Operator: core.OperatorConfig{
-			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
-			},
-			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
-			},
-			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
-			},
-		},
-	})
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, getDefaultEllaCoreConfig())
 
 	err := ellaCoreEnv.Create(ctx)
 	if err != nil {
@@ -50,12 +36,12 @@ func (t SCTPBasic) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB, err := gnb.Start(
 		fmt.Sprintf("%06x", 1),
-		env.Config.EllaCore.MCC,
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMCC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,

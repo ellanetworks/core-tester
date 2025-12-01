@@ -125,22 +125,9 @@ func main() {
 
 func Test(cmd *cobra.Command, args []string) {
 	testConfig := engine.Config{
-		Subscriber: engine.SubscriberConfig{
-			IMSI:            "001017271246546",
-			Key:             "640f441067cd56f1474cbcacd7a0588f",
-			OPC:             "cb698a2341629c3241ae01de9d89de4f",
-			SequenceNumber:  "000000000022",
-			PolicyName:      "bbb",
-			PingDestination: pingDestination,
-		},
+		PingDestination: pingDestination,
 		EllaCore: engine.EllaCoreConfig{
 			N2Address: ellaCoreN2Address,
-			MCC:       "001",
-			MNC:       "01",
-			SST:       1,
-			SD:        "102030",
-			TAC:       "000001",
-			DNN:       "internet",
 		},
 		Gnb: engine.GnbConfig{
 			N2Address: gnbN2Address,

@@ -29,48 +29,7 @@ func (AuthenticationWrongKey) Meta() engine.Meta {
 }
 
 func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
-	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
-		Operator: core.OperatorConfig{
-			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
-			},
-			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
-			},
-			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
-			},
-		},
-		DataNetworks: []core.DataNetworkConfig{
-			{
-				Name:   env.Config.EllaCore.DNN,
-				IPPool: "10.45.0.0/16",
-				DNS:    "8.8.8.8",
-				Mtu:    1500,
-			},
-		},
-		Policies: []core.PolicyConfig{
-			{
-				Name:            env.Config.Subscriber.PolicyName,
-				BitrateUplink:   "100 Mbps",
-				BitrateDownlink: "100 Mbps",
-				Var5qi:          9,
-				Arp:             15,
-				DataNetworkName: env.Config.EllaCore.DNN,
-			},
-		},
-		Subscribers: []core.SubscriberConfig{
-			{
-				Imsi:           env.Config.Subscriber.IMSI,
-				Key:            env.Config.Subscriber.Key,
-				SequenceNumber: env.Config.Subscriber.SequenceNumber,
-				OPc:            env.Config.Subscriber.OPC,
-				PolicyName:     env.Config.Subscriber.PolicyName,
-			},
-		},
-	})
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, getDefaultEllaCoreConfig())
 
 	err := ellaCoreEnv.Create(ctx)
 	if err != nil {
@@ -81,12 +40,12 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	gNodeB, err := gnb.Start(
 		GNBID,
-		env.Config.EllaCore.MCC,
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMCC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
@@ -105,21 +64,21 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB: gNodeB,
-		Msin:   env.Config.Subscriber.IMSI[5:],
-		K:      env.Config.Subscriber.Key,
-		OpC:    env.Config.Subscriber.OPC,
+		Msin:   DefaultIMSI[5:],
+		K:      DefaultKey,
+		OpC:    DefaultOPC,
 		Amf:    "80000000000000000000000000000000",
-		Sqn:    env.Config.Subscriber.SequenceNumber,
-		Mcc:    env.Config.EllaCore.MCC,
-		Mnc:    env.Config.EllaCore.MNC,
+		Sqn:    DefaultSequenceNumber,
+		Mcc:    DefaultMCC,
+		Mnc:    DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              env.Config.EllaCore.DNN,
-		Sst:              env.Config.EllaCore.SST,
-		Sd:               env.Config.EllaCore.SD,
+		DNN:              DefaultDNN,
+		Sst:              DefaultSST,
+		Sd:               DefaultSD,
 		IMEISV:           "3569380356438091",
 		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
 			Integrity: utils.IntegrityAlgorithms{
