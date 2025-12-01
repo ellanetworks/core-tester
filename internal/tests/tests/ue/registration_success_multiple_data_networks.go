@@ -15,17 +15,17 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type RegistrationSuccessMultiplePolicies struct{}
+type RegistrationSuccessMultipleDataNetworks struct{}
 
-func (RegistrationSuccessMultiplePolicies) Meta() engine.Meta {
+func (RegistrationSuccessMultipleDataNetworks) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success_multiple_policies",
-		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with multiple policies",
+		ID:      "ue/registration_success_multiple_data_networks",
+		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with multiple data networks",
 		Timeout: 60 * time.Second,
 	}
 }
 
-func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env engine.Env) error {
 	subs := []core.SubscriberConfig{
 		{
 			Imsi:           "001017271246546",
@@ -80,9 +80,33 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 		},
 		DataNetworks: []core.DataNetworkConfig{
 			{
-				Name:   DefaultDNN,
+				Name:   "dnn0",
 				IPPool: "10.45.0.0/16",
 				DNS:    "8.8.8.8",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn1",
+				IPPool: "10.46.0.0/16",
+				DNS:    "8.8.4.4",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn2",
+				IPPool: "10.47.0.0/16",
+				DNS:    "8.8.2.2",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn3",
+				IPPool: "10.48.0.0/16",
+				DNS:    "8.8.1.1",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn4",
+				IPPool: "10.49.0.0/16",
+				DNS:    "8.8.0.0",
 				Mtu:    1500,
 			},
 		},
@@ -93,7 +117,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 				BitrateDownlink: "50 Mbps",
 				Var5qi:          5,
 				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				DataNetworkName: "dnn0",
 			},
 			{
 				Name:            "policy1",
@@ -101,7 +125,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 				BitrateDownlink: "100 Mbps",
 				Var5qi:          6,
 				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				DataNetworkName: "dnn1",
 			},
 			{
 				Name:            "policy2",
@@ -109,7 +133,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 				BitrateDownlink: "150 Mbps",
 				Var5qi:          7,
 				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				DataNetworkName: "dnn2",
 			},
 			{
 				Name:            "policy3",
@@ -117,7 +141,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 				BitrateDownlink: "200 Mbps",
 				Var5qi:          8,
 				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				DataNetworkName: "dnn3",
 			},
 			{
 				Name:            "policy4",
@@ -125,7 +149,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 				BitrateDownlink: "250 Mbps",
 				Var5qi:          9,
 				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				DataNetworkName: "dnn4",
 			},
 		},
 		Subscribers: subs,
@@ -144,7 +168,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 		DefaultMNC,
 		DefaultSST,
 		DefaultSD,
-		DefaultDNN,
+		"dnn0",
 		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
@@ -162,21 +186,21 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
-	network, err := netip.ParsePrefix("10.45.0.0/16")
-	if err != nil {
-		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
-	}
-
 	eg := errgroup.Group{}
 
-	for i := range subs {
+	for i := range 5 {
 		func() {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
+				network, err := netip.ParsePrefix(fmt.Sprintf("10.4%d.0.0/16", 5+i))
+				if err != nil {
+					return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+				}
+
 				exp := &validate.ExpectedPDUSessionEstablishmentAccept{
 					PDUSessionID:               PDUSessionID,
 					UeIPSubnet:                 network,
-					Dnn:                        DefaultDNN,
+					Dnn:                        fmt.Sprintf("dnn%d", i),
 					Sst:                        DefaultSST,
 					Sd:                         DefaultSD,
 					MaximumBitRateUplinkMbps:   10 * uint64(i+1),
@@ -185,7 +209,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 					FiveQI:                     5 + uint8(i),
 				}
 
-				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], DefaultDNN, exp)
+				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], fmt.Sprintf("dnn%d", i), exp)
 			})
 		}()
 	}

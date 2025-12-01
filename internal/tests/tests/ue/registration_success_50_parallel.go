@@ -125,7 +125,7 @@ func (t RegistrationSuccess50Parallel) Run(ctx context.Context, env engine.Env) 
 					FiveQI:                     9,
 				}
 
-				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], exp)
+				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], DefaultDNN, exp)
 			})
 		}()
 	}
