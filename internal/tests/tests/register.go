@@ -18,6 +18,7 @@ func RegisterAll(labEnv bool) error {
 		ue.RegistrationSuccess{},
 		ue.RegistrationSuccess50Sequential{},
 		ue.RegistrationSuccess50Parallel{},
+		ue.RegistrationSuccessMultiplePolicies{},
 		ue.RegistrationSuccessProfileA{},
 		ue.RegistrationRejectInvalidHomeNetworkPublicKey{},
 		ue.RegistrationSuccessNoSD{},

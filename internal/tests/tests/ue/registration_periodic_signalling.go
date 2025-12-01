@@ -97,7 +97,7 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
 		UE:          newUE,
 	})
