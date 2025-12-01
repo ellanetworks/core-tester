@@ -192,6 +192,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 		func() {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
+
 				network, err := netip.ParsePrefix(fmt.Sprintf("10.4%d.0.0/16", 5+i))
 				if err != nil {
 					return fmt.Errorf("failed to parse UE IP subnet: %v", err)
