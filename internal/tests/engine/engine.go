@@ -16,10 +16,10 @@ const (
 )
 
 type Meta struct {
-	ID      string
-	Summary string
-	Tags    []string
-	Timeout time.Duration
+	ID          string
+	Summary     string
+	Environment string
+	Timeout     time.Duration
 }
 
 type EllaCoreConfig struct {
