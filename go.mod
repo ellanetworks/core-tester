@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/ellanetworks/core v0.5.0
+	github.com/ellanetworks/core v0.5.1-0.20251201135702-2774c384ec2b
 	github.com/free5gc/aper v1.0.6-0.20250102035630-3ddc831eed6a
 	github.com/free5gc/nas v1.2.1
 	github.com/free5gc/ngap v1.1.1
