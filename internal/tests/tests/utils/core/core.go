@@ -5,6 +5,7 @@ import (
 	"crypto/ecdh"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core/client"
 )
@@ -352,4 +353,53 @@ func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func WaitForUsage(cl *client.Client, imsi string, timeout time.Duration) (uint64, uint64, error) {
+	deadline := time.Now().Add(timeout)
+
+	for {
+		uplinkBytes, downlinkBytes, err := getEllaCoreUsage(cl, imsi)
+		if err != nil {
+			return 0, 0, fmt.Errorf("could not get EllaCore usage: %v", err)
+		}
+
+		if uplinkBytes > 0 && downlinkBytes > 0 {
+			return uplinkBytes, downlinkBytes, nil
+		}
+
+		if time.Now().After(deadline) {
+			return 0, 0, fmt.Errorf("timeout waiting for usage for IMSI %s", imsi)
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func getEllaCoreUsage(cl *client.Client, imsi string) (uint64, uint64, error) {
+	usage, err := cl.ListUsage(context.Background(), &client.ListUsageParams{
+		GroupBy:    "day",
+		Subscriber: imsi,
+	})
+	if err != nil {
+		return 0, 0, fmt.Errorf("could not list usage: %v", err)
+	}
+
+	today := time.Now().Format("2006-01-02")
+
+	var totalUplinkBytes uint64
+
+	var totalDownlinkBytes uint64
+
+	for _, subscriberUsage := range *usage {
+		ku, ok := subscriberUsage[today]
+		if !ok {
+			continue
+		}
+
+		totalUplinkBytes += uint64(ku.UplinkBytes)
+		totalDownlinkBytes += uint64(ku.DownlinkBytes)
+	}
+
+	return totalUplinkBytes, totalDownlinkBytes, nil
 }
