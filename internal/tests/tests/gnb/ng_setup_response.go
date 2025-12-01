@@ -30,21 +30,7 @@ func (NGSetupResponse) Meta() engine.Meta {
 }
 
 func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
-	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
-		Operator: core.OperatorConfig{
-			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
-			},
-			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
-			},
-			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
-			},
-		},
-	})
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, getDefaultEllaCoreConfig())
 
 	err := ellaCoreEnv.Create(ctx)
 	if err != nil {
@@ -82,12 +68,12 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 func ngSetupTest(env engine.Env, index int) error {
 	gNodeB, err := gnb.Start(
 		fmt.Sprintf("%06x", index+1),
-		env.Config.EllaCore.MCC,
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMCC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		fmt.Sprintf("Ella-Core-Tester-%d", index),
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
@@ -128,10 +114,10 @@ func ngSetupTest(env engine.Env, index int) error {
 	}
 
 	err = validateNGSetupResponse(nGSetupResponse, &NGSetupResponseValidationOpts{
-		MCC: env.Config.EllaCore.MCC,
-		MNC: env.Config.EllaCore.MNC,
-		SST: env.Config.EllaCore.SST,
-		SD:  env.Config.EllaCore.SD,
+		MCC: DefaultMCC,
+		MNC: DefaultMNC,
+		SST: DefaultSST,
+		SD:  DefaultSD,
 	})
 	if err != nil {
 		return fmt.Errorf("NGSetupResponse validation failed: %v", err)

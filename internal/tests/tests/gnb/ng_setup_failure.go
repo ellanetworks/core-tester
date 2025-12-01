@@ -26,21 +26,7 @@ func (NGSetupFailure_UnknownPLMN) Meta() engine.Meta {
 }
 
 func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) error {
-	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
-		Operator: core.OperatorConfig{
-			ID: core.OperatorID{
-				MCC: env.Config.EllaCore.MCC,
-				MNC: env.Config.EllaCore.MNC,
-			},
-			Slice: core.OperatorSlice{
-				SST: env.Config.EllaCore.SST,
-				SD:  env.Config.EllaCore.SD,
-			},
-			Tracking: core.OperatorTracking{
-				SupportedTACs: []string{env.Config.EllaCore.TAC},
-			},
-		},
-	})
+	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, getDefaultEllaCoreConfig())
 
 	err := ellaCoreEnv.Create(ctx)
 	if err != nil {
@@ -52,11 +38,11 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 	gNodeB, err := gnb.Start(
 		fmt.Sprintf("%06x", 1),
 		"002", // Unknown MCC to trigger NGSetupFailure
-		env.Config.EllaCore.MNC,
-		env.Config.EllaCore.SST,
-		env.Config.EllaCore.SD,
-		env.Config.EllaCore.DNN,
-		env.Config.EllaCore.TAC,
+		DefaultMNC,
+		DefaultSST,
+		DefaultSD,
+		DefaultDNN,
+		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
