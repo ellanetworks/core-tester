@@ -158,7 +158,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 			FiveQI:                     9,
 		}
 
-		err := ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], exp)
+		err := ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], DefaultDNN, exp)
 		if err != nil {
 			return fmt.Errorf("UE registration test failed for subscriber %d: %v", i, err)
 		}
@@ -174,7 +174,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 	return nil
 }
 
-func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig, expectedPDUSessionAccept *validate.ExpectedPDUSessionEstablishmentAccept) error {
+func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig, dnn string, expectedPDUSessionAccept *validate.ExpectedPDUSessionEstablishmentAccept) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:       gNodeB,
 		PDUSessionID: PDUSessionID,
@@ -190,7 +190,7 @@ func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.S
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              DefaultDNN,
+		DNN:              dnn,
 		Sst:              DefaultSST,
 		Sd:               DefaultSD,
 		IMEISV:           "3569380356438091",
