@@ -17,7 +17,7 @@ func RegisterAll(labEnv bool) error {
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationSuccess50Sequential{},
-		ue.RegistrationSuccess50Parallel{},
+		ue.RegistrationSuccess100Parallel{},
 		ue.RegistrationSuccessMultiplePolicies{},
 		ue.RegistrationSuccessMultipleDataNetworks{},
 		ue.RegistrationSuccessProfileA{},

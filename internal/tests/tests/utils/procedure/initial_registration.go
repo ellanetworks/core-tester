@@ -37,5 +37,8 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
 		return nil, fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}
 
+	// Sleep to ensure gNodeB sends the PDU Session Resource Setup Response before proceeding
+	time.Sleep(50 * time.Millisecond)
+
 	return msg, nil
 }
