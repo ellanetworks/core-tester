@@ -332,12 +332,12 @@ func validateSecurityModeCommand(nasMsg *nas.Message) error {
 		return fmt.Errorf("imeisv request is missing")
 	}
 
-	if nasMsg.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm() != security.AlgIntegrity128NIA2 {
-		return fmt.Errorf("integrity protection algorithm not the expected value (got: %d)", nasMsg.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm())
+	if nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm() != security.AlgIntegrity128NIA2 {
+		return fmt.Errorf("integrity protection algorithm not the expected value (got: %d)", nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm())
 	}
 
-	if nasMsg.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm() != security.AlgCiphering128NEA2 {
-		return fmt.Errorf("ciphering algorithm not the expected value (got: %d)", nasMsg.SecurityModeCommand.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm())
+	if nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm() != security.AlgCiphering128NEA2 {
+		return fmt.Errorf("ciphering algorithm not the expected value (got: %d)", nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm())
 	}
 
 	return nil
