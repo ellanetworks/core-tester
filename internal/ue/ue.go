@@ -537,6 +537,8 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 }
 
 func (ue *UE) RRCRelease() {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
 	ue.receivedRRCRelease = true
 }
 
@@ -635,6 +637,7 @@ func (ue *UE) WaitForRRCRelease(timeout time.Duration) error {
 	for time.Now().Before(deadline) {
 		ue.mu.Lock()
 		received := ue.receivedRRCRelease
+		ue.receivedRRCRelease = false
 		ue.mu.Unlock()
 
 		if received {
