@@ -16,8 +16,8 @@ func RegisterAll(labEnv bool) error {
 		gnb.NGReset{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
-		// ue.RegistrationSuccess50Sequential{},
-		// ue.RegistrationSuccess50Parallel{},
+		ue.RegistrationSuccess50Sequential{},
+		ue.RegistrationSuccess50Parallel{},
 		ue.RegistrationSuccessMultiplePolicies{},
 		ue.RegistrationSuccessMultipleDataNetworks{},
 		ue.RegistrationSuccessProfileA{},
@@ -29,8 +29,8 @@ func RegisterAll(labEnv bool) error {
 		ue.Deregistration{},
 		ue.UEContextRelease{},
 		ue.ServiceRequestData{},
-		// ue.Connectivity{},
-		// ue.DownlinkDataPaging{},
+		ue.Connectivity{},
+		ue.DownlinkDataPaging{},
 	}
 
 	for _, test := range allTests {
