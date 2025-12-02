@@ -18,6 +18,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/security"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -329,6 +330,14 @@ func validateSecurityModeCommand(nasMsg *nas.Message) error {
 
 	if nasMsg.IMEISVRequest == nil {
 		return fmt.Errorf("imeisv request is missing")
+	}
+
+	if nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm() != security.AlgIntegrity128NIA2 {
+		return fmt.Errorf("integrity protection algorithm not the expected value (got: %d)", nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfIntegrityProtectionAlgorithm())
+	}
+
+	if nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm() != security.AlgCiphering128NEA2 {
+		return fmt.Errorf("ciphering algorithm not the expected value (got: %d)", nasMsg.SelectedNASSecurityAlgorithms.GetTypeOfCipheringAlgorithm())
 	}
 
 	return nil
