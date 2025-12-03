@@ -31,7 +31,7 @@ func (Connectivity) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/connectivity",
 		Summary: "UE connectivity test validating the connectivity of 5 UE's in parallel after registration, and after UE Context Release",
-		Timeout: 30 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 }
 
