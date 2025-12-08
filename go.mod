@@ -14,11 +14,11 @@ require (
 	github.com/google/gopacket v1.1.20-0.20220810144506-32ee38206866
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/tiagomdiogo/ScaGo v0.0.0-20250909151929-0aed579be48e
 	github.com/vishvananda/netlink v1.3.1
 	go.uber.org/zap v1.27.1
-	golang.org/x/sync v0.18.0
+	golang.org/x/sync v0.19.0
 )
 
 require (
