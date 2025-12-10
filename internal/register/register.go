@@ -69,13 +69,15 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		Msin: cfg.IMSI[5:],
-		K:    cfg.Key,
-		OpC:  cfg.OPC,
-		Amf:  "80000000000000000000000000000000",
-		Sqn:  cfg.SequenceNumber,
-		Mcc:  cfg.MCC,
-		Mnc:  cfg.MNC,
+		GnodeB:       gNodeB,
+		PDUSessionID: 1,
+		Msin:         cfg.IMSI[5:],
+		K:            cfg.Key,
+		OpC:          cfg.OPC,
+		Amf:          "80000000000000000000000000000000",
+		Sqn:          cfg.SequenceNumber,
+		Mcc:          cfg.MCC,
+		Mnc:          cfg.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
@@ -98,6 +100,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	if err != nil {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
+
+	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
 		RANUENGAPID: RANUENGAPID,
