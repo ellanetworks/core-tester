@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net/netip"
 
 	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasConvert"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
@@ -55,6 +58,26 @@ func UEIPFromNAS(ip [12]uint8) (netip.Addr, error) {
 	}
 
 	return ueIP, nil
+}
+
+func MTUFromExtendProtocolConfigurationOptionsContents(pco_buf []byte) (uint16, error) {
+	var mtu uint16 = 1500
+
+	pco := nasConvert.NewProtocolConfigurationOptions()
+
+	err := pco.UnMarshal(pco_buf)
+	if err != nil {
+		return mtu, fmt.Errorf("could not decode Extended Protocol Configuration Options: %v", err)
+	}
+
+	for _, o := range pco.ProtocolOrContainerList {
+		switch o.ProtocolOrContainerID {
+		case nasMessage.IPv4LinkMTUDL:
+			mtu = binary.BigEndian.Uint16(o.Contents)
+		}
+	}
+
+	return mtu, nil
 }
 
 func SDFromNAS(sd [3]uint8) string {

@@ -29,6 +29,7 @@ type NewTunnelOpts struct {
 	TunInterfaceName string
 	ULteid           uint32
 	DLteid           uint32
+	MTU              uint16
 }
 
 func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
@@ -56,6 +57,11 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 	err = netlink.AddrAdd(eth, ueAddr)
 	if err != nil {
 		return nil, fmt.Errorf("could not assign UE address to TUN interface: %v", err)
+	}
+
+	err = netlink.LinkSetMTU(eth, int(opts.MTU))
+	if err != nil {
+		return nil, fmt.Errorf("could not set MTU on TUN interface: %v", err)
 	}
 
 	err = netlink.LinkSetUp(eth)
