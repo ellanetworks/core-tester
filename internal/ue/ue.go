@@ -65,6 +65,7 @@ type PDUSessionInfo struct {
 	PDUSessionID uint8
 	UEIP         string
 	MTU          uint16
+	QFI          uint8
 }
 
 type UE struct {

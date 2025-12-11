@@ -218,6 +218,7 @@ func runConnectivityTest(
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
 		MTU:              uePDUSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
@@ -309,6 +310,7 @@ func runConnectivityTest(
 		ULteid:           pduSession.ULTeid,
 		DLteid:           pduSession.DLTeid,
 		MTU:              uePDUSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel after service request (name: %s, DL TEID: %d): %v", tunInterfaceName, pduSession.DLTeid, err)

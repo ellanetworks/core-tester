@@ -134,6 +134,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
 		MTU:              uePduSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
@@ -250,6 +251,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
 		MTU:              uePduSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
