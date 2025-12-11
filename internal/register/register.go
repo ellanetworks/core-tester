@@ -129,6 +129,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		ULteid:           pduSession.ULTeid,
 		DLteid:           pduSession.DLTeid,
 		MTU:              uePduSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", GTPInterfaceName, pduSession.DLTeid, err)

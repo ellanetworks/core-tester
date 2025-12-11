@@ -15,12 +15,25 @@ func handlePDUSessionEstablishmentAccept(ue *UE, msg *nasMessage.PDUSessionEstab
 		return fmt.Errorf("could not get UE IP from NAS PDU Address Information: %v", err)
 	}
 
-	pco_buf := msg.GetExtendedProtocolConfigurationOptionsContents()
-
-	mtu, err := utils.MTUFromExtendProtocolConfigurationOptionsContents(pco_buf)
+	mtu, err := utils.MTUFromExtendProtocolConfigurationOptionsContents(
+		msg.GetExtendedProtocolConfigurationOptionsContents(),
+	)
 	if err != nil {
 		return fmt.Errorf("could not get MTU from Extended Protocol Configuration Options: %v", err)
 	}
+
+	qosFlowDescs, err := utils.ParseAuthorizedQosFlowDescriptions(
+		msg.GetQoSFlowDescriptions(),
+	)
+	if err != nil {
+		return fmt.Errorf("could not parse AuthorizedQosFlowDescriptions: %v", err)
+	}
+
+	if len(qosFlowDescs) < 1 {
+		return fmt.Errorf("not enough AuthorizedQosFlowDescriptions: %v", err)
+	}
+
+	qfi := qosFlowDescs[0].Qfi
 
 	logger.UeLogger.Debug(
 		"Received PDU Session Establishment Accept NAS message",
@@ -28,12 +41,14 @@ func handlePDUSessionEstablishmentAccept(ue *UE, msg *nasMessage.PDUSessionEstab
 		zap.Uint8("PDU Session ID", msg.GetPDUSessionID()),
 		zap.String("UE IP", ueIP.String()),
 		zap.Uint16("MTU", mtu),
+		zap.Uint8("QFI", qfi),
 	)
 
 	ue.SetPDUSession(PDUSessionInfo{
 		PDUSessionID: msg.GetPDUSessionID(),
 		UEIP:         ueIP.String(),
 		MTU:          mtu,
+		QFI:          qfi,
 	})
 
 	return nil
