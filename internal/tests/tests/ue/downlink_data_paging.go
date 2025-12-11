@@ -120,7 +120,8 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
 	)
 
-	ueIP := newUE.GetPDUSession().UEIP + "/16"
+	uePduSession := newUE.GetPDUSession()
+	ueIP := uePduSession.UEIP + "/16"
 
 	gnbPDUSession := gNodeB.GetPDUSession(RANUENGAPID)
 
@@ -132,6 +133,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		TunInterfaceName: tunInterfaceName,
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
+		MTU:              uePduSession.MTU,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
@@ -247,6 +249,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		TunInterfaceName: tunInterfaceName,
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
+		MTU:              uePduSession.MTU,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
