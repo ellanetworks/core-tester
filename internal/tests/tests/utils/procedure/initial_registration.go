@@ -9,7 +9,7 @@ import (
 	"github.com/free5gc/nas/nasMessage"
 )
 
-const timeoutPerMessage = 2 * time.Second
+const timeoutPerMessage = 5 * time.Second
 
 type InitialRegistrationOpts struct {
 	RANUENGAPID int64
