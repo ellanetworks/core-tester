@@ -19,7 +19,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
 	}
 
-	err = opts.UE.WaitForRRCRelease(1 * time.Second)
+	err = opts.UE.WaitForRRCRelease(2 * time.Second)
 	if err != nil {
 		return fmt.Errorf("could not receive RRC Release for UE %s: %v", opts.UE.UeSecurity.Supi, err)
 	}
