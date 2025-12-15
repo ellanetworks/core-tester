@@ -61,23 +61,23 @@ func UEIPFromNAS(ip [12]uint8) (netip.Addr, error) {
 }
 
 func MTUFromExtendProtocolConfigurationOptionsContents(pco_buf []byte) (uint16, error) {
-	var mtu uint16 = 1500
-
 	pco := nasConvert.NewProtocolConfigurationOptions()
 
 	err := pco.UnMarshal(pco_buf)
 	if err != nil {
-		return mtu, fmt.Errorf("could not decode Extended Protocol Configuration Options: %v", err)
+		return 0, fmt.Errorf("could not decode Extended Protocol Configuration Options: %v", err)
 	}
 
 	for _, o := range pco.ProtocolOrContainerList {
 		switch o.ProtocolOrContainerID {
 		case nasMessage.IPv4LinkMTUDL:
-			mtu = binary.BigEndian.Uint16(o.Contents)
+			return binary.BigEndian.Uint16(o.Contents), nil
+		default:
+			continue
 		}
 	}
 
-	return mtu, nil
+	return 0, nil
 }
 
 func SDFromNAS(sd [3]uint8) string {
