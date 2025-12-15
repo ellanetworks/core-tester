@@ -24,7 +24,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
 
 	_, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, timeoutPerMessage)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive Registration Accept for periodic update: %v", err)
+		return nil, fmt.Errorf("could not receive Registration Accept for initial registration: %v", err)
 	}
 
 	msg, err := opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, timeoutPerMessage)

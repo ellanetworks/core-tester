@@ -2,6 +2,7 @@ package ue
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/nas"
@@ -29,6 +30,11 @@ func handleRegistrationAccept(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUE
 	if err != nil {
 		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
 	}
+
+	// We sleep because there is no response expected from the Registration Complete message,
+	// and if we send the PDU Session Establishment Request too quickly after,
+	// the Core may not have finished processing the Registration Complete yet.
+	time.Sleep(10 * time.Millisecond)
 
 	logger.UeLogger.Debug(
 		"Sent Registration Complete NAS message",
