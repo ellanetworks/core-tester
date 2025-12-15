@@ -119,7 +119,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	pduSession := gNodeB.GetPDUSession(RANUENGAPID)
 
-	ueIP := newUE.GetPDUSession().UEIP + "/16"
+	uePduSession := newUE.GetPDUSession()
+	ueIP := uePduSession.UEIP + "/16"
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
@@ -127,6 +128,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		TunInterfaceName: GTPInterfaceName,
 		ULteid:           pduSession.ULTeid,
 		DLteid:           pduSession.DLTeid,
+		MTU:              uePduSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", GTPInterfaceName, pduSession.DLTeid, err)
@@ -141,6 +144,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Uint32("LTEID", pduSession.ULTeid),
 		zap.Uint32("RTEID", pduSession.DLTeid),
 		zap.Uint16("GTPU Port", GTPUPort),
+		zap.Uint16("MTU", uePduSession.MTU),
 	)
 
 	select {}

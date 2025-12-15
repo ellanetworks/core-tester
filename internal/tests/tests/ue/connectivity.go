@@ -203,7 +203,8 @@ func runConnectivityTest(
 		return fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}
 
-	ueIP := uePDUSession.UEIP + "/16"
+	uePduSession := newUE.GetPDUSession()
+	ueIP := uePduSession.UEIP + "/16"
 
 	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, 5*time.Second)
 	if err != nil {
@@ -216,6 +217,8 @@ func runConnectivityTest(
 		TunInterfaceName: tunInterfaceName,
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
+		MTU:              uePDUSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
@@ -306,6 +309,8 @@ func runConnectivityTest(
 		TunInterfaceName: tunInterfaceName,
 		ULteid:           pduSession.ULTeid,
 		DLteid:           pduSession.DLTeid,
+		MTU:              uePDUSession.MTU,
+		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create GTP tunnel after service request (name: %s, DL TEID: %d): %v", tunInterfaceName, pduSession.DLTeid, err)

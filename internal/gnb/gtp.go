@@ -15,12 +15,18 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	gtpHeaderLen int    = 16
+	gtpExtLen    uint16 = 8
+)
+
 type Tunnel struct {
 	Name    string
 	tunIF   *water.Interface
 	upfAddr *net.UDPAddr
 	ulteid  uint32
 	dlteid  uint32
+	qfi     uint8
 }
 
 type NewTunnelOpts struct {
@@ -29,6 +35,8 @@ type NewTunnelOpts struct {
 	TunInterfaceName string
 	ULteid           uint32
 	DLteid           uint32
+	MTU              uint16
+	QFI              uint8
 }
 
 func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
@@ -58,6 +66,11 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 		return nil, fmt.Errorf("could not assign UE address to TUN interface: %v", err)
 	}
 
+	err = netlink.LinkSetMTU(eth, int(opts.MTU))
+	if err != nil {
+		return nil, fmt.Errorf("could not set MTU on TUN interface: %v", err)
+	}
+
 	err = netlink.LinkSetUp(eth)
 	if err != nil {
 		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
@@ -72,6 +85,7 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 			IP:   net.ParseIP(opts.UpfIP),
 			Port: 2152,
 		},
+		qfi: opts.QFI,
 	}
 
 	g.mu.Lock()
@@ -177,13 +191,19 @@ func (g *GnodeB) gtpReader() {
 
 func tunToGtp(conn *net.UDPConn, t *Tunnel) {
 	packet := make([]byte, 2000)
-	packet[0] = 0x30                                  // Version 1, Protocol type GTP
+	packet[0] = 0x34                                  // Version 1, Protocol type GTP, next extension header present
 	packet[1] = 0xFF                                  // Message type T-PDU
 	binary.BigEndian.PutUint16(packet[2:4], 0)        // Length
 	binary.BigEndian.PutUint32(packet[4:8], t.ulteid) // TEID
+	binary.BigEndian.PutUint32(packet[8:12], 0)       // padding
+	packet[11] = 0x85                                 // ext header type: PDU Session container
+	packet[12] = 0x01                                 // ext header length
+	packet[13] = 0x10                                 // UL PDU Session Information
+	packet[14] = t.qfi                                // QFI
+	packet[15] = 0x00                                 // No more ext headers
 
 	for {
-		n, err := t.tunIF.Read(packet[8:])
+		n, err := t.tunIF.Read(packet[gtpHeaderLen:])
 		if err != nil {
 			if isClosedErr(err) {
 				return
@@ -199,9 +219,9 @@ func tunToGtp(conn *net.UDPConn, t *Tunnel) {
 			continue
 		}
 
-		binary.BigEndian.PutUint16(packet[2:4], uint16(n))
+		binary.BigEndian.PutUint16(packet[2:4], uint16(n)+gtpExtLen)
 
-		_, err = conn.WriteToUDP(packet[:n+8], t.upfAddr)
+		_, err = conn.WriteToUDP(packet[:n+gtpHeaderLen], t.upfAddr)
 		if err != nil {
 			logger.GnbLogger.Error("error writing to GTP-U socket", zap.Error(err))
 			continue
