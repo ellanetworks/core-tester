@@ -16,20 +16,20 @@ import (
 )
 
 const (
-	NumSubscribersParallel = 100
+	NumSubscribersParallel = 150
 )
 
-type RegistrationSuccess100Parallel struct{}
+type RegistrationSuccess150Parallel struct{}
 
-func (RegistrationSuccess100Parallel) Meta() engine.Meta {
+func (RegistrationSuccess150Parallel) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success_100_parallel",
-		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with 100 UEs",
+		ID:      "ue/registration_success_150_parallel",
+		Summary: "UE parallel registration success test validating the Registration Request and Authentication procedures with 150 UEs",
 		Timeout: 60 * time.Second,
 	}
 }
 
-func (t RegistrationSuccess100Parallel) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationSuccess150Parallel) Run(ctx context.Context, env engine.Env) error {
 	subs, err := buildSubscriberConfig(NumSubscribersParallel, testStartIMSI)
 	if err != nil {
 		return fmt.Errorf("could not build subscriber config: %v", err)

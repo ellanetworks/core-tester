@@ -127,6 +127,16 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		UE:          newUE,

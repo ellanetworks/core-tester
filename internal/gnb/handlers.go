@@ -74,6 +74,8 @@ func handleNGAPInitiatingMessage(gnb *GnodeB, pdu *ngapType.NGAPPDU) error {
 		return handleUEContextReleaseCommand(gnb, pdu.InitiatingMessage.Value.UEContextReleaseCommand)
 	case ngapType.InitiatingMessagePresentPaging:
 		return handlePaging(gnb, pdu.InitiatingMessage.Value.Paging)
+	case ngapType.InitiatingMessagePresentErrorIndication:
+		return handleErrorIndication(pdu.InitiatingMessage.Value.ErrorIndication)
 	default:
 		return fmt.Errorf("NGAP InitiatingMessage Present is invalid: %d", pdu.InitiatingMessage.Value.Present)
 	}

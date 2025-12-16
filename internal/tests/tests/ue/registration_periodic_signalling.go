@@ -105,6 +105,11 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
 	}
 
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
+	}
+
 	pduSessionStatus := [16]bool{}
 	pduSessionStatus[PDUSessionID] = true
 
@@ -127,6 +132,11 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	_, err = newUE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not receive Registration Accept for periodic update: %v", err)
+	}
+
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
+	if err != nil {
+		return fmt.Errorf("could not receive SCTP frame: %v", err)
 	}
 
 	logger.UeLogger.Debug("Received Registration Accept for periodic update")
