@@ -63,14 +63,15 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB: gNodeB,
-		Msin:   DefaultIMSI[5:],
-		K:      DefaultKey,
-		OpC:    DefaultOPC,
-		Amf:    "80000000000000000000000000000000",
-		Sqn:    DefaultSequenceNumber,
-		Mcc:    DefaultMCC,
-		Mnc:    DefaultMNC,
+		PDUSessionType: PDUSessionType,
+		GnodeB:         gNodeB,
+		Msin:           DefaultIMSI[5:],
+		K:              DefaultKey,
+		OpC:            DefaultOPC,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            DefaultSequenceNumber,
+		Mcc:            DefaultMCC,
+		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
@@ -123,7 +124,7 @@ func sendAuthenticationResponseWithWrongKey(ranUENGAPID int64, ue *ue.UE) error 
 
 	msg, err := ue.WaitForNASGMMMessage(nas.MsgTypeAuthenticationReject, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive Authentication Reject: %v", err)
+		return fmt.Errorf("did not receive Authentication Reject: %v", err)
 	}
 
 	err = validateAuthenticationReject(msg)

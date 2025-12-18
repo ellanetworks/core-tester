@@ -56,7 +56,7 @@ func (t NGSetupFailure_UnknownPLMN) Run(ctx context.Context, env engine.Env) err
 
 	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentUnsuccessfulOutcome, ngapType.UnsuccessfulOutcomePresentNGSetupFailure, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	err = utils.ValidateSCTP(nextFrame.Info, 60, 0)

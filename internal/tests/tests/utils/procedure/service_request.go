@@ -23,7 +23,7 @@ func ServiceRequest(opts *ServiceRequestOpts) error {
 
 	_, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeServiceAccept, 500*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive Service Accept NAS message: %v", err)
+		return fmt.Errorf("did not receive Service Accept NAS message: %v", err)
 	}
 
 	return nil

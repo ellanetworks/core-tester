@@ -12,6 +12,7 @@ import (
 
 type ExpectedPDUSessionEstablishmentAccept struct {
 	PDUSessionID               uint8
+	PDUSessionType             uint8
 	UeIPSubnet                 netip.Prefix
 	Dnn                        string
 	Sst                        int32
@@ -56,7 +57,7 @@ func PDUSessionEstablishmentAccept(nasMsg *nas.Message, opts *ExpectedPDUSession
 		return fmt.Errorf("ssc mode or pdu session type is missing")
 	}
 
-	if nasMsg.GetPDUSessionType() != 1 {
+	if nasMsg.GetPDUSessionType() != opts.PDUSessionType {
 		return fmt.Errorf("pdu session type not expected value")
 	}
 

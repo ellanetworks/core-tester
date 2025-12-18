@@ -73,6 +73,7 @@ type UE struct {
 	StateMM                int
 	DNN                    string
 	PDUSessionID           uint8
+	PDUSessionType         uint8
 	Snssai                 models.Snssai
 	amfInfo                Amf
 	IMEISV                 string
@@ -117,6 +118,7 @@ func (ue *UE) WaitForPDUSession(timeout time.Duration) (PDUSessionInfo, error) {
 
 type UEOpts struct {
 	PDUSessionID         uint8
+	PDUSessionType       uint8
 	Msin                 string
 	UeSecurityCapability *nasType.UESecurityCapability
 	K                    string
@@ -142,6 +144,7 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	ue.UeSecurity.UeSecurityCapability = opts.UeSecurityCapability
 	ue.Gnb = opts.GnodeB
 	ue.PDUSessionID = opts.PDUSessionID
+	ue.PDUSessionType = opts.PDUSessionType
 
 	integAlg, cipherAlg, err := SelectAlgorithms(ue.UeSecurity.UeSecurityCapability)
 	if err != nil {
@@ -747,7 +750,8 @@ func (ue *UE) SendDeregistrationRequest(amfUENGAPID int64, ranUENGAPID int64) er
 
 func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID int64) error {
 	pduReq, err := BuildPduSessionEstablishmentRequest(&PduSessionEstablishmentRequestOpts{
-		PDUSessionID: ue.PDUSessionID,
+		PDUSessionID:   ue.PDUSessionID,
+		PDUSessionType: ue.PDUSessionType,
 	})
 	if err != nil {
 		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)

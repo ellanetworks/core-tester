@@ -98,7 +98,7 @@ func (t RegistrationSuccess150Parallel) Run(ctx context.Context, env engine.Env)
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")
@@ -115,6 +115,7 @@ func (t RegistrationSuccess150Parallel) Run(ctx context.Context, env engine.Env)
 
 				exp := &validate.ExpectedPDUSessionEstablishmentAccept{
 					PDUSessionID:               PDUSessionID,
+					PDUSessionType:             PDUSessionType,
 					UeIPSubnet:                 network,
 					Dnn:                        DefaultDNN,
 					Sst:                        DefaultSST,

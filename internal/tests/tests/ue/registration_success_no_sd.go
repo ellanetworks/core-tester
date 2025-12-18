@@ -98,19 +98,20 @@ func (t RegistrationSuccessNoSD) Run(ctx context.Context, env engine.Env) error 
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		PDUSessionID: PDUSessionID,
-		GnodeB:       gNodeB,
-		Msin:         DefaultIMSI[5:],
-		K:            DefaultKey,
-		OpC:          DefaultOPC,
-		Amf:          "80000000000000000000000000000000",
-		Sqn:          DefaultSequenceNumber,
-		Mcc:          DefaultMCC,
-		Mnc:          DefaultMNC,
+		PDUSessionID:   PDUSessionID,
+		PDUSessionType: PDUSessionType,
+		GnodeB:         gNodeB,
+		Msin:           DefaultIMSI[5:],
+		K:              DefaultKey,
+		OpC:            DefaultOPC,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            DefaultSequenceNumber,
+		Mcc:            DefaultMCC,
+		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
