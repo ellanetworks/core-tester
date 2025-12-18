@@ -183,7 +183,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	eg := errgroup.Group{}
@@ -200,6 +200,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 
 				exp := &validate.ExpectedPDUSessionEstablishmentAccept{
 					PDUSessionID:               PDUSessionID,
+					PDUSessionType:             PDUSessionType,
 					UeIPSubnet:                 network,
 					Dnn:                        fmt.Sprintf("dnn%d", i),
 					Sst:                        DefaultSST,

@@ -87,7 +87,7 @@ func ngSetupTest(env engine.Env, index int) error {
 
 	nextFrame, err := gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 500*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	err = utils.ValidateSCTP(nextFrame.Info, 60, 0)

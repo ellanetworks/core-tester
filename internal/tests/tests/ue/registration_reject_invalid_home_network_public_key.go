@@ -60,7 +60,7 @@ func (t RegistrationRejectInvalidHomeNetworkPublicKey) Run(ctx context.Context, 
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	// This key will (very very very likely) not match Ella Core's randomly generated private key
@@ -75,15 +75,16 @@ func (t RegistrationRejectInvalidHomeNetworkPublicKey) Run(ctx context.Context, 
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		PDUSessionID: PDUSessionID,
-		GnodeB:       gNodeB,
-		Msin:         DefaultIMSI[5:],
-		K:            DefaultKey,
-		OpC:          DefaultOPC,
-		Amf:          "80000000000000000000000000000000",
-		Sqn:          DefaultSequenceNumber,
-		Mcc:          DefaultMCC,
-		Mnc:          DefaultMNC,
+		PDUSessionID:   PDUSessionID,
+		PDUSessionType: PDUSessionType,
+		GnodeB:         gNodeB,
+		Msin:           DefaultIMSI[5:],
+		K:              DefaultKey,
+		OpC:            DefaultOPC,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            DefaultSequenceNumber,
+		Mcc:            DefaultMCC,
+		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.ProfileAScheme,
 			PublicKeyID:      "1",
@@ -117,7 +118,7 @@ func (t RegistrationRejectInvalidHomeNetworkPublicKey) Run(ctx context.Context, 
 
 	msg, err := newUE.WaitForNASGMMMessage(nas.MsgTypeRegistrationReject, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive Authentication Reject: %v", err)
+		return fmt.Errorf("did not receive Authentication Reject: %v", err)
 	}
 
 	err = validateRegistrationReject(msg, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)

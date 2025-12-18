@@ -135,7 +135,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")
@@ -148,6 +148,7 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 		exp := &validate.ExpectedPDUSessionEstablishmentAccept{
 			PDUSessionID:               PDUSessionID,
+			PDUSessionType:             PDUSessionType,
 			UeIPSubnet:                 network,
 			Dnn:                        DefaultDNN,
 			Sst:                        DefaultSST,
@@ -176,15 +177,16 @@ func (t RegistrationSuccess50Sequential) Run(ctx context.Context, env engine.Env
 
 func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.SubscriberConfig, dnn string, expectedPDUSessionAccept *validate.ExpectedPDUSessionEstablishmentAccept) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB:       gNodeB,
-		PDUSessionID: PDUSessionID,
-		Msin:         subscriber.Imsi[5:],
-		K:            subscriber.Key,
-		OpC:          subscriber.OPc,
-		Amf:          "80000000000000000000000000000000",
-		Sqn:          DefaultSequenceNumber,
-		Mcc:          DefaultMCC,
-		Mnc:          DefaultMNC,
+		GnodeB:         gNodeB,
+		PDUSessionID:   PDUSessionID,
+		PDUSessionType: PDUSessionType,
+		Msin:           subscriber.Imsi[5:],
+		K:              subscriber.Key,
+		OpC:            subscriber.OPc,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            DefaultSequenceNumber,
+		Mcc:            DefaultMCC,
+		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",

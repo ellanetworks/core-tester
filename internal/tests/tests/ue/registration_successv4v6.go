@@ -13,22 +13,21 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
-	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 )
 
-type RegistrationPeriodicUpdateSignalling struct{}
+type RegistrationSuccessV4V6 struct{}
 
-func (RegistrationPeriodicUpdateSignalling) Meta() engine.Meta {
+func (RegistrationSuccessV4V6) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration/periodic/signalling",
-		Summary: "UE registration periodic test validating the Registration Request procedure for periodic update",
+		ID:      "ue/registration_success_v4v6",
+		Summary: "UE registration success test validating PDU Session is created for IPv4 even when UE requests both IPv4 and IPv6 addresses",
 		Timeout: 5 * time.Second,
 	}
 }
 
-func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engine.Env) error {
+func (t RegistrationSuccessV4V6) Run(ctx context.Context, env engine.Env) error {
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, getDefaultEllaCoreConfig())
 
 	err := ellaCoreEnv.Create(ctx)
@@ -57,15 +56,15 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	defer gNodeB.Close()
 
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
+	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 1*time.Second)
 	if err != nil {
 		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB:         gNodeB,
 		PDUSessionID:   PDUSessionID,
-		PDUSessionType: PDUSessionType,
+		PDUSessionType: nasMessage.PDUSessionTypeIPv4IPv6, // Request both IPv4 and IPv6
+		GnodeB:         gNodeB,
 		Msin:           DefaultIMSI[5:],
 		K:              DefaultKey,
 		OpC:            DefaultOPC,
@@ -98,49 +97,16 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
-	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
+	err = runInitialRegistration(&InitialRegistrationOpts{
+		RANUENGAPID:            RANUENGAPID,
+		PDUSessionID:           PDUSessionID,
+		ExpectedPDUSessionType: nasMessage.PDUSessionTypeIPv4,
+		UE:                     newUE,
+		GnodeB:                 gNodeB,
 	})
 	if err != nil {
-		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
+		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
-
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("did not receive SCTP frame: %v", err)
-	}
-
-	pduSessionStatus := [16]bool{}
-	pduSessionStatus[PDUSessionID] = true
-
-	err = procedure.UEContextRelease(&procedure.UEContextReleaseOpts{
-		AMFUENGAPID:   gNodeB.GetAMFUENGAPID(RANUENGAPID),
-		RANUENGAPID:   RANUENGAPID,
-		GnodeB:        gNodeB,
-		UE:            newUE,
-		PDUSessionIDs: pduSessionStatus,
-	})
-	if err != nil {
-		return fmt.Errorf("UEContextReleaseProcedure failed: %v", err)
-	}
-
-	err = newUE.SendRegistrationRequest(RANUENGAPID, nasMessage.RegistrationType5GSPeriodicRegistrationUpdating)
-	if err != nil {
-		return fmt.Errorf("could not send Registration Request for periodic update: %v", err)
-	}
-
-	_, err = newUE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, 1*time.Second)
-	if err != nil {
-		return fmt.Errorf("did not receive Registration Accept for periodic update: %v", err)
-	}
-
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
-	if err != nil {
-		return fmt.Errorf("did not receive SCTP frame: %v", err)
-	}
-
-	logger.UeLogger.Debug("Received Registration Accept for periodic update")
 
 	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{

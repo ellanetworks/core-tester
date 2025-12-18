@@ -21,7 +21,7 @@ func Deregistration(opts *DeregistrationOpts) error {
 
 	err = opts.UE.WaitForRRCRelease(2 * time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive RRC Release for UE %s: %v", opts.UE.UeSecurity.Supi, err)
+		return fmt.Errorf("did not receive RRC Release for UE %s: %v", opts.UE.UeSecurity.Supi, err)
 	}
 
 	return nil

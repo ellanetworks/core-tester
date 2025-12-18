@@ -11,6 +11,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
 	"go.uber.org/zap"
 )
@@ -65,19 +66,20 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB:       gNodeB,
-		PDUSessionID: 1,
-		Msin:         cfg.IMSI[5:],
-		K:            cfg.Key,
-		OpC:          cfg.OPC,
-		Amf:          "80000000000000000000000000000000",
-		Sqn:          cfg.SequenceNumber,
-		Mcc:          cfg.MCC,
-		Mnc:          cfg.MNC,
+		GnodeB:         gNodeB,
+		PDUSessionID:   1,
+		PDUSessionType: nasMessage.PDUSessionTypeIPv4,
+		Msin:           cfg.IMSI[5:],
+		K:              cfg.Key,
+		OpC:            cfg.OPC,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            cfg.SequenceNumber,
+		Mcc:            cfg.MCC,
+		Mnc:            cfg.MNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",

@@ -63,7 +63,7 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	// Create a random GUTI
@@ -77,16 +77,17 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	guti.SetIei(nasMessage.RegistrationAcceptGUTI5GType)
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		GnodeB:       gNodeB,
-		PDUSessionID: PDUSessionID,
-		Guti:         guti,
-		Msin:         DefaultIMSI[5:],
-		K:            DefaultKey,
-		OpC:          DefaultOPC,
-		Amf:          "80000000000000000000000000000000",
-		Sqn:          DefaultSequenceNumber,
-		Mcc:          DefaultMCC,
-		Mnc:          DefaultMNC,
+		GnodeB:         gNodeB,
+		PDUSessionID:   PDUSessionID,
+		PDUSessionType: PDUSessionType,
+		Guti:           guti,
+		Msin:           DefaultIMSI[5:],
+		K:              DefaultKey,
+		OpC:            DefaultOPC,
+		Amf:            "80000000000000000000000000000000",
+		Sqn:            DefaultSequenceNumber,
+		Mcc:            DefaultMCC,
+		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.NullScheme,
 			PublicKeyID:      "0",
@@ -113,15 +114,16 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	err = runInitialRegistrationWithIdentityRequest(&InitialRegistrationWithIdentityRequestOpts{
-		Mcc:          DefaultMCC,
-		Mnc:          DefaultMNC,
-		Sst:          DefaultSST,
-		Sd:           DefaultSD,
-		DNN:          DefaultDNN,
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
-		UE:           newUE,
-		GnodeB:       gNodeB,
+		Mcc:                    DefaultMCC,
+		Mnc:                    DefaultMNC,
+		Sst:                    DefaultSST,
+		Sd:                     DefaultSD,
+		DNN:                    DefaultDNN,
+		RANUENGAPID:            RANUENGAPID,
+		PDUSessionID:           PDUSessionID,
+		ExpectedPDUSessionType: PDUSessionType,
+		UE:                     newUE,
+		GnodeB:                 gNodeB,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
@@ -129,12 +131,12 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentInitiatingMessage, ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest, 200*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	// Cleanup
@@ -156,26 +158,27 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 }
 
 type InitialRegistrationWithIdentityRequestOpts struct {
-	Mcc          string
-	Mnc          string
-	Sst          int32
-	Sd           string
-	DNN          string
-	RANUENGAPID  int64
-	PDUSessionID uint8
-	UE           *ue.UE
-	GnodeB       *gnb.GnodeB
+	Mcc                    string
+	Mnc                    string
+	Sst                    int32
+	Sd                     string
+	DNN                    string
+	RANUENGAPID            int64
+	PDUSessionID           uint8
+	ExpectedPDUSessionType uint8
+	UE                     *ue.UE
+	GnodeB                 *gnb.GnodeB
 }
 
 func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIdentityRequestOpts) error {
 	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
 	if err != nil {
-		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
+		return fmt.Errorf("could not send Registration Request NAS PDU: %v", err)
 	}
 
 	nasMsg, err := opts.UE.WaitForNASGMMMessage(nas.MsgTypeIdentityRequest, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive Registration Accept: %v", err)
+		return fmt.Errorf("did not receive Identity Request: %v", err)
 	}
 
 	err = validateIdentityRequest(nasMsg)
@@ -185,7 +188,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 
 	nasMsg, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeRegistrationAccept, 1*time.Second)
 	if err != nil {
-		return fmt.Errorf("could not receive Registration Accept: %v", err)
+		return fmt.Errorf("did not receive Registration Accept: %v", err)
 	}
 
 	err = validate.RegistrationAccept(&validate.RegistrationAcceptOpts{
@@ -207,7 +210,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 
 	msg, err := opts.UE.WaitForNASGSMMessage(nas.MsgTypePDUSessionEstablishmentAccept, 500*time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("could not receive SCTP frame: %v", err)
+		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
 	network, err := netip.ParsePrefix("10.45.0.0/16")
@@ -217,6 +220,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 
 	err = validate.PDUSessionEstablishmentAccept(msg, &validate.ExpectedPDUSessionEstablishmentAccept{
 		PDUSessionID:               opts.PDUSessionID,
+		PDUSessionType:             opts.ExpectedPDUSessionType,
 		UeIPSubnet:                 network,
 		Dnn:                        opts.DNN,
 		Sst:                        opts.Sst,

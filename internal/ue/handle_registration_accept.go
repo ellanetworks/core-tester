@@ -42,7 +42,8 @@ func handleRegistrationAccept(ue *UE, msg *nas.Message, amfUENGAPID int64, ranUE
 	)
 
 	pduReq, err := BuildPduSessionEstablishmentRequest(&PduSessionEstablishmentRequestOpts{
-		PDUSessionID: ue.PDUSessionID,
+		PDUSessionID:   ue.PDUSessionID,
+		PDUSessionType: ue.PDUSessionType,
 	})
 	if err != nil {
 		return fmt.Errorf("could not build PDU Session Establishment Request: %v", err)

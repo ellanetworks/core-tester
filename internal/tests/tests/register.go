@@ -16,6 +16,7 @@ func RegisterAll(labEnv bool) error {
 		gnb.NGReset{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
+		ue.RegistrationSuccessV4V6{},
 		ue.RegistrationSuccess50Sequential{},
 		ue.RegistrationSuccess150Parallel{},
 		ue.RegistrationSuccessMultiplePolicies{},

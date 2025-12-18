@@ -11,7 +11,8 @@ import (
 )
 
 type PduSessionEstablishmentRequestOpts struct {
-	PDUSessionID uint8
+	PDUSessionID   uint8
+	PDUSessionType uint8
 }
 
 func BuildPduSessionEstablishmentRequest(opts *PduSessionEstablishmentRequestOpts) ([]byte, error) {
@@ -32,7 +33,7 @@ func BuildPduSessionEstablishmentRequest(opts *PduSessionEstablishmentRequestOpt
 	pduSessionEstablishmentRequest.SetMaximumDataRatePerUEForUserPlaneIntegrityProtectionForUpLink(0xff)
 
 	pduSessionEstablishmentRequest.PDUSessionType = nasType.NewPDUSessionType(nasMessage.PDUSessionEstablishmentRequestPDUSessionTypeType)
-	pduSessionEstablishmentRequest.SetPDUSessionTypeValue(uint8(0x01)) // IPv4 type
+	pduSessionEstablishmentRequest.SetPDUSessionTypeValue(opts.PDUSessionType)
 
 	pduSessionEstablishmentRequest.ExtendedProtocolConfigurationOptions = nasType.NewExtendedProtocolConfigurationOptions(nasMessage.PDUSessionEstablishmentRequestExtendedProtocolConfigurationOptionsType)
 	protocolConfigurationOptions := nasConvert.NewProtocolConfigurationOptions()
