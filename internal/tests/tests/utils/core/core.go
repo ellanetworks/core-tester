@@ -217,20 +217,14 @@ func (c *EllaCoreEnv) updateOperatorHomeNetworkPublicKey(ctx context.Context, op
 
 func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 	for _, dnn := range c.Config.DataNetworks {
-		existingDNN, _ := c.Client.GetDataNetwork(ctx, &client.GetDataNetworkOptions{
-			Name: dnn.Name,
+		err := c.Client.CreateDataNetwork(ctx, &client.CreateDataNetworkOptions{
+			Name:   dnn.Name,
+			IPPool: dnn.IPPool,
+			DNS:    dnn.DNS,
+			Mtu:    dnn.Mtu,
 		})
-
-		if existingDNN == nil {
-			err := c.Client.CreateDataNetwork(ctx, &client.CreateDataNetworkOptions{
-				Name:   dnn.Name,
-				IPPool: dnn.IPPool,
-				DNS:    dnn.DNS,
-				Mtu:    dnn.Mtu,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create data network: %v", err)
-			}
+		if err != nil {
+			return fmt.Errorf("failed to create data network: %v", err)
 		}
 	}
 
@@ -239,22 +233,16 @@ func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 
 func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
 	for _, policy := range c.Config.Policies {
-		existingPolicy, _ := c.Client.GetPolicy(ctx, &client.GetPolicyOptions{
-			Name: policy.Name,
+		err := c.Client.CreatePolicy(ctx, &client.CreatePolicyOptions{
+			Name:            policy.Name,
+			BitrateUplink:   policy.BitrateUplink,
+			BitrateDownlink: policy.BitrateDownlink,
+			Var5qi:          policy.Var5qi,
+			Arp:             policy.Arp,
+			DataNetworkName: policy.DataNetworkName,
 		})
-
-		if existingPolicy == nil {
-			err := c.Client.CreatePolicy(ctx, &client.CreatePolicyOptions{
-				Name:            policy.Name,
-				BitrateUplink:   policy.BitrateUplink,
-				BitrateDownlink: policy.BitrateDownlink,
-				Var5qi:          policy.Var5qi,
-				Arp:             policy.Arp,
-				DataNetworkName: policy.DataNetworkName,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create policy: %v", err)
-			}
+		if err != nil {
+			return fmt.Errorf("failed to create policy: %v", err)
 		}
 	}
 
@@ -263,21 +251,15 @@ func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
 
 func (c *EllaCoreEnv) createSubs(ctx context.Context) error {
 	for _, sub := range c.Config.Subscribers {
-		existingSub, _ := c.Client.GetSubscriber(ctx, &client.GetSubscriberOptions{
-			ID: sub.Imsi,
+		err := c.Client.CreateSubscriber(ctx, &client.CreateSubscriberOptions{
+			Imsi:           sub.Imsi,
+			Key:            sub.Key,
+			SequenceNumber: sub.SequenceNumber,
+			PolicyName:     sub.PolicyName,
+			OPc:            sub.OPc,
 		})
-
-		if existingSub == nil {
-			err := c.Client.CreateSubscriber(ctx, &client.CreateSubscriberOptions{
-				Imsi:           sub.Imsi,
-				Key:            sub.Key,
-				SequenceNumber: sub.SequenceNumber,
-				PolicyName:     sub.PolicyName,
-				OPc:            sub.OPc,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create subscriber: %v", err)
-			}
+		if err != nil {
+			return fmt.Errorf("failed to create subscriber: %v", err)
 		}
 	}
 

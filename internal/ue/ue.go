@@ -594,8 +594,6 @@ func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.M
 			ue.receivedNASGMMMessages[msgType] = msgs[1:]
 		}
 
-		ue.receivedNASGMMMessages[msgType] = msgs[1:]
-
 		ue.mu.Unlock()
 
 		return msgs[0], nil
@@ -625,8 +623,6 @@ func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.M
 		} else {
 			ue.receivedNASGSMMessages[msgType] = msgs[1:]
 		}
-
-		ue.receivedNASGSMMessages[msgType] = msgs[1:]
 
 		ue.mu.Unlock()
 
