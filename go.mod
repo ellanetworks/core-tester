@@ -1,15 +1,13 @@
 module github.com/ellanetworks/core-tester
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.5
 
 require (
 	github.com/ellanetworks/core v0.6.0
-	github.com/free5gc/aper v1.0.6-0.20250102035630-3ddc831eed6a
+	github.com/free5gc/aper v1.1.0
 	github.com/free5gc/nas v1.2.1
-	github.com/free5gc/ngap v1.1.1
-	github.com/free5gc/openapi v1.2.2
+	github.com/free5gc/ngap v1.1.2
+	github.com/free5gc/openapi v1.2.3
 	github.com/free5gc/util v1.3.0
 	github.com/google/gopacket v1.1.20-0.20220810144506-32ee38206866
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
