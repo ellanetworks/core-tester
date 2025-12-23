@@ -637,13 +637,14 @@ func (ue *UE) WaitForRRCRelease(timeout time.Duration) error {
 
 	for time.Now().Before(deadline) {
 		ue.mu.Lock()
-		received := ue.receivedRRCRelease
-		ue.receivedRRCRelease = false
-		ue.mu.Unlock()
 
-		if received {
+		if ue.receivedRRCRelease {
+			ue.receivedRRCRelease = false
+			ue.mu.Unlock()
 			return nil
 		}
+
+		ue.mu.Unlock()
 
 		time.Sleep(10 * time.Millisecond)
 	}
