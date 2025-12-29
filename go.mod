@@ -3,12 +3,12 @@ module github.com/ellanetworks/core-tester
 go 1.25.5
 
 require (
-	github.com/ellanetworks/core v0.6.0
+	github.com/ellanetworks/core v0.7.0
 	github.com/free5gc/aper v1.1.0
-	github.com/free5gc/nas v1.2.1
+	github.com/free5gc/nas v1.2.2
 	github.com/free5gc/ngap v1.1.2
 	github.com/free5gc/openapi v1.2.3
-	github.com/free5gc/util v1.3.0
+	github.com/free5gc/util v1.3.1
 	github.com/google/gopacket v1.1.20-0.20220810144506-32ee38206866
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
@@ -29,6 +29,6 @@ require (
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 )
