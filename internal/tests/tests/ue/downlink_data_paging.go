@@ -29,10 +29,9 @@ type DownlinkDataPaging struct{}
 
 func (DownlinkDataPaging) Meta() engine.Meta {
 	return engine.Meta{
-		ID:          "ue/paging/downlink_data",
-		Environment: "lab",
-		Summary:     "Downlink data triggered UE Paging procedure",
-		Timeout:     10 * time.Second,
+		ID:      "ue/paging/downlink_data",
+		Summary: "Downlink data triggered UE Paging procedure",
+		Timeout: 10 * time.Second,
 	}
 }
 

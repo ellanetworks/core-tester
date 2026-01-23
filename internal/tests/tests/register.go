@@ -2,13 +2,14 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/gnb"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/ue"
 )
 
-func RegisterAll(labEnv bool) error {
+func RegisterAll(include []string, exclude []string) error {
 	allTests := []engine.Test{
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
@@ -35,8 +36,13 @@ func RegisterAll(labEnv bool) error {
 	}
 
 	for _, test := range allTests {
-		// Skip lab-only tests if not in lab environment
-		if !labEnv && test.Meta().Environment == "lab" {
+		// Skip tests that are not included
+		if !isTestIncluded(test.Meta().ID, include) {
+			continue
+		}
+
+		// Skip tests that are excluded
+		if isTestExcluded(test.Meta().ID, exclude) {
 			continue
 		}
 
@@ -47,4 +53,32 @@ func RegisterAll(labEnv bool) error {
 	}
 
 	return nil
+}
+
+func isTestIncluded(test string, rules []string) bool {
+	if len(rules) == 0 {
+		return true
+	}
+
+	for _, r := range rules {
+		if strings.Contains(test, r) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isTestExcluded(test string, rules []string) bool {
+	if len(rules) == 0 {
+		return false
+	}
+
+	for _, r := range rules {
+		if strings.Contains(test, r) {
+			return true
+		}
+	}
+
+	return false
 }
