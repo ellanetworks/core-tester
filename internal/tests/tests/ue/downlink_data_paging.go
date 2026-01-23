@@ -29,10 +29,9 @@ type DownlinkDataPaging struct{}
 
 func (DownlinkDataPaging) Meta() engine.Meta {
 	return engine.Meta{
-		ID:          "ue/paging/downlink_data",
-		Environment: "lab",
-		Summary:     "Downlink data triggered UE Paging procedure",
-		Timeout:     10 * time.Second,
+		ID:      "ue/paging/downlink_data",
+		Summary: "Downlink data triggered UE Paging procedure",
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -150,7 +149,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
-	cmd := exec.Command("ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd := exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	err = cmd.Run()
 	if err != nil {
@@ -258,7 +257,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunInterfaceName, gnbPDUSession.DLTeid, err)
 	}
 
-	cmd = exec.Command("ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	err = cmd.Run()
 	if err != nil {
