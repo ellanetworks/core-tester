@@ -24,6 +24,7 @@ const (
 	NGAPProcedurePDUSessionResourceSetupResponse NGAPProcedure = "PDUSessionResourceSetupResponse"
 	NGAPProcedureUEContextReleaseComplete        NGAPProcedure = "UEContextReleaseComplete"
 	NGAPProcedureUEContextReleaseRequest         NGAPProcedure = "UEContextReleaseRequest"
+	NGAPProcedurePathSwitchRequest               NGAPProcedure = "PathSwitchRequest"
 )
 
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
@@ -35,7 +36,8 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 	// UE-associated procedures
 	case NGAPProcedureInitialUEMessage, NGAPProcedureUplinkNASTransport,
 		NGAPProcedureInitialContextSetupResponse, NGAPProcedurePDUSessionResourceSetupResponse,
-		NGAPProcedureUEContextReleaseComplete, NGAPProcedureUEContextReleaseRequest:
+		NGAPProcedureUEContextReleaseComplete, NGAPProcedureUEContextReleaseRequest,
+		NGAPProcedurePathSwitchRequest:
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("NGAP message type (%s) not supported", msgType)
@@ -104,6 +106,25 @@ func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSet
 	}
 
 	return g.SendMessage(pdu, NGAPProcedurePDUSessionResourceSetupResponse)
+}
+
+func (g *GnodeB) SendPathSwitchRequest(opts *PathSwitchRequestOpts) error {
+	pdu, err := BuildPathSwitchRequest(opts)
+	if err != nil {
+		return fmt.Errorf("couldn't build PathSwitchRequest: %s", err.Error())
+	}
+
+	err = g.SendMessage(pdu, NGAPProcedurePathSwitchRequest)
+	if err != nil {
+		return fmt.Errorf("couldn't send PathSwitchRequest: %s", err.Error())
+	}
+
+	logger.GnbLogger.Debug("Sent Path Switch Request",
+		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
+		zap.Int64("Source AMF UE NGAP ID", opts.SourceAMFUENGAPID),
+	)
+
+	return nil
 }
 
 func (g *GnodeB) SendUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) error {

@@ -16,27 +16,28 @@ import (
 )
 
 var (
-	outputFile         string
-	imsi               string
-	key                string
-	opc                string
-	sqn                string
-	policyName         string
-	mcc                string
-	mnc                string
-	sst                int32
-	sd                 string
-	tac                string
-	dnn                string
-	gnbN2Address       string
-	gnbN3Address       string
-	ellaCoreN2Address  string
-	ellaCoreAPIAddress string
-	ellaCoreAPIToken   string
-	testInclude        []string
-	testExclude        []string
-	verbose            bool
-	pingDestination    string
+	outputFile            string
+	imsi                  string
+	key                   string
+	opc                   string
+	sqn                   string
+	policyName            string
+	mcc                   string
+	mnc                   string
+	sst                   int32
+	sd                    string
+	tac                   string
+	dnn                   string
+	gnbN2Address          string
+	gnbN3Address          string
+	gnbN3AddressSecondary string
+	ellaCoreN2Address     string
+	ellaCoreAPIAddress    string
+	ellaCoreAPIToken      string
+	testInclude           []string
+	testExclude           []string
+	verbose               bool
+	pingDestination       string
 )
 
 var rootCmd = &cobra.Command{
@@ -78,6 +79,7 @@ func main() {
 	testCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
 	testCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
 	testCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
+	testCmd.Flags().StringVar(&gnbN3AddressSecondary, "gnb-n3-address-secondary", "", "Secondary gNB N3 address (for Xn handover target gNB)")
 	testCmd.Flags().StringSliceVarP(
 		&testInclude,
 		"include",
@@ -144,8 +146,9 @@ func Test(cmd *cobra.Command, args []string) {
 			N2Address: ellaCoreN2Address,
 		},
 		Gnb: engine.GnbConfig{
-			N2Address: gnbN2Address,
-			N3Address: gnbN3Address,
+			N2Address:          gnbN2Address,
+			N3Address:          gnbN3Address,
+			N3AddressSecondary: gnbN3AddressSecondary,
 		},
 	}
 

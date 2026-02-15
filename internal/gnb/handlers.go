@@ -87,6 +87,8 @@ func handleNGAPSuccessfulOutcome(pdu *ngapType.NGAPPDU) error {
 		return handleNGSetupResponse(pdu.SuccessfulOutcome.Value.NGSetupResponse)
 	case ngapType.SuccessfulOutcomePresentNGResetAcknowledge:
 		return handleNGResetAcknowledge(pdu.SuccessfulOutcome.Value.NGResetAcknowledge)
+	case ngapType.SuccessfulOutcomePresentPathSwitchRequestAcknowledge:
+		return nil // Handled via WaitForMessage
 	default:
 		return fmt.Errorf("NGAP SuccessfulOutcome Present is invalid: %d", pdu.SuccessfulOutcome.Value.Present)
 	}
@@ -96,6 +98,8 @@ func handleNGAPUnsuccessfulOutcome(pdu *ngapType.NGAPPDU) error {
 	switch pdu.UnsuccessfulOutcome.Value.Present {
 	case ngapType.UnsuccessfulOutcomePresentNGSetupFailure:
 		return handleNGSetupFailure(pdu.UnsuccessfulOutcome.Value.NGSetupFailure)
+	case ngapType.UnsuccessfulOutcomePresentPathSwitchRequestFailure:
+		return nil // Handled via WaitForMessage
 	default:
 		return fmt.Errorf("NGAP UnsuccessfulOutcome Present is invalid: %d", pdu.UnsuccessfulOutcome.Value.Present)
 	}

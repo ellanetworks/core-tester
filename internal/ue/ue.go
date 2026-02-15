@@ -88,6 +88,7 @@ type UE struct {
 func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
 	ue.mu.Lock()
 	defer ue.mu.Unlock()
+
 	ue.PDUSession = pduSession
 }
 
@@ -544,6 +545,7 @@ func (ue *UE) SendDownlinkNAS(msg []byte, amfUENGAPID int64, ranUENGAPID int64) 
 func (ue *UE) RRCRelease() {
 	ue.mu.Lock()
 	defer ue.mu.Unlock()
+
 	ue.receivedRRCRelease = true
 }
 

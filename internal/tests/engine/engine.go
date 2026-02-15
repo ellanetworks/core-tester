@@ -26,8 +26,9 @@ type EllaCoreConfig struct {
 }
 
 type GnbConfig struct {
-	N2Address string
-	N3Address string
+	N2Address          string
+	N3Address          string
+	N3AddressSecondary string
 }
 
 type Config struct {
