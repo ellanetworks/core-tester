@@ -174,7 +174,7 @@ func (t XnHandover) Run(ctx context.Context, env engine.Env) error {
 	// and tells the AMF about the PDU sessions being switched over.
 	targetDLTeid := uint32(100)
 
-	targetN3Addr, err := netip.ParseAddr(env.Config.Gnb.N3Address)
+	targetN3Addr, err := netip.ParseAddr(env.Config.Gnb.N3AddressSecondary)
 	if err != nil {
 		return fmt.Errorf("could not parse target N3 address: %v", err)
 	}

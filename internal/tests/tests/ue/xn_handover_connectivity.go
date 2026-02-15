@@ -82,9 +82,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Source gNB: NG Setup complete")
 
-	// Start target gNB with its own N3 binding on a different port
-	targetN3Address := env.Config.Gnb.N3Address + ":2153"
-
+	// Start target gNB with its own N3 address
 	targetGnb, err := gnb.Start(
 		xnHandoverTargetGnbID,
 		DefaultMCC,
@@ -96,7 +94,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 		"Target-gNB",
 		env.Config.EllaCore.N2Address,
 		"0.0.0.0",
-		targetN3Address,
+		env.Config.Gnb.N3AddressSecondary,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting target gNB: %v", err)
@@ -218,7 +216,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	sourceAmfUeNgapID := sourceGnb.GetAMFUENGAPID(xnHandoverSourceRANUENGAPID)
 	targetDLTeid := sourceGnb.GenerateTEID()
 
-	targetN3Addr, err := netip.ParseAddr(env.Config.Gnb.N3Address)
+	targetN3Addr, err := netip.ParseAddr(env.Config.Gnb.N3AddressSecondary)
 	if err != nil {
 		return fmt.Errorf("could not parse target N3 address: %v", err)
 	}

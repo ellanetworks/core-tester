@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -198,22 +197,17 @@ func Start(
 	var gnbN3IPAddress netip.Addr
 
 	if gnbN3Address != "" {
-		n3IP, n3Port, err := parseN3Address(gnbN3Address)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
-		}
-
 		laddr := &net.UDPAddr{
-			IP:   net.ParseIP(n3IP),
-			Port: n3Port,
+			IP:   net.ParseIP(gnbN3Address),
+			Port: 2152,
 		}
 
 		n3Conn, err = net.ListenUDP("udp", laddr)
 		if err != nil {
-			return nil, fmt.Errorf("could not listen on GTP-U UDP address %s:%d: %v", n3IP, n3Port, err)
+			return nil, fmt.Errorf("could not listen on GTP-U UDP address %s: %v", gnbN3Address, err)
 		}
 
-		gnbN3IPAddress, err = netip.ParseAddr(n3IP)
+		gnbN3IPAddress, err = netip.ParseAddr(gnbN3Address)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse gNB N3 IP address: %v", err)
 		}
@@ -411,26 +405,4 @@ func isClosedErr(err error) bool {
 
 	return strings.Contains(s, "use of closed network connection") ||
 		strings.Contains(s, "file already closed")
-}
-
-// parseN3Address parses a GTP-U address string.
-// Accepts "ip:port" or just "ip" (defaults to port 2152).
-func parseN3Address(addr string) (string, int, error) {
-	const defaultGTPUPort = 2152
-
-	if strings.Contains(addr, ":") {
-		host, portStr, err := net.SplitHostPort(addr)
-		if err != nil {
-			return "", 0, fmt.Errorf("invalid N3 address %q: %v", addr, err)
-		}
-
-		port, err := strconv.Atoi(portStr)
-		if err != nil {
-			return "", 0, fmt.Errorf("invalid port in N3 address %q: %v", addr, err)
-		}
-
-		return host, port, nil
-	}
-
-	return addr, defaultGTPUPort, nil
 }
