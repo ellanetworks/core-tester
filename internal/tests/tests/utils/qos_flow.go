@@ -64,6 +64,7 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 		}
 
 		var d QoSFlowDescription
+
 		d.QFDLen = QFDFixLen
 
 		// QFI (mask to bits 6..1)
