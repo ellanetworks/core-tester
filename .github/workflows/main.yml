@@ -29,3 +29,7 @@ jobs:
     needs: build-rock
     if: github.ref_name == 'main'
     uses: ./.github/workflows/publish.yaml
+  publish-rock-pr:
+    needs: build-rock
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/publish-pr.yaml
