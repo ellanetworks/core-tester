@@ -16,7 +16,7 @@ linters:
     - unconvert
     - unparam
     - whitespace
-    - wsl
+    - wsl_v5
   exclusions:
     generated: lax
     presets:

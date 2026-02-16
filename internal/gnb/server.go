@@ -204,12 +204,12 @@ func Start(
 
 		n3Conn, err = net.ListenUDP("udp", laddr)
 		if err != nil {
-			return nil, fmt.Errorf("could not listen on GTP-U UDP address: %v", err)
+			return nil, fmt.Errorf("could not listen on GTP-U UDP address %s: %v", gnbN3Address, err)
 		}
 
 		gnbN3IPAddress, err = netip.ParseAddr(gnbN3Address)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse gNB N3 address: %v", err)
+			return nil, fmt.Errorf("could not parse gNB N3 IP address: %v", err)
 		}
 	}
 

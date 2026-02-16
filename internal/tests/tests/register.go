@@ -15,6 +15,7 @@ func RegisterAll(include []string, exclude []string) error {
 		gnb.NGSetupResponse{},
 		gnb.NGSetupFailure_UnknownPLMN{},
 		gnb.NGReset{},
+		gnb.XnHandover{},
 		ue.RegistrationReject_UnknownUE{},
 		ue.RegistrationSuccess{},
 		ue.RegistrationSuccessV4V6{},
@@ -33,6 +34,7 @@ func RegisterAll(include []string, exclude []string) error {
 		ue.ServiceRequestData{},
 		ue.Connectivity{},
 		ue.DownlinkDataPaging{},
+		ue.XnHandoverConnectivity{},
 	}
 
 	for _, test := range allTests {
