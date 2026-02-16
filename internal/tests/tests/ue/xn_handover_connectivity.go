@@ -93,7 +93,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 		DefaultTAC,
 		"Target-gNB",
 		env.Config.EllaCore.N2Address,
-		"0.0.0.0",
+		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3AddressSecondary,
 	)
 	if err != nil {

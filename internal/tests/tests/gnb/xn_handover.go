@@ -81,7 +81,7 @@ func (t XnHandover) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Source gNB: NG Setup complete")
 
-	// Start target gNB (no N3 binding needed - we provide N3 IP in PathSwitchRequest directly)
+	// Start target gNB with its own N3 address
 	targetGnb, err := gnb.Start(
 		xnHandoverTargetGnbID,
 		DefaultMCC,
@@ -92,8 +92,8 @@ func (t XnHandover) Run(ctx context.Context, env engine.Env) error {
 		DefaultTAC,
 		"Target-gNB",
 		env.Config.EllaCore.N2Address,
-		"0.0.0.0",
-		"",
+		env.Config.Gnb.N2Address,
+		env.Config.Gnb.N3AddressSecondary,
 	)
 	if err != nil {
 		return fmt.Errorf("error starting target gNB: %v", err)
