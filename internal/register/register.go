@@ -3,6 +3,8 @@ package register
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
@@ -62,7 +64,10 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
-	defer gNodeB.Close()
+	defer func() {
+		gNodeB.Close()
+		logger.Logger.Info("closed gNodeB")
+	}()
 
 	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
@@ -113,6 +118,19 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
+	defer func() {
+		err = procedure.Deregistration(&procedure.DeregistrationOpts{
+			AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
+			RANUENGAPID: RANUENGAPID,
+			UE:          newUE,
+		})
+		if err != nil {
+			logger.Logger.Error("could not deregister UE", zap.Error(err))
+		}
+
+		logger.Logger.Info("deregistered UE")
+	}()
+
 	logger.Logger.Info(
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
@@ -137,6 +155,15 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", GTPInterfaceName, pduSession.DLTeid, err)
 	}
 
+	defer func() {
+		err = gNodeB.CloseTunnel(pduSession.DLTeid)
+		if err != nil {
+			logger.Logger.Error("could not close tunnel", zap.Error(err))
+		}
+
+		logger.Logger.Info("closed tunnel")
+	}()
+
 	logger.Logger.Info(
 		"Created GTP tunnel",
 		zap.String("interface", GTPInterfaceName),
@@ -149,5 +176,9 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Uint16("MTU", uePduSession.MTU),
 	)
 
-	select {}
+	sctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	<-sctx.Done()
+	logger.Logger.Info("received interrupt signal, shutting down")
+
+	return nil
 }
