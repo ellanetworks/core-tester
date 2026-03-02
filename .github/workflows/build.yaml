@@ -30,7 +30,7 @@ jobs:
           docker save -o ella-core-tester-${{ matrix.arch }}.tar ella-core-tester:latest
 
       - name: Upload container image to GitHub Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ella-core-tester-${{ matrix.arch }}
           path: ella-core-tester-${{ matrix.arch }}.tar
