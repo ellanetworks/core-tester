@@ -199,6 +199,12 @@ func Simulate(ctx context.Context, cfg SimulateConfig, cl *client.Client) error 
 
 			return nil
 		})
+
+		// Basic stagger of the registrations to prevent timeouts
+		// caused by many simultaneous registrations.
+		if i%20 == 0 {
+			time.Sleep(2 * time.Second)
+		}
 	}
 
 	if err = eg.Wait(); err != nil {
