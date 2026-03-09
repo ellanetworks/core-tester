@@ -72,6 +72,7 @@ Ella Core Tester provides a command-line interface (CLI) with the following comm
 
 - `test`: run all the available tests against the Ella Core instance. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions. Do not use this command in a production environment.
 - `register`: register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
+- `simulate`: simulate multiple UEs connected to Ella Core. This command provisions subscribers, connects a gNB, registers all UEs with GTP tunnels, and generates periodic traffic. The simulation runs indefinitely until interrupted, then gracefully cleans up all resources.
 - `help`: display help information about Ella Core Tester or a specific command.
 
 ### Acknowledgements
