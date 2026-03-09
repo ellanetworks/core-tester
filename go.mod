@@ -1,9 +1,9 @@
 module github.com/ellanetworks/core-tester
 
-go 1.25.5
+go 1.25.7
 
 require (
-	github.com/ellanetworks/core v1.3.0
+	github.com/ellanetworks/core v1.5.0
 	github.com/free5gc/aper v1.1.0
 	github.com/free5gc/nas v1.2.2
 	github.com/free5gc/ngap v1.1.2
@@ -16,7 +16,7 @@ require (
 	github.com/tiagomdiogo/ScaGo v0.0.0-20250909151929-0aed579be48e
 	github.com/vishvananda/netlink v1.3.1
 	go.uber.org/zap v1.27.1
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
@@ -29,6 +29,6 @@ require (
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 )
