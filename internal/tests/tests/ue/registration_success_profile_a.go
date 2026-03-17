@@ -51,7 +51,9 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				SupportedTACs: []string{DefaultTAC},
 			},
 			HomeNetwork: core.OperatorHomeNetwork{
-				PrivateKey: privHex,
+				KeyIdentifier: 1,
+				Scheme:        "A",
+				PrivateKey:    privHex,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
