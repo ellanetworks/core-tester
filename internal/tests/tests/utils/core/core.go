@@ -49,7 +49,9 @@ type OperatorTracking struct {
 }
 
 type OperatorHomeNetwork struct {
-	PrivateKey string
+	KeyIdentifier int
+	Scheme        string
+	PrivateKey    string
 }
 
 type OperatorConfig struct {
@@ -199,17 +201,21 @@ func (c *EllaCoreEnv) updateOperatorHomeNetworkPublicKey(ctx context.Context, op
 		return fmt.Errorf("failed to generate ECDH key: %v", err)
 	}
 
-	pubKeyBytes := privateKey.PublicKey().Bytes()
+	pubKeyHex := hex.EncodeToString(privateKey.PublicKey().Bytes())
 
-	if opConfig.HomeNetwork.PublicKey == hex.EncodeToString(pubKeyBytes) {
-		return nil
+	for _, key := range opConfig.HomeNetworkKeys {
+		if key.PublicKey == pubKeyHex {
+			return nil
+		}
 	}
 
-	err = c.Client.UpdateOperatorHomeNetwork(ctx, &client.UpdateOperatorHomeNetworkOptions{
-		PrivateKey: hex.EncodeToString(privateKey.Bytes()),
+	err = c.Client.CreateHomeNetworkKey(ctx, &client.CreateHomeNetworkKeyOptions{
+		KeyIdentifier: c.Config.Operator.HomeNetwork.KeyIdentifier,
+		Scheme:        c.Config.Operator.HomeNetwork.Scheme,
+		PrivateKey:    hex.EncodeToString(privateKey.Bytes()),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update operator home network: %v", err)
+		return fmt.Errorf("failed to create home network key: %v", err)
 	}
 
 	return nil
