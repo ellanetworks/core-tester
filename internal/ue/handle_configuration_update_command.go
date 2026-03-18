@@ -10,7 +10,9 @@ import (
 )
 
 func handleConfigurationUpdateCommand(ue *UE, cfgUpdCmd *nasMessage.ConfigurationUpdateCommand, amfUENGAPID int64, ranUENGAPID int64) error {
-	ue.Set5gGuti(cfgUpdCmd.GUTI5G)
+	if cfgUpdCmd.GUTI5G != nil {
+		ue.Set5gGuti(cfgUpdCmd.GUTI5G)
+	}
 
 	commandComplete, err := BuildConfigurationUpdateComplete()
 	if err != nil {
