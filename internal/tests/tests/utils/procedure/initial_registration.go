@@ -40,5 +40,10 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
 	// Sleep to ensure gNodeB sends the PDU Session Resource Setup Response before proceeding
 	time.Sleep(50 * time.Millisecond)
 
+	_, err = opts.UE.WaitForNASGMMMessage(nas.MsgTypeConfigurationUpdateCommand, timeoutPerMessage)
+	if err != nil {
+		return nil, fmt.Errorf("did not receive Configuration Update Command after registration: %v", err)
+	}
+
 	return msg, nil
 }
