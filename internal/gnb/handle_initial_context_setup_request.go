@@ -65,10 +65,12 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 
 	pduSessions := [16]*PDUSessionInformation{}
 
-	pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
+	if gnb.N3Address.IsValid() {
+		pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
 
-	if pduSession != nil {
-		pduSessions[0] = pduSession
+		if pduSession != nil {
+			pduSessions[0] = pduSession
+		}
 	}
 
 	err := gnb.SendInitialContextSetupResponse(&InitialContextSetupResponseOpts{

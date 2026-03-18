@@ -123,7 +123,7 @@ func (g *GnodeB) CloseTunnel(dlteid uint32) error {
 	return nil
 }
 
-func (g *GnodeB) gtpReader() {
+func (g *GnodeB) GTPReader() {
 	buf := make([]byte, 2000)
 
 	for {

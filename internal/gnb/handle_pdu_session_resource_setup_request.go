@@ -87,6 +87,12 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		gnb.StorePDUSession(ranueNGAPID.Value, pduSessionInfo)
 	}
 
+	if !gnb.N3Address.IsValid() {
+		logger.GnbLogger.Warn("N3 address not configured, skipping PDUSessionResourceSetupResponse")
+
+		return nil
+	}
+
 	pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
 
 	err = gnb.SendPDUSessionResourceSetupResponse(&PDUSessionResourceSetupResponseOpts{

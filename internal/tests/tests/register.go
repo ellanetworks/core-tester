@@ -5,12 +5,18 @@ import (
 	"strings"
 
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/enb"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/gnb"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/ue"
 )
 
 func RegisterAll(include []string, exclude []string) error {
 	allTests := []engine.Test{
+		enb.NgSetup{},
+		enb.RegistrationSuccess{},
+		enb.Connectivity{},
+		enb.MultiUERegistration{},
+		enb.Deregistration{},
 		gnb.SCTPBasic{},
 		gnb.NGSetupResponse{},
 		gnb.NGSetupFailure_UnknownPLMN{},

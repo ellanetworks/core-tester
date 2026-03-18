@@ -154,6 +154,35 @@ type SCTPFrame struct {
 	Info *sctp.SndRcvInfo
 }
 
+func NewGnodeB(
+	gnbID string,
+	mcc string,
+	mnc string,
+	sst int32,
+	sd string,
+	dnn string,
+	tac string,
+	name string,
+	n2Conn *sctp.SCTPConn,
+	n3Conn *net.UDPConn,
+	n3Address netip.Addr,
+) *GnodeB {
+	return &GnodeB{
+		GnbID:     gnbID,
+		MCC:       mcc,
+		MNC:       mnc,
+		SST:       sst,
+		SD:        sd,
+		DNN:       dnn,
+		TAC:       tac,
+		Name:      name,
+		N2Conn:    n2Conn,
+		N3Conn:    n3Conn,
+		tunnels:   make(map[uint32]*Tunnel),
+		N3Address: n3Address,
+	}
+}
+
 func Start(
 	GnbID string,
 	MCC string,
@@ -229,10 +258,10 @@ func Start(
 	}
 
 	if n3Conn != nil {
-		go gnodeB.gtpReader()
+		go gnodeB.GTPReader()
 	}
 
-	gnodeB.listenAndServe(n2Conn)
+	gnodeB.ListenAndServe(n2Conn)
 
 	opts := &NGSetupRequestOpts{
 		GnbID: gnodeB.GnbID,
@@ -280,7 +309,7 @@ func (g *GnodeB) AddUE(ranUENGAPID int64, ue air.DownlinkSender) {
 	g.UEPool[ranUENGAPID] = ue
 }
 
-func (g *GnodeB) listenAndServe(conn *sctp.SCTPConn) {
+func (g *GnodeB) ListenAndServe(conn *sctp.SCTPConn) {
 	go func() {
 		buf := make([]byte, SCTPReadBufferSize)
 
