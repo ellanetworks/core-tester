@@ -51,7 +51,7 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				SupportedTACs: []string{DefaultTAC},
 			},
 			HomeNetwork: core.OperatorHomeNetwork{
-				KeyIdentifier: 1,
+				KeyIdentifier: 4,
 				Scheme:        "A",
 				PrivateKey:    privHex,
 			},
@@ -131,7 +131,7 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
 			ProtectionScheme: sidf.ProfileAScheme,
-			PublicKeyID:      "1",
+			PublicKeyID:      "4",
 			PublicKey:        publicKey,
 		},
 		RoutingIndicator: "0000",
