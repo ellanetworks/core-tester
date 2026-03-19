@@ -13,6 +13,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests"
 	"github.com/ellanetworks/core/client"
+	nasLogger "github.com/free5gc/nas/logger"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -99,6 +100,8 @@ closes all tunnels, disconnects the gNB, and removes the created subscribers.`,
 }
 
 func main() {
+	nasLogger.SetLogLevel(0)
+
 	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(registerCmd)
 	rootCmd.AddCommand(simulateCmd)

@@ -43,19 +43,29 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 	for _, pduSession := range protocolIEIDPDUSessionResourceSetupListSUReq.List {
 		pduSessionID := pduSession.PDUSessionID.Value
 
+		// PDUSessionNASPDU may be omitted by some AMF implementations when there is
+		// no NAS payload to deliver. Treat that as a non-fatal condition: if a
+		// NAS PDU is present, deliver it to the UE; otherwise continue and try
+		// to parse the PDU Session Resource Setup Request Transfer (if present)
+		// to extract UPF/TEID information.
 		if pduSession.PDUSessionNASPDU == nil {
-			logger.GnbLogger.Debug("PDU Session Resource Setup Request contains an invalid pduSession", zap.Any("pduSession", pduSession))
-			return fmt.Errorf("PDU Session Resource Setup Request contains an invalid pduSession: %v", pduSession)
+			logger.GnbLogger.Debug("PDU Session Resource Setup Request contains no PDUSessionNASPDU, skipping NAS delivery", zap.Any("pduSession", pduSession))
+		} else {
+			err = ue.SendDownlinkNAS(pduSession.PDUSessionNASPDU.Value, amfueNGAPID.Value, ranueNGAPID.Value)
+			if err != nil {
+				return fmt.Errorf("HandleDownlinkNASTransport failed: %v", err)
+			}
 		}
 
-		err = ue.SendDownlinkNAS(pduSession.PDUSessionNASPDU.Value, amfueNGAPID.Value, ranueNGAPID.Value)
-		if err != nil {
-			return fmt.Errorf("HandleDownlinkNASTransport failed: %v", err)
-		}
-
+		// If the transfer is missing we can't build UPF/TEID info; log and skip
+		// storing PDU session information rather than failing the whole NGAP
+		// handling flow.
 		pduSessionInfo, err := getPDUSessionInfoFromSetupRequestTransfer(pduSession.PDUSessionResourceSetupRequestTransfer)
 		if err != nil {
-			return fmt.Errorf("could not validate PDU Session Resource Setup Transfer: %v", err)
+			logger.GnbLogger.Debug("could not validate PDU Session Resource Setup Transfer, skipping PDU session store", zap.Error(err), zap.Any("pduSession", pduSession))
+
+			// continue processing other PDU sessions if any
+			continue
 		}
 
 		pduSessionInfo.PDUSessionID = pduSessionID
