@@ -5,6 +5,7 @@ import (
 	"crypto/ecdh"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ellanetworks/core/client"
@@ -102,7 +103,7 @@ func (c *EllaCoreEnv) Create(ctx context.Context) error {
 	}
 
 	err = c.createSubs(ctx)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "not found") {
 		return fmt.Errorf("could not create subscribers: %v", err)
 	}
 
@@ -124,6 +125,31 @@ func (c *EllaCoreEnv) Delete(ctx context.Context) error {
 	err = c.deleteDataNetworks(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete data networks: %v", err)
+	}
+
+	if c.Config.Operator.HomeNetwork.PrivateKey != "" {
+		err = c.deleteHomeNetworkKey(ctx, c.Config.Operator.HomeNetwork.KeyIdentifier)
+		if err != nil {
+			return fmt.Errorf("could not cleanup home network key: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) deleteHomeNetworkKey(ctx context.Context, keyId int) error {
+	opConfig, err := c.Client.GetOperator(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get operator: %v", err)
+	}
+
+	for _, k := range opConfig.HomeNetworkKeys {
+		if k.KeyIdentifier == keyId {
+			err = c.Client.DeleteHomeNetworkKey(ctx, k.ID)
+			if err != nil && !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("could not delete home network key: %v", err)
+			}
+		}
 	}
 
 	return nil

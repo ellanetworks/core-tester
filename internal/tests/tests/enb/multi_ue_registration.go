@@ -1,14 +1,11 @@
-package ue
+package enb
 
 import (
 	"context"
-	"crypto/ecdh"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
 
-	"github.com/ellanetworks/core-tester/internal/gnb"
+	"github.com/ellanetworks/core-tester/internal/enb"
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/tests/engine"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
@@ -16,26 +13,30 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/ngap/ngapType"
+	"golang.org/x/sync/errgroup"
 )
 
-type RegistrationSuccessProfileA struct{}
+const (
+	NumMultiUERegistration = 8
+)
 
-func (RegistrationSuccessProfileA) Meta() engine.Meta {
+type MultiUERegistration struct{}
+
+func (MultiUERegistration) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/registration_success_profile_a",
-		Summary: "UE registration test validating the Registration Request and Authentication procedures with Profile A SUCI protection",
-		Timeout: 5 * time.Second,
+		ID:      "enb/multi_ue_registration",
+		Summary: "ng-eNB multi-UE registration test with 8 UEs registering concurrently",
+		Timeout: 30 * time.Second,
 	}
 }
 
-func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) error {
-	privateKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+func (t MultiUERegistration) Run(ctx context.Context, env engine.Env) error {
+	subs, err := buildSubscriberConfig(NumMultiUERegistration, testStartIMSI)
 	if err != nil {
-		return fmt.Errorf("failed to generate ECDH key: %v", err)
+		return fmt.Errorf("could not build subscriber config: %v", err)
 	}
-
-	privHex := hex.EncodeToString(privateKey.Bytes())
 
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
 		Operator: core.OperatorConfig{
@@ -49,11 +50,6 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
-			},
-			HomeNetwork: core.OperatorHomeNetwork{
-				KeyIdentifier: 4,
-				Scheme:        "A",
-				PrivateKey:    privHex,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -74,15 +70,7 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				DataNetworkName: DefaultDNN,
 			},
 		},
-		Subscribers: []core.SubscriberConfig{
-			{
-				Imsi:           DefaultIMSI,
-				Key:            DefaultKey,
-				SequenceNumber: DefaultSequenceNumber,
-				OPc:            DefaultOPC,
-				PolicyName:     DefaultPolicyName,
-			},
-		},
+		Subscribers: subs,
 	})
 
 	err = ellaCoreEnv.Create(ctx)
@@ -92,47 +80,76 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(
-		GNBID,
+	ngeNB, err := enb.Start(
+		DefaultEnbID,
 		DefaultMCC,
 		DefaultMNC,
 		DefaultSST,
 		DefaultSD,
 		DefaultDNN,
 		DefaultTAC,
-		"Ella-Core-Tester",
+		"Ella-Core-Tester-ENB",
 		env.Config.EllaCore.N2Address,
 		env.Config.Gnb.N2Address,
 		env.Config.Gnb.N3Address,
 	)
 	if err != nil {
-		return fmt.Errorf("error starting gNB: %v", err)
+		return fmt.Errorf("error starting eNB: %v", err)
 	}
 
-	defer gNodeB.Close()
+	defer ngeNB.Close()
 
-	_, err = gNodeB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
+	_, err = ngeNB.WaitForMessage(ngapType.NGAPPDUPresentSuccessfulOutcome, ngapType.SuccessfulOutcomePresentNGSetupResponse, 200*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
-	publicKey := privateKey.PublicKey()
+	eg := errgroup.Group{}
 
+	for i := range NumMultiUERegistration {
+		func() {
+			eg.Go(func() error {
+				ranUENGAPID := DefaultRanUENGAPID + int64(i)
+
+				return runMultiUERegistrationTest(ranUENGAPID, ngeNB, subs[i])
+			})
+		}()
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		return fmt.Errorf("error during UE registrations: %v", err)
+	}
+
+	err = ellaCoreEnv.Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete EllaCore environment: %v", err)
+	}
+
+	logger.Logger.Debug("Deleted EllaCore environment")
+
+	return nil
+}
+
+func runMultiUERegistrationTest(
+	ranUENGAPID int64,
+	ngeNB *enb.NgeNB,
+	subscriber core.SubscriberConfig,
+) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
-		PDUSessionID:   PDUSessionID,
-		PDUSessionType: PDUSessionType,
-		GnodeB:         gNodeB,
-		Msin:           DefaultIMSI[5:],
-		K:              DefaultKey,
-		OpC:            DefaultOPC,
+		GnodeB:         ngeNB.GnodeB,
+		PDUSessionID:   DefaultPDUSessionID,
+		PDUSessionType: nasMessage.PDUSessionTypeIPv4,
+		Msin:           subscriber.Imsi[5:],
+		K:              subscriber.Key,
+		OpC:            subscriber.OPc,
 		Amf:            "80000000000000000000000000000000",
-		Sqn:            DefaultSequenceNumber,
+		Sqn:            subscriber.SequenceNumber,
 		Mcc:            DefaultMCC,
 		Mnc:            DefaultMNC,
 		HomeNetworkPublicKey: sidf.HomeNetworkPublicKey{
-			ProtectionScheme: sidf.ProfileAScheme,
-			PublicKeyID:      "4",
-			PublicKey:        publicKey,
+			ProtectionScheme: sidf.NullScheme,
+			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
 		DNN:              DefaultDNN,
@@ -153,32 +170,24 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gNodeB.AddUE(RANUENGAPID, newUE)
+	ngeNB.AddUE(ranUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
+		RANUENGAPID: ranUENGAPID,
 		UE:          newUE,
 	})
 	if err != nil {
-		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
+		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
-	// Cleanup
 	err = procedure.Deregistration(&procedure.DeregistrationOpts{
 		UE:          newUE,
-		AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
-		RANUENGAPID: RANUENGAPID,
+		AMFUENGAPID: ngeNB.GetAMFUENGAPID(ranUENGAPID),
+		RANUENGAPID: ranUENGAPID,
 	})
 	if err != nil {
-		return fmt.Errorf("DeregistrationProcedure failed: %v", err)
+		return fmt.Errorf("deregistration procedure failed: %v", err)
 	}
-
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
-
-	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

@@ -123,7 +123,7 @@ func (g *GnodeB) CloseTunnel(dlteid uint32) error {
 	return nil
 }
 
-func (g *GnodeB) gtpReader() {
+func (g *GnodeB) GTPReader() {
 	buf := make([]byte, 2000)
 
 	for {
@@ -223,7 +223,12 @@ func tunToGtp(conn *net.UDPConn, t *Tunnel) {
 
 		_, err = conn.WriteToUDP(packet[:n+gtpHeaderLen], t.upfAddr)
 		if err != nil {
+			if isClosedErr(err) {
+				return
+			}
+
 			logger.GnbLogger.Error("error writing to GTP-U socket", zap.Error(err))
+
 			continue
 		}
 
