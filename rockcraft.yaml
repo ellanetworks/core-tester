@@ -20,7 +20,7 @@ parts:
       - git
       - libpcap-dev
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     stage-packages:
       - iptables
       - iproute2
