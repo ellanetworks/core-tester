@@ -29,6 +29,14 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		}
 	}
 
+	if amfueNGAPID == nil {
+		return fmt.Errorf("missing AMF UE NGAP ID in InitialContextSetupRequest")
+	}
+
+	if ranueNGAPID == nil {
+		return fmt.Errorf("missing RAN UE NGAP ID in InitialContextSetupRequest")
+	}
+
 	logger.GnbLogger.Debug("Received InitialContextSetupRequest",
 		zap.Int64("AMFUENGAPID", amfueNGAPID.Value),
 		zap.Int64("RANUENGAPID", ranueNGAPID.Value),

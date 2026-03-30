@@ -1,8 +1,8 @@
 package ue
 
 import (
+	"bytes"
 	"fmt"
-	"reflect"
 
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/security"
@@ -91,7 +91,7 @@ func (ue *UE) DecodeNAS(message []byte) (*nas.Message, error) {
 		return nil, fmt.Errorf("error in MAC algorithm %v", err)
 	}
 
-	if !reflect.DeepEqual(mac32, macReceived) {
+	if !bytes.Equal(mac32, macReceived) {
 		return nil, fmt.Errorf("MAC verification failed")
 	}
 

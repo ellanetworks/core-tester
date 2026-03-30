@@ -81,6 +81,12 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
 
+	defer func() {
+		if delErr := ellaCoreEnv.Delete(ctx); delErr != nil {
+			logger.Logger.Error("could not delete EllaCore environment", zap.Error(delErr))
+		}
+	}()
+
 	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(
@@ -131,13 +137,6 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	if err != nil {
 		return fmt.Errorf("error during connectivity test: %v", err)
 	}
-
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
-
-	logger.Logger.Debug("Deleted EllaCore environment")
 
 	return nil
 }

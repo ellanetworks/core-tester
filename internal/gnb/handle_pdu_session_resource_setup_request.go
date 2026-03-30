@@ -28,6 +28,18 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		}
 	}
 
+	if amfueNGAPID == nil {
+		return fmt.Errorf("missing AMF UE NGAP ID in PDUSessionResourceSetupRequest")
+	}
+
+	if ranueNGAPID == nil {
+		return fmt.Errorf("missing RAN UE NGAP ID in PDUSessionResourceSetupRequest")
+	}
+
+	if protocolIEIDPDUSessionResourceSetupListSUReq == nil {
+		return fmt.Errorf("missing PDU Session Resource Setup List in PDUSessionResourceSetupRequest")
+	}
+
 	logger.GnbLogger.Debug(
 		"Received PDU Session Resource Setup Request",
 		zap.String("GNB ID", gnb.GnbID),

@@ -692,7 +692,7 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 	}
 
 	logger.UeLogger.Debug(
-		"Sent Security Mode Complete NAS message",
+		"Sent Registration Request NAS message",
 		zap.String("IMSI", ue.UeSecurity.Supi),
 	)
 

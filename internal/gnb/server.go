@@ -189,6 +189,7 @@ func NewGnodeB(
 		N3Address: n3Address,
 	}
 	g.cond = sync.NewCond(&g.mu)
+
 	return g
 }
 
@@ -363,6 +364,7 @@ func (g *GnodeB) ListenAndServe(conn *sctp.SCTPConn) {
 
 func (g *GnodeB) Close() {
 	g.mu.Lock()
+
 	tunnelsToClose := make(map[uint32]*Tunnel, len(g.tunnels))
 	for teid, t := range g.tunnels {
 		tunnelsToClose[teid] = t
