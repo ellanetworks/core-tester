@@ -155,7 +155,7 @@ func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) erro
 	return nil
 }
 
-func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) (retErr error) {
+func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 	if g.N2Conn == nil {
 		return fmt.Errorf("ran conn is nil")
 	}
@@ -168,12 +168,6 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) (retErr error) 
 	if err != nil {
 		return fmt.Errorf("could not determine SCTP stream ID from NGAP message type (%s): %s", msgType, err.Error())
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			retErr = fmt.Errorf("panic in SendToRan: %v", r)
-		}
-	}()
 
 	if len(packet) == 0 {
 		return fmt.Errorf("packet len is 0")
