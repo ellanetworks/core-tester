@@ -14,6 +14,7 @@ import (
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas/nasType"
 	"github.com/ishidawataru/sctp"
+	"github.com/vishvananda/netlink"
 	"go.uber.org/zap"
 )
 
@@ -361,17 +362,41 @@ func (g *GnodeB) ListenAndServe(conn *sctp.SCTPConn) {
 }
 
 func (g *GnodeB) Close() {
+	g.mu.Lock()
+	tunnelsToClose := make(map[uint32]*Tunnel, len(g.tunnels))
+	for teid, t := range g.tunnels {
+		tunnelsToClose[teid] = t
+	}
+	g.mu.Unlock()
+
+	for _, t := range tunnelsToClose {
+		if err := t.tunIF.Close(); err != nil {
+			logger.GnbLogger.Error("error closing TUN interface", zap.String("if", t.Name), zap.Error(err))
+		}
+
+		link, err := netlink.LinkByName(t.Name)
+		if err == nil {
+			if err = netlink.LinkDel(link); err != nil {
+				logger.GnbLogger.Error("error deleting TUN interface", zap.String("if", t.Name), zap.Error(err))
+			}
+		}
+	}
+
+	g.mu.Lock()
+	g.tunnels = make(map[uint32]*Tunnel)
+	g.mu.Unlock()
+
 	if g.N2Conn != nil {
 		err := g.N2Conn.Close()
 		if err != nil {
-			fmt.Println("could not close SCTP connection:", err)
+			logger.GnbLogger.Error("could not close SCTP connection", zap.Error(err))
 		}
 	}
 
 	if g.N3Conn != nil {
 		err := g.N3Conn.Close()
 		if err != nil {
-			fmt.Println("could not close GTP-U UDP connection:", err)
+			logger.GnbLogger.Error("could not close GTP-U UDP connection", zap.Error(err))
 		}
 	}
 }

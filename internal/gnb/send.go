@@ -155,7 +155,7 @@ func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) erro
 	return nil
 }
 
-func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
+func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) (retErr error) {
 	if g.N2Conn == nil {
 		return fmt.Errorf("ran conn is nil")
 	}
@@ -170,9 +170,8 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 	}
 
 	defer func() {
-		err := recover()
-		if err != nil {
-			logger.GnbLogger.Error("panic recovered", zap.Any("error", err))
+		if r := recover(); r != nil {
+			retErr = fmt.Errorf("panic in SendToRan: %v", r)
 		}
 	}()
 

@@ -116,6 +116,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
 
 				return runConnectivityTest(
+					ctx,
 					env,
 					ranUENGAPID,
 					gNodeB,
@@ -142,6 +143,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 }
 
 func runConnectivityTest(
+	ctx context.Context,
 	env engine.Env,
 	ranUENGAPID int64,
 	gNodeB *gnb.GnodeB,
@@ -235,7 +237,7 @@ func runConnectivityTest(
 		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
-	cmd := exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd := exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -268,7 +270,7 @@ func runConnectivityTest(
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
-	cmd = exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err == nil {
@@ -327,7 +329,7 @@ func runConnectivityTest(
 		zap.Uint32("DL TEID", pduSession.DLTeid),
 	)
 
-	cmd = exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
