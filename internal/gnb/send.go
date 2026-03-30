@@ -169,13 +169,6 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 		return fmt.Errorf("could not determine SCTP stream ID from NGAP message type (%s): %s", msgType, err.Error())
 	}
 
-	defer func() {
-		err := recover()
-		if err != nil {
-			logger.GnbLogger.Error("panic recovered", zap.Any("error", err))
-		}
-	}()
-
 	if len(packet) == 0 {
 		return fmt.Errorf("packet len is 0")
 	}

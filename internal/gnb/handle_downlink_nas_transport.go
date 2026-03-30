@@ -26,6 +26,18 @@ func handleDownlinkNASTransport(gnb *GnodeB, downlinkNASTransport *ngapType.Down
 		}
 	}
 
+	if amfUENGAPID == nil {
+		return fmt.Errorf("missing AMF UE NGAP ID in DownlinkNASTransport")
+	}
+
+	if ranUENGAPID == nil {
+		return fmt.Errorf("missing RAN UE NGAP ID in DownlinkNASTransport")
+	}
+
+	if nasPDU == nil {
+		return fmt.Errorf("missing NAS PDU in DownlinkNASTransport")
+	}
+
 	logger.GnbLogger.Debug("Received DownlinkNASTransport",
 		zap.Int64("AMFUENGAPID", amfUENGAPID.Value),
 		zap.Int64("RANUENGAPID", ranUENGAPID.Value),

@@ -123,7 +123,7 @@ func (g *GnodeB) CloseTunnel(dlteid uint32) error {
 	return nil
 }
 
-func (g *GnodeB) GTPReader() {
+func (g *GnodeB) GTPReader() { // nolint:gocognit
 	buf := make([]byte, 2000)
 
 	for {
@@ -161,18 +161,44 @@ func (g *GnodeB) GTPReader() {
 
 		payloadStart := 8
 		if buf[0]&0x07 > 0 {
+			if payloadStart+3 > n {
+				logger.GnbLogger.Warn("GTP packet too short for optional fields", zap.Int("length", n))
+				continue
+			}
+
 			payloadStart += 3
 		}
 
 		if buf[0]&0x04 > 0 {
 			for {
+				if payloadStart >= n {
+					logger.GnbLogger.Warn("GTP extension header exceeds packet bounds", zap.Int("payloadStart", payloadStart), zap.Int("length", n))
+					break
+				}
+
 				if buf[payloadStart] == 0x00 {
 					payloadStart++
 					break
 				}
 
-				payloadStart += int(buf[payloadStart+1]) * 4
+				if payloadStart+1 >= n {
+					logger.GnbLogger.Warn("GTP extension header length byte out of bounds", zap.Int("payloadStart", payloadStart), zap.Int("length", n))
+					break
+				}
+
+				extLen := int(buf[payloadStart+1]) * 4
+				if extLen == 0 {
+					logger.GnbLogger.Warn("GTP extension header has zero length, dropping packet")
+					break
+				}
+
+				payloadStart += extLen
 			}
+		}
+
+		if payloadStart > n {
+			logger.GnbLogger.Warn("GTP payload start exceeds packet bounds", zap.Int("payloadStart", payloadStart), zap.Int("length", n))
+			continue
 		}
 
 		_, err = t.tunIF.Write(buf[payloadStart:n])

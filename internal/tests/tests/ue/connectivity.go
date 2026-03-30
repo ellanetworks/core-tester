@@ -81,6 +81,12 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
 
+	defer func() {
+		if delErr := ellaCoreEnv.Delete(ctx); delErr != nil {
+			logger.Logger.Error("could not delete EllaCore environment", zap.Error(delErr))
+		}
+	}()
+
 	logger.Logger.Debug("Created EllaCore environment")
 
 	gNodeB, err := gnb.Start(
@@ -116,6 +122,7 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
 
 				return runConnectivityTest(
+					ctx,
 					env,
 					ranUENGAPID,
 					gNodeB,
@@ -131,17 +138,11 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("error during connectivity test: %v", err)
 	}
 
-	err = ellaCoreEnv.Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("could not delete EllaCore environment: %v", err)
-	}
-
-	logger.Logger.Debug("Deleted EllaCore environment")
-
 	return nil
 }
 
 func runConnectivityTest(
+	ctx context.Context,
 	env engine.Env,
 	ranUENGAPID int64,
 	gNodeB *gnb.GnodeB,
@@ -235,7 +236,7 @@ func runConnectivityTest(
 		zap.Uint32("DL TEID", gnbPDUSession.DLTeid),
 	)
 
-	cmd := exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd := exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -268,7 +269,7 @@ func runConnectivityTest(
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
-	cmd = exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err == nil {
@@ -327,7 +328,7 @@ func runConnectivityTest(
 		zap.Uint32("DL TEID", pduSession.DLTeid),
 	)
 
-	cmd = exec.CommandContext(context.TODO(), "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
+	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
 	out, err = cmd.CombinedOutput() // stdout + stderr
 	if err != nil {
