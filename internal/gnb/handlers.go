@@ -20,6 +20,7 @@ func updateReceivedFramesMap(gnb *GnodeB, pduType int, msgType int, frame SCTPFr
 	}
 
 	gnb.receivedFrames[pduType][msgType] = append(gnb.receivedFrames[pduType][msgType], frame)
+	gnb.cond.Broadcast()
 }
 
 func HandleFrame(gnb *GnodeB, sctpFrame SCTPFrame) error {

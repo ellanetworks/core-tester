@@ -79,6 +79,7 @@ type UE struct {
 	IMEISV                 string
 	Gnb                    air.UplinkSender
 	mu                     sync.Mutex
+	cond                   *sync.Cond
 	PDUSession             PDUSessionInfo
 	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
 	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
@@ -90,6 +91,7 @@ func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
 	defer ue.mu.Unlock()
 
 	ue.PDUSession = pduSession
+	ue.cond.Broadcast()
 }
 
 func (ue *UE) GetPDUSession() PDUSessionInfo {
@@ -102,19 +104,25 @@ func (ue *UE) GetPDUSession() PDUSessionInfo {
 func (ue *UE) WaitForPDUSession(timeout time.Duration) (PDUSessionInfo, error) {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		ue.mu.Lock()
-		pduSession := ue.PDUSession
-		ue.mu.Unlock()
+	timer := time.AfterFunc(timeout, func() {
+		ue.cond.Broadcast()
+	})
+	defer timer.Stop()
 
-		if pduSession.PDUSessionID != 0 {
-			return pduSession, nil
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	for {
+		if ue.PDUSession.PDUSessionID != 0 {
+			return ue.PDUSession, nil
 		}
 
-		time.Sleep(10 * time.Millisecond)
-	}
+		if time.Now().After(deadline) {
+			return PDUSessionInfo{}, errors.New("timeout waiting for PDU session")
+		}
 
-	return PDUSessionInfo{}, errors.New("timeout waiting for PDU session")
+		ue.cond.Wait()
+	}
 }
 
 type UEOpts struct {
@@ -191,6 +199,7 @@ func NewUE(opts *UEOpts) (*UE, error) {
 	}
 
 	ue.StateMM = MM5G_NULL
+	ue.cond = sync.NewCond(&ue.mu)
 
 	return &ue, nil
 }
@@ -547,6 +556,7 @@ func (ue *UE) RRCRelease() {
 	defer ue.mu.Unlock()
 
 	ue.receivedRRCRelease = true
+	ue.cond.Broadcast()
 }
 
 func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
@@ -557,6 +567,7 @@ func updateReceivedGMMMessages(ue *UE, msg *nas.Message) {
 	ue.receivedNASGMMMessages[msgType] = append(ue.receivedNASGMMMessages[msgType], msg)
 
 	logger.UeLogger.Debug("Stored received NAS GMM Message", zap.String("msgType", getGMMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGMMMessages[msgType])))
+	ue.cond.Broadcast()
 }
 
 func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
@@ -567,90 +578,96 @@ func updateReceivedGSMMessages(ue *UE, msg *nas.Message) {
 	ue.receivedNASGSMMessages[msgType] = append(ue.receivedNASGSMMessages[msgType], msg)
 
 	logger.UeLogger.Debug("Stored received NAS GSM Message", zap.String("msgType", getGSMMessageName(msgType)), zap.Int("totalFrames", len(ue.receivedNASGSMMessages[msgType])))
+	ue.cond.Broadcast()
 }
 
 func (ue *UE) WaitForNASGMMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		ue.mu.Lock()
+	timer := time.AfterFunc(timeout, func() {
+		ue.cond.Broadcast()
+	})
+	defer timer.Stop()
 
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	for {
 		msgs, ok := ue.receivedNASGMMMessages[msgType]
-		if !ok {
-			ue.mu.Unlock()
-			time.Sleep(1 * time.Millisecond)
+		if ok && len(msgs) > 0 {
+			if len(msgs) == 1 {
+				delete(ue.receivedNASGMMMessages, msgType)
+			} else {
+				ue.receivedNASGMMMessages[msgType] = msgs[1:]
+			}
 
-			continue
+			return msgs[0], nil
 		}
 
-		if len(msgs) == 0 {
-			ue.mu.Unlock()
-			time.Sleep(1 * time.Millisecond)
-
-			continue
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
 		}
 
-		if len(msgs) == 1 {
-			delete(ue.receivedNASGMMMessages, msgType)
-		} else {
-			ue.receivedNASGMMMessages[msgType] = msgs[1:]
-		}
-
-		ue.mu.Unlock()
-
-		return msgs[0], nil
+		ue.cond.Wait()
 	}
-
-	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
 }
 
 func (ue *UE) WaitForNASGSMMessage(msgType uint8, timeout time.Duration) (*nas.Message, error) {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		ue.mu.Lock()
+	timer := time.AfterFunc(timeout, func() {
+		ue.cond.Broadcast()
+	})
+	defer timer.Stop()
 
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	for {
 		msgs, ok := ue.receivedNASGSMMessages[msgType]
-		if !ok {
-			ue.mu.Unlock()
-			time.Sleep(1 * time.Millisecond)
+		if ok && len(msgs) > 0 {
+			msg := msgs[0]
 
-			continue
+			if len(msgs) == 1 {
+				delete(ue.receivedNASGSMMessages, msgType)
+			} else {
+				ue.receivedNASGSMMessages[msgType] = msgs[1:]
+			}
+
+			return msg, nil
 		}
 
-		msg := msgs[0]
-
-		if len(msgs) == 1 {
-			delete(ue.receivedNASGSMMessages, msgType)
-		} else {
-			ue.receivedNASGSMMessages[msgType] = msgs[1:]
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
 		}
 
-		ue.mu.Unlock()
-
-		return msg, nil
+		ue.cond.Wait()
 	}
-
-	return nil, fmt.Errorf("timeout waiting for NAS message %v", msgType)
 }
 
 func (ue *UE) WaitForRRCRelease(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		ue.mu.Lock()
-		received := ue.receivedRRCRelease
-		ue.receivedRRCRelease = false
-		ue.mu.Unlock()
+	timer := time.AfterFunc(timeout, func() {
+		ue.cond.Broadcast()
+	})
+	defer timer.Stop()
 
-		if received {
+	ue.mu.Lock()
+	defer ue.mu.Unlock()
+
+	for {
+		if ue.receivedRRCRelease {
+			ue.receivedRRCRelease = false
 			return nil
 		}
 
-		time.Sleep(10 * time.Millisecond)
-	}
+		if time.Now().After(deadline) {
+			return errors.New("timeout waiting for RRC Release")
+		}
 
-	return errors.New("timeout waiting for RRC Release")
+		ue.cond.Wait()
+	}
 }
 
 func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {

@@ -38,6 +38,7 @@ type GnodeB struct {
 	lastGeneratedTEID uint32
 	receivedFrames    map[int]map[int][]SCTPFrame // pduType -> msgType -> frames
 	mu                sync.Mutex
+	cond              *sync.Cond
 	N3Address         netip.Addr
 	PDUSessions       map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
 }
@@ -51,6 +52,7 @@ func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInform
 	}
 
 	g.PDUSessions[ranUeId] = pduSessionInfo
+	g.cond.Broadcast()
 }
 
 func (g *GnodeB) GetPDUSession(ranUeId int64) *PDUSessionInformation {
@@ -63,20 +65,26 @@ func (g *GnodeB) GetPDUSession(ranUeId int64) *PDUSessionInformation {
 func (g *GnodeB) WaitForPDUSession(ranUeId int64, timeout time.Duration) (*PDUSessionInformation, error) {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		g.mu.Lock()
+	timer := time.AfterFunc(timeout, func() {
+		g.cond.Broadcast()
+	})
+	defer timer.Stop()
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	for {
 		pduSession, ok := g.PDUSessions[ranUeId]
-		g.mu.Unlock()
-
 		if ok {
 			return pduSession, nil
 		}
 
-		time.Sleep(1 * time.Millisecond)
-	}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timeout waiting for PDU session for RAN UE ID %d", ranUeId)
+		}
 
-	return nil, fmt.Errorf("timeout waiting for PDU session for RAN UE ID %d", ranUeId)
+		g.cond.Wait()
+	}
 }
 
 func (g *GnodeB) GetAMFUENGAPID(ranUeId int64) int64 {
@@ -112,41 +120,39 @@ func (g *GnodeB) LoadUE(ranUeId int64) (air.DownlinkSender, error) {
 func (g *GnodeB) WaitForMessage(pduType int, msgType int, timeout time.Duration) (SCTPFrame, error) {
 	deadline := time.Now().Add(timeout)
 
-	for time.Now().Before(deadline) {
-		g.mu.Lock()
+	timer := time.AfterFunc(timeout, func() {
+		g.cond.Broadcast()
+	})
+	defer timer.Stop()
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	for {
 		msgTypeMap, ok := g.receivedFrames[pduType]
-		if !ok {
-			g.mu.Unlock()
-			time.Sleep(1 * time.Millisecond)
+		if ok {
+			frames, ok := msgTypeMap[msgType]
+			if ok && len(frames) > 0 {
+				frame := frames[0]
 
-			continue
+				if len(frames) == 1 {
+					delete(msgTypeMap, msgType)
+				} else {
+					msgTypeMap[msgType] = frames[1:]
+				}
+
+				g.receivedFrames[pduType] = msgTypeMap
+
+				return frame, nil
+			}
 		}
 
-		frames, ok := msgTypeMap[msgType]
-		if !ok {
-			g.mu.Unlock()
-			time.Sleep(1 * time.Millisecond)
-
-			continue
+		if time.Now().After(deadline) {
+			return SCTPFrame{}, fmt.Errorf("timeout waiting for NGAP message %v", getMessageName(pduType, msgType))
 		}
 
-		frame := frames[0]
-
-		if len(frames) == 1 {
-			delete(msgTypeMap, msgType)
-		} else {
-			msgTypeMap[msgType] = frames[1:]
-		}
-
-		g.receivedFrames[pduType] = msgTypeMap
-
-		g.mu.Unlock()
-
-		return frame, nil
+		g.cond.Wait()
 	}
-
-	return SCTPFrame{}, fmt.Errorf("timeout waiting for NGAP message %v", getMessageName(pduType, msgType))
 }
 
 type SCTPFrame struct {
@@ -167,7 +173,7 @@ func NewGnodeB(
 	n3Conn *net.UDPConn,
 	n3Address netip.Addr,
 ) *GnodeB {
-	return &GnodeB{
+	g := &GnodeB{
 		GnbID:     gnbID,
 		MCC:       mcc,
 		MNC:       mnc,
@@ -181,6 +187,8 @@ func NewGnodeB(
 		tunnels:   make(map[uint32]*Tunnel),
 		N3Address: n3Address,
 	}
+	g.cond = sync.NewCond(&g.mu)
+	return g
 }
 
 func Start(
@@ -256,6 +264,7 @@ func Start(
 		tunnels:   make(map[uint32]*Tunnel),
 		N3Address: gnbN3IPAddress,
 	}
+	gnodeB.cond = sync.NewCond(&gnodeB.mu)
 
 	if n3Conn != nil {
 		go gnodeB.GTPReader()
