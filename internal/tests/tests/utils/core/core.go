@@ -302,7 +302,7 @@ func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
 	perPage := 100
 
 	for {
-		subs, err := c.Client.ListSubscribers(ctx, &client.ListParams{
+		subs, err := c.Client.ListSubscribers(ctx, &client.ListSubscribersParams{
 			Page:    1,
 			PerPage: perPage,
 		})
