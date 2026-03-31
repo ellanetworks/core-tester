@@ -114,13 +114,13 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 }
 
 func sendAuthenticationResponseWithWrongKey(ranUENGAPID int64, ue *ue.UE) error {
+	// The SNN will be used to derive wrong keys
+	ue.UeSecurity.Snn = "an unreasonable serving network name"
+
 	err := ue.SendRegistrationRequest(ranUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
 	if err != nil {
 		return fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
 	}
-
-	// The SNN will be used to derive wrong keys
-	ue.UeSecurity.Snn = "an unreasonable serving network name"
 
 	msg, err := ue.WaitForNASGMMMessage(nas.MsgTypeAuthenticationReject, 200*time.Millisecond)
 	if err != nil {
