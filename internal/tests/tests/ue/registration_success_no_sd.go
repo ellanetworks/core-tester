@@ -46,7 +46,7 @@ func (t RegistrationSuccessNoSD) Run(ctx context.Context, env engine.Env) error 
 		},
 		Slices: []core.SliceConfig{
 			{
-				Name: "no-sd",
+				Name: DefaultSliceName,
 				SST:  DefaultSST,
 				SD:   "", // No SD
 			},
@@ -63,7 +63,7 @@ func (t RegistrationSuccessNoSD) Run(ctx context.Context, env engine.Env) error 
 			{
 				Name:                DefaultPolicyName,
 				ProfileName:         DefaultProfileName,
-				SliceName:           "no-sd",
+				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "100 Mbps",
 				SessionAmbrDownlink: "100 Mbps",
 				Var5qi:              9,
