@@ -39,28 +39,28 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile1",
 		},
 		{
 			Imsi:           "001017271246548",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile2",
 		},
 		{
 			Imsi:           "001017271246549",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile3",
 		},
 		{
 			Imsi:           "001017271246550",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile4",
 		},
 	}
 
@@ -80,6 +80,26 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
 				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
 			},
+			{
+				Name:           "profile1",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile2",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile3",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile4",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
 		},
 		Slices: []core.SliceConfig{
 			{
@@ -90,9 +110,33 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 		},
 		DataNetworks: []core.DataNetworkConfig{
 			{
-				Name:   DefaultDNN,
+				Name:   "dnn0",
 				IPPool: "10.45.0.0/16",
 				DNS:    "8.8.8.8",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn1",
+				IPPool: "10.46.0.0/16",
+				DNS:    "8.8.4.4",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn2",
+				IPPool: "10.47.0.0/16",
+				DNS:    "8.8.2.2",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn3",
+				IPPool: "10.48.0.0/16",
+				DNS:    "8.8.1.1",
+				Mtu:    1500,
+			},
+			{
+				Name:   "dnn4",
+				IPPool: "10.49.0.0/16",
+				DNS:    "8.8.0.0",
 				Mtu:    1500,
 			},
 		},
@@ -105,7 +149,47 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 				SessionAmbrDownlink: "100 Mbps",
 				Var5qi:              9,
 				Arp:                 15,
-				DataNetworkName:     DefaultDNN,
+				DataNetworkName:     "dnn0",
+			},
+			{
+				Name:                "policy1",
+				ProfileName:         "profile1",
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     "dnn1",
+			},
+			{
+				Name:                "policy2",
+				ProfileName:         "profile2",
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     "dnn2",
+			},
+			{
+				Name:                "policy3",
+				ProfileName:         "profile3",
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     "dnn3",
+			},
+			{
+				Name:                "policy4",
+				ProfileName:         "profile4",
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     "dnn4",
 			},
 		},
 		Subscribers: subs,
@@ -124,7 +208,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 		DefaultMNC,
 		DefaultSST,
 		DefaultSD,
-		DefaultDNN,
+		"dnn0",
 		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
@@ -142,23 +226,23 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
-	network, err := netip.ParsePrefix("10.45.0.0/16")
-	if err != nil {
-		return fmt.Errorf("failed to parse UE IP subnet: %v", err)
-	}
-
 	eg := errgroup.Group{}
 
-	for i := range subs {
+	for i := range 5 {
 		func() {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
+
+				network, err := netip.ParsePrefix(fmt.Sprintf("10.4%d.0.0/16", 5+i))
+				if err != nil {
+					return fmt.Errorf("failed to parse UE IP subnet: %v", err)
+				}
 
 				exp := &validate.ExpectedPDUSessionEstablishmentAccept{
 					PDUSessionID:               PDUSessionID,
 					PDUSessionType:             PDUSessionType,
 					UeIPSubnet:                 network,
-					Dnn:                        DefaultDNN,
+					Dnn:                        fmt.Sprintf("dnn%d", i),
 					Sst:                        DefaultSST,
 					Sd:                         DefaultSD,
 					MaximumBitRateUplinkMbps:   100,
@@ -167,7 +251,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 					FiveQI:                     9,
 				}
 
-				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], DefaultDNN, exp)
+				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], fmt.Sprintf("dnn%d", i), exp)
 			})
 		}()
 	}
