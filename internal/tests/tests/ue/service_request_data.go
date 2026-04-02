@@ -99,8 +99,9 @@ func (t ServiceRequestData) Run(ctx context.Context, env engine.Env) error {
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

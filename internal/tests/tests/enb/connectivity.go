@@ -199,8 +199,9 @@ func runConnectivityTest(
 	ngeNB.AddUE(ranUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: ranUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  ranUENGAPID,
+		PDUSessionID: DefaultPDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

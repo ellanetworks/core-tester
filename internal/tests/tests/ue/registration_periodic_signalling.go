@@ -99,8 +99,9 @@ func (t RegistrationPeriodicUpdateSignalling) Run(ctx context.Context, env engin
 	gNodeB.AddUE(RANUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("InitialRegistrationProcedure failed: %v", err)
