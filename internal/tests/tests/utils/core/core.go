@@ -314,12 +314,21 @@ func (c *EllaCoreEnv) createProfiles(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deleteProfiles(ctx context.Context) error {
-	for _, name := range c.createdProfiles {
+	profiles, err := c.Client.ListProfiles(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list profiles: %v", err)
+	}
+
+	// Keep the first profile (the default one), delete the rest.
+	for _, profile := range profiles.Items[1:] {
 		err := c.Client.DeleteProfile(ctx, &client.DeleteProfileOptions{
-			Name: name,
+			Name: profile.Name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete profile %s: %v", name, err)
+			return fmt.Errorf("failed to delete profile %s: %v", profile.Name, err)
 		}
 	}
 
@@ -495,12 +504,21 @@ func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
-	for _, name := range c.createdPolicies {
+	policies, err := c.Client.ListPolicies(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list policies: %v", err)
+	}
+
+	// Keep the first policy (the default one), delete the rest.
+	for _, policy := range policies.Items[1:] {
 		err := c.Client.DeletePolicy(ctx, &client.DeletePolicyOptions{
-			Name: name,
+			Name: policy.Name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete policy %s: %v", name, err)
+			return fmt.Errorf("failed to delete policy %s: %v", policy.Name, err)
 		}
 	}
 
@@ -523,16 +541,25 @@ func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
 		referencedDNs[policy.DataNetworkName] = true
 	}
 
-	for _, name := range c.createdDataNetworks {
-		if referencedDNs[name] {
+	dataNetworks, err := c.Client.ListDataNetworks(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list data networks: %v", err)
+	}
+
+	// Keep the first data network (the default one) and any referenced by policies.
+	for _, dn := range dataNetworks.Items[1:] {
+		if referencedDNs[dn.Name] {
 			continue
 		}
 
 		err := c.Client.DeleteDataNetwork(ctx, &client.DeleteDataNetworkOptions{
-			Name: name,
+			Name: dn.Name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete data network %s: %v", name, err)
+			return fmt.Errorf("failed to delete data network %s: %v", dn.Name, err)
 		}
 	}
 
