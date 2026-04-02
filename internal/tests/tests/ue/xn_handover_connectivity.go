@@ -147,8 +147,9 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	sourceGnb.AddUE(xnHandoverSourceRANUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: xnHandoverSourceRANUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  xnHandoverSourceRANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

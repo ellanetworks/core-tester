@@ -225,8 +225,9 @@ func ueRegistrationTest(ranUENGAPID int64, gNodeB *gnb.GnodeB, subscriber core.S
 	gNodeB.AddUE(ranUENGAPID, newUE)
 
 	pduSessAcceptMsg, err := procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: ranUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  ranUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed for subscriber %v: %v", newUE.UeSecurity.Msin, err)

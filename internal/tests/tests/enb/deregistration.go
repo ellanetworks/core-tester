@@ -98,8 +98,9 @@ func (t Deregistration) Run(ctx context.Context, env engine.Env) error {
 	ngeNB.AddUE(DefaultRanUENGAPID, newUE)
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: DefaultRanUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  DefaultRanUENGAPID,
+		PDUSessionID: DefaultPDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)
