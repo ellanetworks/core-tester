@@ -110,32 +110,32 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 		},
 		DataNetworks: []core.DataNetworkConfig{
 			{
-				Name:   "dnn0",
-				IPPool: "10.45.0.0/16",
+				Name:   DefaultDNN,
+				IPPool: "10.45.0.0/22",
 				DNS:    "8.8.8.8",
 				Mtu:    1500,
 			},
 			{
 				Name:   "dnn1",
-				IPPool: "10.46.0.0/16",
+				IPPool: "10.46.0.0/22",
 				DNS:    "8.8.4.4",
 				Mtu:    1500,
 			},
 			{
 				Name:   "dnn2",
-				IPPool: "10.47.0.0/16",
+				IPPool: "10.47.0.0/22",
 				DNS:    "8.8.2.2",
 				Mtu:    1500,
 			},
 			{
 				Name:   "dnn3",
-				IPPool: "10.48.0.0/16",
+				IPPool: "10.48.0.0/22",
 				DNS:    "8.8.1.1",
 				Mtu:    1500,
 			},
 			{
 				Name:   "dnn4",
-				IPPool: "10.49.0.0/16",
+				IPPool: "10.49.0.0/22",
 				DNS:    "8.8.0.0",
 				Mtu:    1500,
 			},
@@ -149,7 +149,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 				SessionAmbrDownlink: "100 Mbps",
 				Var5qi:              9,
 				Arp:                 15,
-				DataNetworkName:     "dnn0",
+				DataNetworkName:     DefaultDNN,
 			},
 			{
 				Name:                "policy1",
@@ -202,13 +202,15 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 
 	logger.Logger.Debug("Created EllaCore environment")
 
+	dnns := []string{DefaultDNN, "dnn1", "dnn2", "dnn3", "dnn4"}
+
 	gNodeB, err := gnb.Start(
 		GNBID,
 		DefaultMCC,
 		DefaultMNC,
 		DefaultSST,
 		DefaultSD,
-		"dnn0",
+		dnns[0],
 		DefaultTAC,
 		"Ella-Core-Tester",
 		env.Config.EllaCore.N2Address,
@@ -233,7 +235,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
 
-				network, err := netip.ParsePrefix(fmt.Sprintf("10.4%d.0.0/16", 5+i))
+				network, err := netip.ParsePrefix(fmt.Sprintf("10.%d.0.0/22", 45+i))
 				if err != nil {
 					return fmt.Errorf("failed to parse UE IP subnet: %v", err)
 				}
@@ -242,7 +244,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 					PDUSessionID:               PDUSessionID,
 					PDUSessionType:             PDUSessionType,
 					UeIPSubnet:                 network,
-					Dnn:                        fmt.Sprintf("dnn%d", i),
+					Dnn:                        dnns[i],
 					Sst:                        DefaultSST,
 					Sd:                         DefaultSD,
 					MaximumBitRateUplinkMbps:   100,
@@ -251,7 +253,7 @@ func (t RegistrationSuccessMultipleDataNetworks) Run(ctx context.Context, env en
 					FiveQI:                     9,
 				}
 
-				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], fmt.Sprintf("dnn%d", i), exp)
+				return ueRegistrationTest(ranUENGAPID, gNodeB, subs[i], dnns[i], exp)
 			})
 		}()
 	}
