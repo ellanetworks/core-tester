@@ -290,12 +290,22 @@ func getDefaultXnHandoverEllaCoreConfig() core.EllaCoreConfig {
 				MCC: DefaultMCC,
 				MNC: DefaultMNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: DefaultSST,
-				SD:  DefaultSD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
+			},
+		},
+		Profiles: []core.ProfileConfig{
+			{
+				Name:           "default",
+				UeAmbrUplink:   "100 Mbps",
+				UeAmbrDownlink: "100 Mbps",
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: "default",
+				SST:  DefaultSST,
+				SD:   DefaultSD,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -308,12 +318,14 @@ func getDefaultXnHandoverEllaCoreConfig() core.EllaCoreConfig {
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            "default",
-				BitrateUplink:   "100 Mbps",
-				BitrateDownlink: "100 Mbps",
-				Var5qi:          9,
-				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				Name:                "default",
+				ProfileName:         "default",
+				SliceName:           "default",
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     DefaultDNN,
 			},
 		},
 		Subscribers: []core.SubscriberConfig{
@@ -322,7 +334,7 @@ func getDefaultXnHandoverEllaCoreConfig() core.EllaCoreConfig {
 				Key:            DefaultKey,
 				SequenceNumber: DefaultSequenceNumber,
 				OPc:            DefaultOPC,
-				PolicyName:     "default",
+				ProfileName:    "default",
 			},
 		},
 	}

@@ -29,12 +29,15 @@ func (t NgSetup) Run(ctx context.Context, env engine.Env) error {
 				MCC: DefaultMCC,
 				MNC: DefaultMNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: DefaultSST,
-				SD:  DefaultSD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: DefaultSliceName,
+				SST:  DefaultSST,
+				SD:   DefaultSD,
 			},
 		},
 	})

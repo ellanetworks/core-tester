@@ -3,7 +3,7 @@ module github.com/ellanetworks/core-tester
 go 1.26.1
 
 require (
-	github.com/ellanetworks/core v1.7.0
+	github.com/ellanetworks/core v1.8.2-0.20260402141832-4b48cf51c2b4
 	github.com/free5gc/aper v1.1.0
 	github.com/free5gc/nas v1.2.2
 	github.com/free5gc/ngap v1.1.2

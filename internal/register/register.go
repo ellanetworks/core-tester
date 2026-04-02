@@ -34,7 +34,7 @@ type RegisterConfig struct {
 	Key               string
 	OPC               string
 	SequenceNumber    string
-	PolicyName        string
+	ProfileName       string
 	MCC               string
 	MNC               string
 	SST               int32

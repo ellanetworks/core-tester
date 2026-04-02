@@ -24,7 +24,7 @@ var (
 	key                   string
 	opc                   string
 	sqn                   string
-	policyName            string
+	profileName           string
 	mcc                   string
 	mnc                   string
 	sst                   int32
@@ -139,7 +139,7 @@ func main() {
 	registerCmd.Flags().StringVar(&key, "key", "", "Key of the subscriber")
 	registerCmd.Flags().StringVar(&opc, "opc", "", "OPC of the subscriber")
 	registerCmd.Flags().StringVar(&sqn, "sqn", "", "SQN of the subscriber")
-	registerCmd.Flags().StringVar(&policyName, "policy-name", "", "Policy name of the subscriber")
+	registerCmd.Flags().StringVar(&profileName, "profile-name", "", "Profile name of the subscriber")
 	registerCmd.Flags().StringVar(&mcc, "mcc", "", "MCC of the subscriber")
 	registerCmd.Flags().StringVar(&mnc, "mnc", "", "MNC of the subscriber")
 	registerCmd.Flags().Int32Var(&sst, "sst", 0, "SST of the subscriber")
@@ -153,7 +153,7 @@ func main() {
 	_ = registerCmd.MarkFlagRequired("key")
 	_ = registerCmd.MarkFlagRequired("opc")
 	_ = registerCmd.MarkFlagRequired("sqn")
-	_ = registerCmd.MarkFlagRequired("policy-name")
+	_ = registerCmd.MarkFlagRequired("profile-name")
 	_ = registerCmd.MarkFlagRequired("mcc")
 	_ = registerCmd.MarkFlagRequired("mnc")
 	_ = registerCmd.MarkFlagRequired("sst")
@@ -257,7 +257,7 @@ func Register(cmd *cobra.Command, args []string) {
 		Key:               key,
 		OPC:               opc,
 		SequenceNumber:    sqn,
-		PolicyName:        policyName,
+		ProfileName:       profileName,
 		MCC:               mcc,
 		MNC:               mnc,
 		SST:               sst,

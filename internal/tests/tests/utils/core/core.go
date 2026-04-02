@@ -16,16 +16,30 @@ type SubscriberConfig struct {
 	Key            string
 	SequenceNumber string
 	OPc            string
-	PolicyName     string
+	ProfileName    string
+}
+
+type ProfileConfig struct {
+	Name           string
+	UeAmbrUplink   string
+	UeAmbrDownlink string
+}
+
+type SliceConfig struct {
+	Name string
+	SST  int32
+	SD   string
 }
 
 type PolicyConfig struct {
-	Name            string
-	BitrateUplink   string
-	BitrateDownlink string
-	Var5qi          int32
-	Arp             int32
-	DataNetworkName string
+	Name                string
+	ProfileName         string
+	SliceName           string
+	SessionAmbrUplink   string
+	SessionAmbrDownlink string
+	Var5qi              int32
+	Arp                 int32
+	DataNetworkName     string
 }
 
 type DataNetworkConfig struct {
@@ -40,11 +54,6 @@ type OperatorID struct {
 	MNC string
 }
 
-type OperatorSlice struct {
-	SST int32
-	SD  string
-}
-
 type OperatorTracking struct {
 	SupportedTACs []string
 }
@@ -57,13 +66,14 @@ type OperatorHomeNetwork struct {
 
 type OperatorConfig struct {
 	ID          OperatorID
-	Slice       OperatorSlice
 	Tracking    OperatorTracking
 	HomeNetwork OperatorHomeNetwork
 }
 
 type EllaCoreConfig struct {
 	Operator     OperatorConfig
+	Profiles     []ProfileConfig
+	Slices       []SliceConfig
 	DataNetworks []DataNetworkConfig
 	Policies     []PolicyConfig
 	Subscribers  []SubscriberConfig
@@ -92,6 +102,16 @@ func (c *EllaCoreEnv) Create(ctx context.Context) error {
 		return fmt.Errorf("could not update operator: %v", err)
 	}
 
+	err = c.createProfiles(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create profiles: %v", err)
+	}
+
+	err = c.createSlices(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create slices: %v", err)
+	}
+
 	err = c.createDataNetworks(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create data networks: %v", err)
@@ -110,7 +130,7 @@ func (c *EllaCoreEnv) Create(ctx context.Context) error {
 	return nil
 }
 
-// Delete all subscribers, policies, and data networks created during the test.
+// Delete all subscribers, policies, data networks, slices, and profiles created during the test.
 func (c *EllaCoreEnv) Delete(ctx context.Context) error {
 	err := c.deleteSubscribers(ctx)
 	if err != nil {
@@ -125,6 +145,16 @@ func (c *EllaCoreEnv) Delete(ctx context.Context) error {
 	err = c.deleteDataNetworks(ctx)
 	if err != nil {
 		return fmt.Errorf("could not delete data networks: %v", err)
+	}
+
+	err = c.deleteSlices(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete slices: %v", err)
+	}
+
+	err = c.deleteProfiles(ctx)
+	if err != nil {
+		return fmt.Errorf("could not delete profiles: %v", err)
 	}
 
 	if c.Config.Operator.HomeNetwork.PrivateKey != "" {
@@ -173,16 +203,6 @@ func (c *EllaCoreEnv) updateOperator(ctx context.Context) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update operator ID: %v", err)
-		}
-	}
-
-	if opConfig.Slice.Sst != int(c.Config.Operator.Slice.SST) || opConfig.Slice.Sd != c.Config.Operator.Slice.SD {
-		err := c.Client.UpdateOperatorSlice(ctx, &client.UpdateOperatorSliceOptions{
-			Sst: int(c.Config.Operator.Slice.SST),
-			Sd:  c.Config.Operator.Slice.SD,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update operator slice: %v", err)
 		}
 	}
 
@@ -247,6 +267,78 @@ func (c *EllaCoreEnv) updateOperatorHomeNetworkPublicKey(ctx context.Context, op
 	return nil
 }
 
+func (c *EllaCoreEnv) createProfiles(ctx context.Context) error {
+	for _, profile := range c.Config.Profiles {
+		err := c.Client.CreateProfile(ctx, &client.CreateProfileOptions{
+			Name:           profile.Name,
+			UeAmbrUplink:   profile.UeAmbrUplink,
+			UeAmbrDownlink: profile.UeAmbrDownlink,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create profile: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) deleteProfiles(ctx context.Context) error {
+	profiles, err := c.Client.ListProfiles(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list profiles: %v", err)
+	}
+
+	for _, profile := range profiles.Items {
+		err := c.Client.DeleteProfile(ctx, &client.DeleteProfileOptions{
+			Name: profile.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete profile %s: %v", profile.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) createSlices(ctx context.Context) error {
+	for _, slice := range c.Config.Slices {
+		err := c.Client.CreateSlice(ctx, &client.CreateSliceOptions{
+			Name: slice.Name,
+			Sst:  int(slice.SST),
+			Sd:   slice.SD,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create slice: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *EllaCoreEnv) deleteSlices(ctx context.Context) error {
+	slices, err := c.Client.ListSlices(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list slices: %v", err)
+	}
+
+	for _, slice := range slices.Items {
+		err := c.Client.DeleteSlice(ctx, &client.DeleteSliceOptions{
+			Name: slice.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete slice %s: %v", slice.Name, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 	for _, dnn := range c.Config.DataNetworks {
 		err := c.Client.CreateDataNetwork(ctx, &client.CreateDataNetworkOptions{
@@ -266,12 +358,14 @@ func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
 	for _, policy := range c.Config.Policies {
 		err := c.Client.CreatePolicy(ctx, &client.CreatePolicyOptions{
-			Name:            policy.Name,
-			BitrateUplink:   policy.BitrateUplink,
-			BitrateDownlink: policy.BitrateDownlink,
-			Var5qi:          policy.Var5qi,
-			Arp:             policy.Arp,
-			DataNetworkName: policy.DataNetworkName,
+			Name:                policy.Name,
+			ProfileName:         policy.ProfileName,
+			SliceName:           policy.SliceName,
+			SessionAmbrUplink:   policy.SessionAmbrUplink,
+			SessionAmbrDownlink: policy.SessionAmbrDownlink,
+			Var5qi:              policy.Var5qi,
+			Arp:                 policy.Arp,
+			DataNetworkName:     policy.DataNetworkName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create policy: %v", err)
@@ -287,7 +381,7 @@ func (c *EllaCoreEnv) createSubs(ctx context.Context) error {
 			Imsi:           sub.Imsi,
 			Key:            sub.Key,
 			SequenceNumber: sub.SequenceNumber,
-			PolicyName:     sub.PolicyName,
+			ProfileName:    sub.ProfileName,
 			OPc:            sub.OPc,
 		})
 		if err != nil {

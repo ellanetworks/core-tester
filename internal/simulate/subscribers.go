@@ -8,7 +8,9 @@ import (
 )
 
 const (
-	defaultPolicyName = "default"
+	defaultPolicyName  = "default"
+	defaultProfileName = "default"
+	defaultSliceName   = "default"
 )
 
 // buildSubscriberConfigs generates n sequential subscriber configs starting from startIMSI.
@@ -27,7 +29,7 @@ func buildSubscriberConfigs(n int, startIMSI, key, opc, sqn string) ([]core.Subs
 			Key:            key,
 			SequenceNumber: sqn,
 			OPc:            opc,
-			PolicyName:     defaultPolicyName,
+			ProfileName:    defaultProfileName,
 		})
 	}
 

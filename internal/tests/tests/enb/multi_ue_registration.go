@@ -44,12 +44,22 @@ func (t MultiUERegistration) Run(ctx context.Context, env engine.Env) error {
 				MCC: DefaultMCC,
 				MNC: DefaultMNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: DefaultSST,
-				SD:  DefaultSD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
+			},
+		},
+		Profiles: []core.ProfileConfig{
+			{
+				Name:           DefaultProfileName,
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: DefaultSliceName,
+				SST:  DefaultSST,
+				SD:   DefaultSD,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -62,12 +72,14 @@ func (t MultiUERegistration) Run(ctx context.Context, env engine.Env) error {
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            DefaultPolicyName,
-				BitrateUplink:   "100 Mbps",
-				BitrateDownlink: "100 Mbps",
-				Var5qi:          9,
-				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				Name:                DefaultPolicyName,
+				ProfileName:         DefaultProfileName,
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   DefaultPolicySessionAmbrUplink,
+				SessionAmbrDownlink: DefaultPolicySessionAmbrDownlink,
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     DefaultDNN,
 			},
 		},
 		Subscribers: subs,

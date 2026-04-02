@@ -100,12 +100,22 @@ func Simulate(ctx context.Context, cfg SimulateConfig, cl *client.Client) error 
 				MCC: cfg.MCC,
 				MNC: cfg.MNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: cfg.SST,
-				SD:  cfg.SD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{cfg.TAC},
+			},
+		},
+		Profiles: []core.ProfileConfig{
+			{
+				Name:           defaultProfileName,
+				UeAmbrUplink:   defaultBitrate,
+				UeAmbrDownlink: defaultBitrate,
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: defaultSliceName,
+				SST:  cfg.SST,
+				SD:   cfg.SD,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -118,12 +128,14 @@ func Simulate(ctx context.Context, cfg SimulateConfig, cl *client.Client) error 
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            defaultPolicyName,
-				BitrateUplink:   defaultBitrate,
-				BitrateDownlink: defaultBitrate,
-				Var5qi:          defaultVar5qi,
-				Arp:             defaultArp,
-				DataNetworkName: cfg.DNN,
+				Name:                defaultPolicyName,
+				ProfileName:         defaultProfileName,
+				SliceName:           defaultSliceName,
+				SessionAmbrUplink:   defaultBitrate,
+				SessionAmbrDownlink: defaultBitrate,
+				Var5qi:              defaultVar5qi,
+				Arp:                 defaultArp,
+				DataNetworkName:     cfg.DNN,
 			},
 		},
 		Subscribers: subs,

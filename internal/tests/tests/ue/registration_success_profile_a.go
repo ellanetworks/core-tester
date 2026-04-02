@@ -43,10 +43,6 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				MCC: DefaultMCC,
 				MNC: DefaultMNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: DefaultSST,
-				SD:  DefaultSD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
 			},
@@ -54,6 +50,20 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				KeyIdentifier: 4,
 				Scheme:        "A",
 				PrivateKey:    privHex,
+			},
+		},
+		Profiles: []core.ProfileConfig{
+			{
+				Name:           DefaultProfileName,
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: DefaultSliceName,
+				SST:  DefaultSST,
+				SD:   DefaultSD,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -66,12 +76,14 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:            DefaultPolicyName,
-				BitrateUplink:   "100 Mbps",
-				BitrateDownlink: "100 Mbps",
-				Var5qi:          9,
-				Arp:             15,
-				DataNetworkName: DefaultDNN,
+				Name:                DefaultPolicyName,
+				ProfileName:         DefaultProfileName,
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "100 Mbps",
+				SessionAmbrDownlink: "100 Mbps",
+				Var5qi:              9,
+				Arp:                 15,
+				DataNetworkName:     DefaultDNN,
 			},
 		},
 		Subscribers: []core.SubscriberConfig{
@@ -80,7 +92,7 @@ func (t RegistrationSuccessProfileA) Run(ctx context.Context, env engine.Env) er
 				Key:            DefaultKey,
 				SequenceNumber: DefaultSequenceNumber,
 				OPc:            DefaultOPC,
-				PolicyName:     DefaultPolicyName,
+				ProfileName:    DefaultProfileName,
 			},
 		},
 	})

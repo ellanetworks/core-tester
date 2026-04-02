@@ -22,12 +22,15 @@ func getDefaultEllaCoreConfig() core.EllaCoreConfig {
 				MCC: DefaultMCC,
 				MNC: DefaultMNC,
 			},
-			Slice: core.OperatorSlice{
-				SST: DefaultSST,
-				SD:  DefaultSD,
-			},
 			Tracking: core.OperatorTracking{
 				SupportedTACs: []string{DefaultTAC},
+			},
+		},
+		Slices: []core.SliceConfig{
+			{
+				Name: "default",
+				SST:  DefaultSST,
+				SD:   DefaultSD,
 			},
 		},
 	}
