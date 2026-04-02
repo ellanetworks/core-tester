@@ -80,8 +80,11 @@ type EllaCoreConfig struct {
 }
 
 type EllaCoreEnv struct {
-	Client *client.Client
-	Config EllaCoreConfig
+	Client             *client.Client
+	Config             EllaCoreConfig
+	createdDataNetworks []string
+	createdProfiles     []string
+	createdPolicies     []string
 }
 
 func NewEllaCoreEnv(client *client.Client, config EllaCoreConfig) *EllaCoreEnv {
@@ -268,7 +271,33 @@ func (c *EllaCoreEnv) updateOperatorHomeNetworkPublicKey(ctx context.Context, op
 }
 
 func (c *EllaCoreEnv) createProfiles(ctx context.Context) error {
-	for _, profile := range c.Config.Profiles {
+	if len(c.Config.Profiles) == 0 {
+		return nil
+	}
+
+	existingProfiles, err := c.Client.ListProfiles(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list profiles: %v", err)
+	}
+
+	if len(existingProfiles.Items) == 0 {
+		return fmt.Errorf("expected at least 1 existing profile")
+	}
+
+	// Update the existing profile with the first config entry.
+	err = c.Client.UpdateProfile(ctx, existingProfiles.Items[0].Name, &client.UpdateProfileOptions{
+		UeAmbrUplink:   c.Config.Profiles[0].UeAmbrUplink,
+		UeAmbrDownlink: c.Config.Profiles[0].UeAmbrDownlink,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update profile: %v", err)
+	}
+
+	// Create additional profiles.
+	for _, profile := range c.Config.Profiles[1:] {
 		err := c.Client.CreateProfile(ctx, &client.CreateProfileOptions{
 			Name:           profile.Name,
 			UeAmbrUplink:   profile.UeAmbrUplink,
@@ -277,49 +306,40 @@ func (c *EllaCoreEnv) createProfiles(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create profile: %v", err)
 		}
+
+		c.createdProfiles = append(c.createdProfiles, profile.Name)
 	}
 
 	return nil
 }
 
 func (c *EllaCoreEnv) deleteProfiles(ctx context.Context) error {
-	profiles, err := c.Client.ListProfiles(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list profiles: %v", err)
-	}
-
-	for _, profile := range profiles.Items {
+	for _, name := range c.createdProfiles {
 		err := c.Client.DeleteProfile(ctx, &client.DeleteProfileOptions{
-			Name: profile.Name,
+			Name: name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete profile %s: %v", profile.Name, err)
+			return fmt.Errorf("failed to delete profile %s: %v", name, err)
 		}
 	}
+
+	c.createdProfiles = nil
 
 	return nil
 }
 
 func (c *EllaCoreEnv) createSlices(ctx context.Context) error {
-	for _, slice := range c.Config.Slices {
-		err := c.Client.CreateSlice(ctx, &client.CreateSliceOptions{
-			Name: slice.Name,
-			Sst:  int(slice.SST),
-			Sd:   slice.SD,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create slice: %v", err)
-		}
+	if len(c.Config.Slices) == 0 {
+		return nil
 	}
 
-	return nil
-}
+	if len(c.Config.Slices) > 1 {
+		return fmt.Errorf("expected at most 1 slice, got %d", len(c.Config.Slices))
+	}
 
-func (c *EllaCoreEnv) deleteSlices(ctx context.Context) error {
-	slices, err := c.Client.ListSlices(ctx, &client.ListParams{
+	slice := c.Config.Slices[0]
+
+	existingSlices, err := c.Client.ListSlices(ctx, &client.ListParams{
 		Page:    1,
 		PerPage: 100,
 	})
@@ -327,21 +347,37 @@ func (c *EllaCoreEnv) deleteSlices(ctx context.Context) error {
 		return fmt.Errorf("failed to list slices: %v", err)
 	}
 
-	for _, slice := range slices.Items {
-		err := c.Client.DeleteSlice(ctx, &client.DeleteSliceOptions{
-			Name: slice.Name,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to delete slice %s: %v", slice.Name, err)
-		}
+	if len(existingSlices.Items) == 0 {
+		return fmt.Errorf("expected at least 1 existing slice")
+	}
+
+	existingSlice := existingSlices.Items[0]
+
+	err = c.Client.UpdateSlice(ctx, existingSlice.Name, &client.UpdateSliceOptions{
+		Sst: int(slice.SST),
+		Sd:  slice.SD,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update slice: %v", err)
 	}
 
 	return nil
 }
 
+func (c *EllaCoreEnv) deleteSlices(_ context.Context) error {
+	return nil
+}
+
 func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 	for _, dnn := range c.Config.DataNetworks {
-		err := c.Client.CreateDataNetwork(ctx, &client.CreateDataNetworkOptions{
+		_, err := c.Client.GetDataNetwork(ctx, &client.GetDataNetworkOptions{
+			Name: dnn.Name,
+		})
+		if err == nil {
+			continue
+		}
+
+		err = c.Client.CreateDataNetwork(ctx, &client.CreateDataNetworkOptions{
 			Name:   dnn.Name,
 			IPPool: dnn.IPPool,
 			DNS:    dnn.DNS,
@@ -350,13 +386,48 @@ func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create data network: %v", err)
 		}
+
+		c.createdDataNetworks = append(c.createdDataNetworks, dnn.Name)
 	}
 
 	return nil
 }
 
 func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
-	for _, policy := range c.Config.Policies {
+	if len(c.Config.Policies) == 0 {
+		return nil
+	}
+
+	existingPolicies, err := c.Client.ListPolicies(ctx, &client.ListParams{
+		Page:    1,
+		PerPage: 100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list policies: %v", err)
+	}
+
+	if len(existingPolicies.Items) == 0 {
+		return fmt.Errorf("expected at least 1 existing policy")
+	}
+
+	// Update the existing policy with the first config entry.
+	first := c.Config.Policies[0]
+
+	err = c.Client.UpdatePolicy(ctx, existingPolicies.Items[0].Name, &client.UpdatePolicyOptions{
+		ProfileName:         first.ProfileName,
+		SliceName:           first.SliceName,
+		SessionAmbrUplink:   first.SessionAmbrUplink,
+		SessionAmbrDownlink: first.SessionAmbrDownlink,
+		Var5qi:              first.Var5qi,
+		Arp:                 first.Arp,
+		DataNetworkName:     first.DataNetworkName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update policy: %v", err)
+	}
+
+	// Create additional policies.
+	for _, policy := range c.Config.Policies[1:] {
 		err := c.Client.CreatePolicy(ctx, &client.CreatePolicyOptions{
 			Name:                policy.Name,
 			ProfileName:         policy.ProfileName,
@@ -370,6 +441,8 @@ func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create policy: %v", err)
 		}
+
+		c.createdPolicies = append(c.createdPolicies, policy.Name)
 	}
 
 	return nil
@@ -422,7 +495,22 @@ func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
-	pols, err := c.Client.ListPolicies(ctx, &client.ListParams{
+	for _, name := range c.createdPolicies {
+		err := c.Client.DeletePolicy(ctx, &client.DeletePolicyOptions{
+			Name: name,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete policy %s: %v", name, err)
+		}
+	}
+
+	c.createdPolicies = nil
+
+	return nil
+}
+
+func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
+	policies, err := c.Client.ListPolicies(ctx, &client.ListParams{
 		Page:    1,
 		PerPage: 100,
 	})
@@ -430,35 +518,25 @@ func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
 		return fmt.Errorf("failed to list policies: %v", err)
 	}
 
-	for _, policy := range pols.Items {
-		err := c.Client.DeletePolicy(ctx, &client.DeletePolicyOptions{
-			Name: policy.Name,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to delete policy %s: %v", policy.Name, err)
+	referencedDNs := make(map[string]bool)
+	for _, policy := range policies.Items {
+		referencedDNs[policy.DataNetworkName] = true
+	}
+
+	for _, name := range c.createdDataNetworks {
+		if referencedDNs[name] {
+			continue
 		}
-	}
 
-	return nil
-}
-
-func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
-	dnns, err := c.Client.ListDataNetworks(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list data networks: %v", err)
-	}
-
-	for _, dnn := range dnns.Items {
 		err := c.Client.DeleteDataNetwork(ctx, &client.DeleteDataNetworkOptions{
-			Name: dnn.Name,
+			Name: name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete data network %s: %v", dnn.Name, err)
+			return fmt.Errorf("failed to delete data network %s: %v", name, err)
 		}
 	}
+
+	c.createdDataNetworks = nil
 
 	return nil
 }

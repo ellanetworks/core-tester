@@ -39,28 +39,28 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile1",
 		},
 		{
 			Imsi:           "001017271246548",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile2",
 		},
 		{
 			Imsi:           "001017271246549",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile3",
 		},
 		{
 			Imsi:           "001017271246550",
 			Key:            DefaultKey,
 			SequenceNumber: DefaultSequenceNumber,
 			OPc:            DefaultOPC,
-			ProfileName:    DefaultProfileName,
+			ProfileName:    "profile4",
 		},
 	}
 
@@ -77,6 +77,26 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 		Profiles: []core.ProfileConfig{
 			{
 				Name:           DefaultProfileName,
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile1",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile2",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile3",
+				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
+				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+			},
+			{
+				Name:           "profile4",
 				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
 				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
 			},
@@ -98,7 +118,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 		},
 		Policies: []core.PolicyConfig{
 			{
-				Name:                "policy0",
+				Name:                DefaultPolicyName,
 				ProfileName:         DefaultProfileName,
 				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "10 Mbps",
@@ -109,7 +129,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 			},
 			{
 				Name:                "policy1",
-				ProfileName:         DefaultProfileName,
+				ProfileName:         "profile1",
 				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "20 Mbps",
 				SessionAmbrDownlink: "100 Mbps",
@@ -119,7 +139,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 			},
 			{
 				Name:                "policy2",
-				ProfileName:         DefaultProfileName,
+				ProfileName:         "profile2",
 				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "30 Mbps",
 				SessionAmbrDownlink: "150 Mbps",
@@ -129,7 +149,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 			},
 			{
 				Name:                "policy3",
-				ProfileName:         DefaultProfileName,
+				ProfileName:         "profile3",
 				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "40 Mbps",
 				SessionAmbrDownlink: "200 Mbps",
@@ -139,7 +159,7 @@ func (t RegistrationSuccessMultiplePolicies) Run(ctx context.Context, env engine
 			},
 			{
 				Name:                "policy4",
-				ProfileName:         DefaultProfileName,
+				ProfileName:         "profile4",
 				SliceName:           DefaultSliceName,
 				SessionAmbrUplink:   "50 Mbps",
 				SessionAmbrDownlink: "250 Mbps",
