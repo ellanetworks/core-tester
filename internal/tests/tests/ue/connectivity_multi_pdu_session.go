@@ -335,6 +335,7 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 
 	// Step 4: Ping via both tunnels
 	cmd := exec.CommandContext(ctx, "ping", "-I", tun1, env.Config.PingDestination, "-c", "3", "-W", "1")
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ping via %s (DNN %s, session 1) failed: %v\noutput:\n%s", tun1, dnn1, err, string(out))
@@ -347,6 +348,7 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 	)
 
 	cmd = exec.CommandContext(ctx, "ping", "-I", tun2, env.Config.PingDestination, "-c", "3", "-W", "1")
+
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ping via %s (DNN %s, session 2) failed: %v\noutput:\n%s", tun2, dnn2, err, string(out))
