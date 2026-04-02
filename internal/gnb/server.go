@@ -41,7 +41,7 @@ type GnodeB struct {
 	mu                sync.Mutex
 	cond              *sync.Cond
 	N3Address         netip.Addr
-	PDUSessions       map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionInformation
+	PDUSessions       map[int64]map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionID -> PDUSessionInformation
 }
 
 func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
@@ -49,21 +49,38 @@ func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInform
 	defer g.mu.Unlock()
 
 	if g.PDUSessions == nil {
-		g.PDUSessions = make(map[int64]*PDUSessionInformation)
+		g.PDUSessions = make(map[int64]map[int64]*PDUSessionInformation)
 	}
 
-	g.PDUSessions[ranUeId] = pduSessionInfo
+	if g.PDUSessions[ranUeId] == nil {
+		g.PDUSessions[ranUeId] = make(map[int64]*PDUSessionInformation)
+	}
+
+	g.PDUSessions[ranUeId][pduSessionInfo.PDUSessionID] = pduSessionInfo
 	g.cond.Broadcast()
 }
 
-func (g *GnodeB) GetPDUSession(ranUeId int64) *PDUSessionInformation {
+func (g *GnodeB) GetPDUSession(ranUeId int64, pduSessionID int64) *PDUSessionInformation {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	sessions := g.PDUSessions[ranUeId]
+	if sessions == nil {
+		return nil
+	}
+
+	return sessions[pduSessionID]
+}
+
+// GetPDUSessions returns all PDU sessions for a given RAN UE.
+func (g *GnodeB) GetPDUSessions(ranUeId int64) map[int64]*PDUSessionInformation {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	return g.PDUSessions[ranUeId]
 }
 
-func (g *GnodeB) WaitForPDUSession(ranUeId int64, timeout time.Duration) (*PDUSessionInformation, error) {
+func (g *GnodeB) WaitForPDUSession(ranUeId int64, pduSessionID int64, timeout time.Duration) (*PDUSessionInformation, error) {
 	deadline := time.Now().Add(timeout)
 
 	timer := time.AfterFunc(timeout, func() {
@@ -75,13 +92,14 @@ func (g *GnodeB) WaitForPDUSession(ranUeId int64, timeout time.Duration) (*PDUSe
 	defer g.mu.Unlock()
 
 	for {
-		pduSession, ok := g.PDUSessions[ranUeId]
-		if ok {
-			return pduSession, nil
+		if sessions, ok := g.PDUSessions[ranUeId]; ok {
+			if pduSession, ok := sessions[pduSessionID]; ok {
+				return pduSession, nil
+			}
 		}
 
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("timeout waiting for PDU session for RAN UE ID %d", ranUeId)
+			return nil, fmt.Errorf("timeout waiting for PDU session %d for RAN UE ID %d", pduSessionID, ranUeId)
 		}
 
 		g.cond.Wait()

@@ -12,8 +12,9 @@ import (
 const timeoutPerMessage = 5 * time.Second
 
 type InitialRegistrationOpts struct {
-	RANUENGAPID int64
-	UE          *ue.UE
+	RANUENGAPID  int64
+	PDUSessionID uint8
+	UE           *ue.UE
 }
 
 func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
@@ -32,7 +33,7 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
 		return nil, fmt.Errorf("timeout waiting for PDU session establishment accept: %v", err)
 	}
 
-	_, err = opts.UE.WaitForPDUSession(timeoutPerMessage)
+	_, err = opts.UE.WaitForPDUSession(opts.PDUSessionID, timeoutPerMessage)
 	if err != nil {
 		return nil, fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}

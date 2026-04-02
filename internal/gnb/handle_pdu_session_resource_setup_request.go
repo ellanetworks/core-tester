@@ -105,19 +105,24 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		return nil
 	}
 
-	pduSession := gnb.GetPDUSession(ranueNGAPID.Value)
+	pduSessions := [16]*PDUSessionInformation{}
+
+	sessions := gnb.GetPDUSessions(ranueNGAPID.Value)
+	for _, s := range sessions {
+		if s.PDUSessionID >= 1 && s.PDUSessionID <= 15 {
+			pduSessions[s.PDUSessionID] = &PDUSessionInformation{
+				PDUSessionID: s.PDUSessionID,
+				DLTeid:       s.DLTeid,
+				QFI:          1,
+			}
+		}
+	}
 
 	err = gnb.SendPDUSessionResourceSetupResponse(&PDUSessionResourceSetupResponseOpts{
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
 		N3GnbIp:     gnb.N3Address,
-		PDUSessions: [16]*PDUSessionInformation{
-			{
-				PDUSessionID: pduSession.PDUSessionID,
-				DLTeid:       pduSession.DLTeid,
-				QFI:          1,
-			},
-		},
+		PDUSessions: pduSessions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to send PDUSessionResourceSetupResponse: %v", err)
@@ -128,8 +133,6 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		zap.String("GNB ID", gnb.GnbID),
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
-		zap.Int64("PDU Session ID", pduSession.PDUSessionID),
-		zap.Uint32("Downlink TEID", pduSession.DLTeid),
 	)
 
 	return nil

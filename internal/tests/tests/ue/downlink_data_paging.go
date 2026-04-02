@@ -120,10 +120,10 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(RANUENGAPID)),
 	)
 
-	uePduSession := newUE.GetPDUSession()
+	uePduSession := newUE.GetPDUSession(PDUSessionID)
 	ueIP := uePduSession.UEIP + "/16"
 
-	gnbPDUSession := gNodeB.GetPDUSession(RANUENGAPID)
+	gnbPDUSession := gNodeB.GetPDUSession(RANUENGAPID, int64(PDUSessionID))
 
 	tunInterfaceName := GTPInterfaceNamePrefix + "paging0"
 
@@ -206,7 +206,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 
 	ip := packet.IPv4Layer()
 
-	if err = ip.SetDstIP(newUE.GetPDUSession().UEIP); err != nil {
+	if err = ip.SetDstIP(newUE.GetPDUSession(PDUSessionID).UEIP); err != nil {
 		return fmt.Errorf("could not set destination IP: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func (t DownlinkDataPaging) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("service request procedure failed: %v", err)
 	}
 
-	gnbPDUSession = gNodeB.GetPDUSession(RANUENGAPID)
+	gnbPDUSession = gNodeB.GetPDUSession(RANUENGAPID, int64(PDUSessionID))
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,

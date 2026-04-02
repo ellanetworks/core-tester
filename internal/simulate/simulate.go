@@ -336,17 +336,17 @@ func registerUE(
 		return ueState{}, fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
-	uePDUSession, err := newUE.WaitForPDUSession(5 * time.Second)
+	uePDUSession, err := newUE.WaitForPDUSession(pduSessionID, 5*time.Second)
 	if err != nil {
 		return ueState{}, fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}
 
-	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, 5*time.Second)
+	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, int64(pduSessionID), 5*time.Second)
 	if err != nil {
 		return ueState{}, fmt.Errorf("could not get gNB PDU session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
 	}
 
-	ueIP := newUE.GetPDUSession().UEIP + "/16"
+	ueIP := newUE.GetPDUSession(pduSessionID).UEIP + "/16"
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
@@ -355,7 +355,7 @@ func registerUE(
 		ULteid:           gnbPDUSession.ULTeid,
 		DLteid:           gnbPDUSession.DLTeid,
 		MTU:              uePDUSession.MTU,
-		QFI:              newUE.GetPDUSession().QFI,
+		QFI:              newUE.GetPDUSession(pduSessionID).QFI,
 	})
 	if err != nil {
 		return ueState{}, fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", tunName, gnbPDUSession.DLTeid, err)
@@ -369,7 +369,7 @@ func registerUE(
 		zap.String("UE IP", ueIP),
 	)
 
-	rawUEIP := newUE.GetPDUSession().UEIP
+	rawUEIP := newUE.GetPDUSession(pduSessionID).UEIP
 
 	return ueState{
 		ranUENGAPID: ranUENGAPID,

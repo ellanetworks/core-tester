@@ -137,9 +137,9 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
 	)
 
-	pduSession := gNodeB.GetPDUSession(RANUENGAPID)
+	pduSession := gNodeB.GetPDUSession(RANUENGAPID, int64(PDUSessionID))
 
-	uePduSession := newUE.GetPDUSession()
+	uePduSession := newUE.GetPDUSession(PDUSessionID)
 	ueIP := uePduSession.UEIP + "/16"
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{

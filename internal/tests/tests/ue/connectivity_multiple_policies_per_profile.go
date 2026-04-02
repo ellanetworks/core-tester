@@ -19,26 +19,38 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const (
-	GTPInterfaceNamePrefix  = "ellatester"
-	GTPUPort                = 2152
-	NumConnectivityParallel = 5
-)
+type ConnectivityMultiplePoliciesPerProfile struct{}
 
-type Connectivity struct{}
-
-func (Connectivity) Meta() engine.Meta {
+func (ConnectivityMultiplePoliciesPerProfile) Meta() engine.Meta {
 	return engine.Meta{
-		ID:      "ue/connectivity",
-		Summary: "UE connectivity test validating the connectivity of 5 UE's in parallel after registration, and after UE Context Release",
-		Timeout: 45 * time.Second,
+		ID:      "ue/connectivity_multiple_policies_per_profile",
+		Summary: "UE connectivity test with multiple policies on the same profile, each targeting a different data network",
+		Timeout: 60 * time.Second,
 	}
 }
 
-func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
-	subs, err := buildSubscriberConfig(NumConnectivityParallel, testStartIMSI)
-	if err != nil {
-		return fmt.Errorf("could not build subscriber config: %v", err)
+func (t ConnectivityMultiplePoliciesPerProfile) Run(ctx context.Context, env engine.Env) error {
+	const (
+		dnn2    = "enterprise"
+		ipPool1 = "10.45.0.0/16"
+		ipPool2 = "10.46.0.0/16"
+	)
+
+	subs := []core.SubscriberConfig{
+		{
+			Imsi:           "001017271246546",
+			Key:            DefaultKey,
+			SequenceNumber: DefaultSequenceNumber,
+			OPc:            DefaultOPC,
+			ProfileName:    DefaultProfileName,
+		},
+		{
+			Imsi:           "001017271246547",
+			Key:            DefaultKey,
+			SequenceNumber: DefaultSequenceNumber,
+			OPc:            DefaultOPC,
+			ProfileName:    DefaultProfileName,
+		},
 	}
 
 	ellaCoreEnv := core.NewEllaCoreEnv(env.EllaCoreClient, core.EllaCoreConfig{
@@ -68,8 +80,14 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		DataNetworks: []core.DataNetworkConfig{
 			{
 				Name:   DefaultDNN,
-				IPPool: "10.45.0.0/16",
+				IPPool: ipPool1,
 				DNS:    "8.8.8.8",
+				Mtu:    1500,
+			},
+			{
+				Name:   dnn2,
+				IPPool: ipPool2,
+				DNS:    "8.8.4.4",
 				Mtu:    1500,
 			},
 		},
@@ -84,11 +102,21 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 				Arp:                 15,
 				DataNetworkName:     DefaultDNN,
 			},
+			{
+				Name:                "enterprise",
+				ProfileName:         DefaultProfileName,
+				SliceName:           DefaultSliceName,
+				SessionAmbrUplink:   "30 Mbps",
+				SessionAmbrDownlink: "60 Mbps",
+				Var5qi:              7,
+				Arp:                 15,
+				DataNetworkName:     dnn2,
+			},
 		},
 		Subscribers: subs,
 	})
 
-	err = ellaCoreEnv.Create(ctx)
+	err := ellaCoreEnv.Create(ctx)
 	if err != nil {
 		return fmt.Errorf("could not create EllaCore environment: %v", err)
 	}
@@ -125,21 +153,24 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
 
+	dnns := []string{DefaultDNN, dnn2}
+
 	eg := errgroup.Group{}
 
-	for i := range NumConnectivityParallel {
+	for i := range subs {
 		func() {
 			eg.Go(func() error {
 				ranUENGAPID := RANUENGAPID + int64(i)
 				tunInterfaceName := fmt.Sprintf(GTPInterfaceNamePrefix+"%d", i)
 
-				return runConnectivityTest(
+				return runConnectivityTestWithDNN(
 					ctx,
 					env,
 					ranUENGAPID,
 					gNodeB,
 					subs[i],
 					tunInterfaceName,
+					dnns[i],
 				)
 			})
 		}()
@@ -153,13 +184,14 @@ func (t Connectivity) Run(ctx context.Context, env engine.Env) error {
 	return nil
 }
 
-func runConnectivityTest(
+func runConnectivityTestWithDNN(
 	ctx context.Context,
 	env engine.Env,
 	ranUENGAPID int64,
 	gNodeB *gnb.GnodeB,
 	subscriber core.SubscriberConfig,
 	tunInterfaceName string,
+	dnn string,
 ) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:         gNodeB,
@@ -177,7 +209,7 @@ func runConnectivityTest(
 			PublicKeyID:      "0",
 		},
 		RoutingIndicator: "0000",
-		DNN:              DefaultDNN,
+		DNN:              dnn,
 		Sst:              DefaultSST,
 		Sd:               DefaultSD,
 		IMEISV:           "3569380356438091",
@@ -208,6 +240,7 @@ func runConnectivityTest(
 	logger.Logger.Debug(
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.String("DNN", dnn),
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 	)
@@ -241,6 +274,7 @@ func runConnectivityTest(
 	logger.GnbLogger.Debug(
 		"Created GTP Tunnel for PDU Session",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.String("DNN", dnn),
 		zap.String("Interface", tunInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("UPF IP", gnbPDUSession.UpfAddress),
@@ -252,11 +286,12 @@ func runConnectivityTest(
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed after initial registration: %v\noutput:\n%s", env.Config.PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s (DNN %s) failed after initial registration: %v\noutput:\n%s", env.Config.PingDestination, tunInterfaceName, dnn, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful",
+		zap.String("DNN", dnn),
 		zap.String("interface", tunInterfaceName),
 		zap.String("destination", env.Config.PingDestination),
 	)
@@ -283,13 +318,14 @@ func runConnectivityTest(
 
 	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
-	out, err = cmd.CombinedOutput() // stdout + stderr
+	out, err = cmd.CombinedOutput()
 	if err == nil {
 		return fmt.Errorf("ping %s via %s succeeded, but was expected to fail after UE Context Release\noutput:\n%s", env.Config.PingDestination, tunInterfaceName, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping failed as expected after UE Context Release",
+		zap.String("DNN", dnn),
 		zap.String("interface", tunInterfaceName),
 		zap.String("destination", env.Config.PingDestination),
 	)
@@ -306,6 +342,7 @@ func runConnectivityTest(
 	logger.Logger.Debug(
 		"Completed Service Request Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.String("DNN", dnn),
 		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 		zap.Int64("AMF UE NGAP ID", gNodeB.GetAMFUENGAPID(ranUENGAPID)),
 	)
@@ -318,7 +355,7 @@ func runConnectivityTest(
 	pduSession := gNodeB.GetPDUSession(ranUENGAPID, int64(PDUSessionID))
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
-		UEIP:             ueIP, // re-using the same UE IP, we may need to change this to fetch the IP from the Service Request response in the future
+		UEIP:             ueIP,
 		UpfIP:            pduSession.UpfAddress,
 		TunInterfaceName: tunInterfaceName,
 		ULteid:           pduSession.ULTeid,
@@ -333,6 +370,7 @@ func runConnectivityTest(
 	logger.GnbLogger.Debug(
 		"Created GTP Tunnel for PDU Session after Service Request",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
+		zap.String("DNN", dnn),
 		zap.String("Interface", tunInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("UPF IP", pduSession.UpfAddress),
@@ -342,13 +380,14 @@ func runConnectivityTest(
 
 	cmd = exec.CommandContext(ctx, "ping", "-I", tunInterfaceName, env.Config.PingDestination, "-c", "3", "-W", "1")
 
-	out, err = cmd.CombinedOutput() // stdout + stderr
+	out, err = cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("ping %s via %s failed after service request: %v\noutput:\n%s", env.Config.PingDestination, tunInterfaceName, err, string(out))
+		return fmt.Errorf("ping %s via %s (DNN %s) failed after service request: %v\noutput:\n%s", env.Config.PingDestination, tunInterfaceName, dnn, err, string(out))
 	}
 
 	logger.Logger.Debug(
 		"Ping successful after Service Request",
+		zap.String("DNN", dnn),
 		zap.String("interface", tunInterfaceName),
 		zap.String("destination", env.Config.PingDestination),
 	)
@@ -361,11 +400,11 @@ func runConnectivityTest(
 	logger.Logger.Debug(
 		"Data usage detected",
 		zap.String("IMSI", subscriber.Imsi),
+		zap.String("DNN", dnn),
 		zap.Uint64("uplink bytes", uplinkBytes),
 		zap.Uint64("downlink bytes", downlinkBytes),
 	)
 
-	// Cleanup
 	err = gNodeB.CloseTunnel(pduSession.DLTeid)
 	if err != nil {
 		return fmt.Errorf("could not close GTP tunnel: %v", err)
