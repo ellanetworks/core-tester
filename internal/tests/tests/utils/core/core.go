@@ -80,8 +80,11 @@ type EllaCoreConfig struct {
 }
 
 type EllaCoreEnv struct {
-	Client *client.Client
-	Config EllaCoreConfig
+	Client             *client.Client
+	Config             EllaCoreConfig
+	createdDataNetworks []string
+	createdProfiles     []string
+	createdPolicies     []string
 }
 
 func NewEllaCoreEnv(client *client.Client, config EllaCoreConfig) *EllaCoreEnv {
@@ -303,32 +306,24 @@ func (c *EllaCoreEnv) createProfiles(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create profile: %v", err)
 		}
+
+		c.createdProfiles = append(c.createdProfiles, profile.Name)
 	}
 
 	return nil
 }
 
 func (c *EllaCoreEnv) deleteProfiles(ctx context.Context) error {
-	profiles, err := c.Client.ListProfiles(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list profiles: %v", err)
-	}
-
-	if len(profiles.Items) <= 1 {
-		return nil
-	}
-
-	for _, profile := range profiles.Items[1:] {
+	for _, name := range c.createdProfiles {
 		err := c.Client.DeleteProfile(ctx, &client.DeleteProfileOptions{
-			Name: profile.Name,
+			Name: name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete profile %s: %v", profile.Name, err)
+			return fmt.Errorf("failed to delete profile %s: %v", name, err)
 		}
 	}
+
+	c.createdProfiles = nil
 
 	return nil
 }
@@ -391,6 +386,8 @@ func (c *EllaCoreEnv) createDataNetworks(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create data network: %v", err)
 		}
+
+		c.createdDataNetworks = append(c.createdDataNetworks, dnn.Name)
 	}
 
 	return nil
@@ -444,6 +441,8 @@ func (c *EllaCoreEnv) createPolicies(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create policy: %v", err)
 		}
+
+		c.createdPolicies = append(c.createdPolicies, policy.Name)
 	}
 
 	return nil
@@ -496,26 +495,16 @@ func (c *EllaCoreEnv) deleteSubscribers(ctx context.Context) error {
 }
 
 func (c *EllaCoreEnv) deletePolicies(ctx context.Context) error {
-	policies, err := c.Client.ListPolicies(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list policies: %v", err)
-	}
-
-	if len(policies.Items) <= 1 {
-		return nil
-	}
-
-	for _, policy := range policies.Items[1:] {
+	for _, name := range c.createdPolicies {
 		err := c.Client.DeletePolicy(ctx, &client.DeletePolicyOptions{
-			Name: policy.Name,
+			Name: name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete policy %s: %v", policy.Name, err)
+			return fmt.Errorf("failed to delete policy %s: %v", name, err)
 		}
 	}
+
+	c.createdPolicies = nil
 
 	return nil
 }
@@ -534,26 +523,20 @@ func (c *EllaCoreEnv) deleteDataNetworks(ctx context.Context) error {
 		referencedDNs[policy.DataNetworkName] = true
 	}
 
-	dnns, err := c.Client.ListDataNetworks(ctx, &client.ListParams{
-		Page:    1,
-		PerPage: 100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list data networks: %v", err)
-	}
-
-	for _, dnn := range dnns.Items {
-		if referencedDNs[dnn.Name] {
+	for _, name := range c.createdDataNetworks {
+		if referencedDNs[name] {
 			continue
 		}
 
 		err := c.Client.DeleteDataNetwork(ctx, &client.DeleteDataNetworkOptions{
-			Name: dnn.Name,
+			Name: name,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to delete data network %s: %v", dnn.Name, err)
+			return fmt.Errorf("failed to delete data network %s: %v", name, err)
 		}
 	}
+
+	c.createdDataNetworks = nil
 
 	return nil
 }
