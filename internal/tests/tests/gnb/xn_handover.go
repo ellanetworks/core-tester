@@ -157,7 +157,7 @@ func (t XnHandover) Run(ctx context.Context, env engine.Env) error {
 
 	// Get the AMF UE NGAP ID and PDU session from the source gNB
 	sourceAmfUeNgapID := sourceGnb.GetAMFUENGAPID(xnHandoverRANUENGAPID)
-	sourcePduSession := sourceGnb.GetPDUSession(xnHandoverRANUENGAPID)
+	sourcePduSession := sourceGnb.GetPDUSession(xnHandoverRANUENGAPID, int64(xnHandoverPDUSessionID))
 
 	if sourcePduSession == nil {
 		return fmt.Errorf("source gNB has no PDU session for UE")

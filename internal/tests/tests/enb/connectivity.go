@@ -213,15 +213,15 @@ func runConnectivityTest(
 		zap.Int64("AMF UE NGAP ID", ngeNB.GetAMFUENGAPID(ranUENGAPID)),
 	)
 
-	uePDUSession, err := newUE.WaitForPDUSession(5 * time.Second)
+	uePDUSession, err := newUE.WaitForPDUSession(DefaultPDUSessionID, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("timeout waiting for PDU session: %v", err)
 	}
 
-	uePduSession := newUE.GetPDUSession()
+	uePduSession := newUE.GetPDUSession(DefaultPDUSessionID)
 	ueIP := uePduSession.UEIP + "/16"
 
-	gnbPDUSession, err := ngeNB.WaitForPDUSession(ranUENGAPID, 5*time.Second)
+	gnbPDUSession, err := ngeNB.WaitForPDUSession(ranUENGAPID, int64(DefaultPDUSessionID), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
 	}
@@ -316,7 +316,7 @@ func runConnectivityTest(
 		return fmt.Errorf("could not close GTP tunnel: %v", err)
 	}
 
-	pduSession := ngeNB.GetPDUSession(ranUENGAPID)
+	pduSession := ngeNB.GetPDUSession(ranUENGAPID, int64(DefaultPDUSessionID))
 
 	_, err = ngeNB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,

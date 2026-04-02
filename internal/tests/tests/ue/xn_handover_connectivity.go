@@ -161,10 +161,10 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	)
 
 	// Get PDU session info
-	uePduSession := newUE.GetPDUSession()
+	uePduSession := newUE.GetPDUSession(PDUSessionID)
 	ueIP := uePduSession.UEIP + "/16"
 
-	sourceGnbPDUSession, err := sourceGnb.WaitForPDUSession(xnHandoverSourceRANUENGAPID, 5*time.Second)
+	sourceGnbPDUSession, err := sourceGnb.WaitForPDUSession(xnHandoverSourceRANUENGAPID, int64(PDUSessionID), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("source gNB has no PDU session: %v", err)
 	}

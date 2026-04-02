@@ -203,7 +203,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
-	err = opts.UE.SendPDUSessionEstablishmentRequest(opts.GnodeB.GetAMFUENGAPID(opts.RANUENGAPID), opts.RANUENGAPID)
+	err = opts.UE.SendPDUSessionEstablishmentRequest(opts.GnodeB.GetAMFUENGAPID(opts.RANUENGAPID), opts.RANUENGAPID, opts.UE.PDUSessionID, opts.UE.DNN)
 	if err != nil {
 		return fmt.Errorf("could not build PDU Session Establishment Request NAS PDU: %v", err)
 	}

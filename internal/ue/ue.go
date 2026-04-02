@@ -80,7 +80,7 @@ type UE struct {
 	Gnb                    air.UplinkSender
 	mu                     sync.Mutex
 	cond                   *sync.Cond
-	PDUSession             PDUSessionInfo
+	PDUSessions            map[uint8]PDUSessionInfo
 	receivedNASGMMMessages map[uint8][]*nas.Message // msgType -> gmm messages
 	receivedNASGSMMessages map[uint8][]*nas.Message // msgType -> gsm messages
 	receivedRRCRelease     bool
@@ -90,18 +90,18 @@ func (ue *UE) SetPDUSession(pduSession PDUSessionInfo) {
 	ue.mu.Lock()
 	defer ue.mu.Unlock()
 
-	ue.PDUSession = pduSession
+	ue.PDUSessions[pduSession.PDUSessionID] = pduSession
 	ue.cond.Broadcast()
 }
 
-func (ue *UE) GetPDUSession() PDUSessionInfo {
+func (ue *UE) GetPDUSession(pduSessionID uint8) PDUSessionInfo {
 	ue.mu.Lock()
 	defer ue.mu.Unlock()
 
-	return ue.PDUSession
+	return ue.PDUSessions[pduSessionID]
 }
 
-func (ue *UE) WaitForPDUSession(timeout time.Duration) (PDUSessionInfo, error) {
+func (ue *UE) WaitForPDUSession(pduSessionID uint8, timeout time.Duration) (PDUSessionInfo, error) {
 	deadline := time.Now().Add(timeout)
 
 	timer := time.AfterFunc(timeout, func() {
@@ -113,12 +113,12 @@ func (ue *UE) WaitForPDUSession(timeout time.Duration) (PDUSessionInfo, error) {
 	defer ue.mu.Unlock()
 
 	for {
-		if ue.PDUSession.PDUSessionID != 0 {
-			return ue.PDUSession, nil
+		if session, ok := ue.PDUSessions[pduSessionID]; ok {
+			return session, nil
 		}
 
 		if time.Now().After(deadline) {
-			return PDUSessionInfo{}, errors.New("timeout waiting for PDU session")
+			return PDUSessionInfo{}, fmt.Errorf("timeout waiting for PDU session %d", pduSessionID)
 		}
 
 		ue.cond.Wait()
@@ -182,6 +182,7 @@ func NewUE(opts *UEOpts) (*UE, error) {
 
 	ue.IMEISV = opts.IMEISV
 
+	ue.PDUSessions = make(map[uint8]PDUSessionInfo)
 	ue.receivedNASGMMMessages = make(map[uint8][]*nas.Message)
 	ue.receivedNASGSMMessages = make(map[uint8][]*nas.Message)
 
@@ -763,9 +764,9 @@ func (ue *UE) SendDeregistrationRequest(amfUENGAPID int64, ranUENGAPID int64) er
 	return nil
 }
 
-func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID int64) error {
+func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID int64, pduSessionID uint8, dnn string) error {
 	pduReq, err := BuildPduSessionEstablishmentRequest(&PduSessionEstablishmentRequestOpts{
-		PDUSessionID:   ue.PDUSessionID,
+		PDUSessionID:   pduSessionID,
 		PDUSessionType: ue.PDUSessionType,
 	})
 	if err != nil {
@@ -773,9 +774,9 @@ func (ue *UE) SendPDUSessionEstablishmentRequest(amfUENGAPID int64, ranUENGAPID 
 	}
 
 	pduUplink, err := BuildUplinkNasTransport(&UplinkNasTransportOpts{
-		PDUSessionID:     ue.PDUSessionID,
+		PDUSessionID:     pduSessionID,
 		PayloadContainer: pduReq,
-		DNN:              ue.DNN,
+		DNN:              dnn,
 		SNSSAI:           ue.Snssai,
 	})
 	if err != nil {

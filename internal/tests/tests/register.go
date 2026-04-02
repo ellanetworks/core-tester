@@ -28,6 +28,7 @@ func RegisterAll(include []string, exclude []string) error {
 		ue.RegistrationSuccess50Sequential{},
 		ue.RegistrationSuccess150Parallel{},
 		ue.RegistrationSuccessMultiplePolicies{},
+		ue.RegistrationSuccessMultiplePoliciesPerProfile{},
 		ue.RegistrationSuccessMultipleDataNetworks{},
 		ue.RegistrationSuccessProfileA{},
 		ue.RegistrationRejectInvalidHomeNetworkPublicKey{},
@@ -39,6 +40,8 @@ func RegisterAll(include []string, exclude []string) error {
 		ue.UEContextRelease{},
 		ue.ServiceRequestData{},
 		ue.Connectivity{},
+		ue.ConnectivityMultiplePoliciesPerProfile{},
+		ue.ConnectivityMultiPDUSession{},
 		ue.DownlinkDataPaging{},
 		ue.XnHandoverConnectivity{},
 	}
