@@ -80,8 +80,8 @@ type EllaCoreConfig struct {
 }
 
 type EllaCoreEnv struct {
-	Client             *client.Client
-	Config             EllaCoreConfig
+	Client              *client.Client
+	Config              EllaCoreConfig
 	createdDataNetworks []string
 	createdProfiles     []string
 	createdPolicies     []string
