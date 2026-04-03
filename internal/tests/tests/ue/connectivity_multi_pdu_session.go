@@ -64,9 +64,12 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		},
 		Profiles: []core.ProfileConfig{
 			{
-				Name:           DefaultProfileName,
-				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
-				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+				Name: DefaultProfileName,
+				// UE AMBR deliberately set to 500 Mbps (different from Session AMBRs of
+				// 100/100 and 30/60) to verify ella-core does not confuse UE-level and
+				// session-level AMBR.
+				UeAmbrUplink:   "500 Mbps",
+				UeAmbrDownlink: "500 Mbps",
 			},
 		},
 		Slices: []core.SliceConfig{
@@ -226,6 +229,17 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		return fmt.Errorf("PDU session 1 NAS validation failed: %v", err)
 	}
 
+	// Validate UE-level AMBR (profile-level, distinct from session AMBR)
+	ueAmbr := gNodeB.GetUEAmbr(ranUENGAPID)
+
+	err = validate.UEAmbr(ueAmbr, &validate.ExpectedUEAmbr{
+		UplinkBps:   500_000_000,
+		DownlinkBps: 500_000_000,
+	})
+	if err != nil {
+		return fmt.Errorf("UE AMBR validation failed: %v", err)
+	}
+
 	logger.Logger.Debug(
 		"Completed Initial Registration (PDU session 1)",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
@@ -286,9 +300,27 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		return fmt.Errorf("could not get gNB PDU session 1: %v", err)
 	}
 
+	err = validate.PDUSessionInformation(gnbPDU1, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 9,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed for PDU session 1: %v", err)
+	}
+
 	gnbPDU2, err := gNodeB.WaitForPDUSession(ranUENGAPID, int64(pduSessionID2), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not get gNB PDU session 2: %v", err)
+	}
+
+	err = validate.PDUSessionInformation(gnbPDU2, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 7,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed for PDU session 2: %v", err)
 	}
 
 	tun1 := GTPInterfaceNamePrefix + "mp0"

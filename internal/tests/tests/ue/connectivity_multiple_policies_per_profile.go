@@ -12,6 +12,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
@@ -154,6 +155,10 @@ func (t ConnectivityMultiplePoliciesPerProfile) Run(ctx context.Context, env eng
 	}
 
 	dnns := []string{DefaultDNN, dnn2}
+	expectedQoS := []*validate.ExpectedPDUSessionInformation{
+		{FiveQi: 9, PriArp: 15, QFI: 1},
+		{FiveQi: 7, PriArp: 15, QFI: 1},
+	}
 
 	eg := errgroup.Group{}
 
@@ -171,6 +176,7 @@ func (t ConnectivityMultiplePoliciesPerProfile) Run(ctx context.Context, env eng
 					subs[i],
 					tunInterfaceName,
 					dnns[i],
+					expectedQoS[i],
 				)
 			})
 		}()
@@ -192,6 +198,7 @@ func runConnectivityTestWithDNN(
 	subscriber core.SubscriberConfig,
 	tunInterfaceName string,
 	dnn string,
+	expectedQoS *validate.ExpectedPDUSessionInformation,
 ) error {
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:         gNodeB,
@@ -257,6 +264,11 @@ func runConnectivityTestWithDNN(
 	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, int64(PDUSessionID), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
+	}
+
+	err = validate.PDUSessionInformation(gnbPDUSession, expectedQoS)
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed (DNN %s): %v", dnn, err)
 	}
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
