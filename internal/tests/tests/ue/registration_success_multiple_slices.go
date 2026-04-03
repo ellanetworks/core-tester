@@ -42,9 +42,13 @@ func (t RegistrationSuccessMultipleSlices) Run(ctx context.Context, env engine.E
 	)
 
 	type subTest struct {
-		subscriber  core.SubscriberConfig
-		expectedSST int32
-		expectedSD  string
+		subscriber                core.SubscriberConfig
+		expectedSST               int32
+		expectedSD                string
+		expectedSessionAmbrUpMbps uint64
+		expectedSessionAmbrDnMbps uint64
+		expectedFiveQI            uint8
+		expectedQfi               uint8
 	}
 
 	cases := []subTest{
@@ -56,8 +60,12 @@ func (t RegistrationSuccessMultipleSlices) Run(ctx context.Context, env engine.E
 				OPc:            DefaultOPC,
 				ProfileName:    DefaultProfileName,
 			},
-			expectedSST: slice1SST,
-			expectedSD:  slice1SD,
+			expectedSST:               slice1SST,
+			expectedSD:                slice1SD,
+			expectedSessionAmbrUpMbps: 100,
+			expectedSessionAmbrDnMbps: 100,
+			expectedFiveQI:            9,
+			expectedQfi:               1,
 		},
 		{
 			subscriber: core.SubscriberConfig{
@@ -67,8 +75,12 @@ func (t RegistrationSuccessMultipleSlices) Run(ctx context.Context, env engine.E
 				OPc:            DefaultOPC,
 				ProfileName:    "enterprise-profile",
 			},
-			expectedSST: slice2SST,
-			expectedSD:  slice2SD,
+			expectedSST:               slice2SST,
+			expectedSD:                slice2SD,
+			expectedSessionAmbrUpMbps: 50,
+			expectedSessionAmbrDnMbps: 50,
+			expectedFiveQI:            7,
+			expectedQfi:               1,
 		},
 	}
 
@@ -269,12 +281,16 @@ func (t RegistrationSuccessMultipleSlices) Run(ctx context.Context, env engine.E
 		}
 
 		err = validate.PDUSessionEstablishmentAccept(pduMsg, &validate.ExpectedPDUSessionEstablishmentAccept{
-			PDUSessionID:   PDUSessionID,
-			PDUSessionType: PDUSessionType,
-			UeIPSubnet:     network,
-			Dnn:            DefaultDNN,
-			Sst:            tc.expectedSST,
-			Sd:             tc.expectedSD,
+			PDUSessionID:               PDUSessionID,
+			PDUSessionType:             PDUSessionType,
+			UeIPSubnet:                 network,
+			Dnn:                        DefaultDNN,
+			Sst:                        tc.expectedSST,
+			Sd:                         tc.expectedSD,
+			MaximumBitRateUplinkMbps:   tc.expectedSessionAmbrUpMbps,
+			MaximumBitRateDownlinkMbps: tc.expectedSessionAmbrDnMbps,
+			FiveQI:                     tc.expectedFiveQI,
+			Qfi:                        tc.expectedQfi,
 		})
 		if err != nil {
 			return fmt.Errorf("PDU Session validation failed for UE %d: %v", i, err)
