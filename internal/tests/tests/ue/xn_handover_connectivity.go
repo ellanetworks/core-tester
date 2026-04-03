@@ -14,6 +14,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/aper"
@@ -168,6 +169,15 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	sourceGnbPDUSession, err := sourceGnb.WaitForPDUSession(xnHandoverSourceRANUENGAPID, int64(PDUSessionID), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("source gNB has no PDU session: %v", err)
+	}
+
+	err = validate.PDUSessionInformation(sourceGnbPDUSession, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 9,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed on source gNB: %v", err)
 	}
 
 	// Create GTP tunnel on source gNB for pre-handover connectivity

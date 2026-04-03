@@ -12,6 +12,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/core"
 	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
+	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/validate"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/ngap/ngapType"
@@ -224,6 +225,15 @@ func runConnectivityTest(
 	gnbPDUSession, err := gNodeB.WaitForPDUSession(ranUENGAPID, int64(PDUSessionID), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not get PDU Session for RAN UE NGAP ID %d: %v", ranUENGAPID, err)
+	}
+
+	err = validate.PDUSessionInformation(gnbPDUSession, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 9,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed: %v", err)
 	}
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{

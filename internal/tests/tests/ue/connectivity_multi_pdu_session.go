@@ -286,9 +286,27 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		return fmt.Errorf("could not get gNB PDU session 1: %v", err)
 	}
 
+	err = validate.PDUSessionInformation(gnbPDU1, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 9,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed for PDU session 1: %v", err)
+	}
+
 	gnbPDU2, err := gNodeB.WaitForPDUSession(ranUENGAPID, int64(pduSessionID2), 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("could not get gNB PDU session 2: %v", err)
+	}
+
+	err = validate.PDUSessionInformation(gnbPDU2, &validate.ExpectedPDUSessionInformation{
+		FiveQi: 7,
+		PriArp: 15,
+		QFI:    1,
+	})
+	if err != nil {
+		return fmt.Errorf("NGAP QoS validation failed for PDU session 2: %v", err)
 	}
 
 	tun1 := GTPInterfaceNamePrefix + "mp0"
