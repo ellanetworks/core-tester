@@ -15,6 +15,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		amfueNGAPID                                  *ngapType.AMFUENGAPID
 		ranueNGAPID                                  *ngapType.RANUENGAPID
 		protocolIEIDPDUSessionResourceSetupListSUReq *ngapType.PDUSessionResourceSetupListSUReq
+		ueAggregateMaximumBitRate                    *ngapType.UEAggregateMaximumBitRate
 	)
 
 	for _, ie := range pduSessionResourceSetupRequest.ProtocolIEs.List {
@@ -25,6 +26,8 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 			ranueNGAPID = ie.Value.RANUENGAPID
 		case ngapType.ProtocolIEIDPDUSessionResourceSetupListSUReq:
 			protocolIEIDPDUSessionResourceSetupListSUReq = ie.Value.PDUSessionResourceSetupListSUReq
+		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
+			ueAggregateMaximumBitRate = ie.Value.UEAggregateMaximumBitRate
 		}
 	}
 
@@ -46,6 +49,13 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		zap.Int64("RAN UE NGAP ID", ranueNGAPID.Value),
 		zap.Int64("AMF UE NGAP ID", amfueNGAPID.Value),
 	)
+
+	if ueAggregateMaximumBitRate != nil {
+		gnb.StoreUEAmbr(ranueNGAPID.Value, &UEAmbrInformation{
+			UplinkBps:   ueAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value,
+			DownlinkBps: ueAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value,
+		})
+	}
 
 	ue, err := gnb.LoadUE(ranueNGAPID.Value)
 	if err != nil {
