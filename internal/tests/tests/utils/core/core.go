@@ -85,6 +85,7 @@ type EllaCoreEnv struct {
 	createdDataNetworks []string
 	createdProfiles     []string
 	createdPolicies     []string
+	createdSlices       []string
 }
 
 func NewEllaCoreEnv(client *client.Client, config EllaCoreConfig) *EllaCoreEnv {
@@ -342,12 +343,6 @@ func (c *EllaCoreEnv) createSlices(ctx context.Context) error {
 		return nil
 	}
 
-	if len(c.Config.Slices) > 1 {
-		return fmt.Errorf("expected at most 1 slice, got %d", len(c.Config.Slices))
-	}
-
-	slice := c.Config.Slices[0]
-
 	existingSlices, err := c.Client.ListSlices(ctx, &client.ListParams{
 		Page:    1,
 		PerPage: 100,
@@ -360,20 +355,46 @@ func (c *EllaCoreEnv) createSlices(ctx context.Context) error {
 		return fmt.Errorf("expected at least 1 existing slice")
 	}
 
-	existingSlice := existingSlices.Items[0]
+	// Update the existing (default) slice with the first config entry.
+	first := c.Config.Slices[0]
 
-	err = c.Client.UpdateSlice(ctx, existingSlice.Name, &client.UpdateSliceOptions{
-		Sst: int(slice.SST),
-		Sd:  slice.SD,
+	err = c.Client.UpdateSlice(ctx, existingSlices.Items[0].Name, &client.UpdateSliceOptions{
+		Sst: int(first.SST),
+		Sd:  first.SD,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update slice: %v", err)
 	}
 
+	// Create additional slices.
+	for _, slice := range c.Config.Slices[1:] {
+		err := c.Client.CreateSlice(ctx, &client.CreateSliceOptions{
+			Name: slice.Name,
+			Sst:  int(slice.SST),
+			Sd:   slice.SD,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create slice %s: %v", slice.Name, err)
+		}
+
+		c.createdSlices = append(c.createdSlices, slice.Name)
+	}
+
 	return nil
 }
 
-func (c *EllaCoreEnv) deleteSlices(_ context.Context) error {
+func (c *EllaCoreEnv) deleteSlices(ctx context.Context) error {
+	for _, name := range c.createdSlices {
+		err := c.Client.DeleteSlice(ctx, &client.DeleteSliceOptions{
+			Name: name,
+		})
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("failed to delete slice %s: %v", name, err)
+		}
+	}
+
+	c.createdSlices = nil
+
 	return nil
 }
 

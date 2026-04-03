@@ -28,6 +28,7 @@ type GnodeB struct {
 	MNC               string
 	SST               int32
 	SD                string
+	Slices            []SliceOpt // Additional slices beyond SST/SD
 	TAC               string
 	DNN               string
 	Name              string
@@ -239,27 +240,30 @@ func NewGnodeB(
 	return g
 }
 
-func Start(
-	GnbID string,
-	MCC string,
-	MNC string,
-	SST int32,
-	SD string,
-	DNN string,
-	TAC string,
-	Name string,
-	coreN2Address string,
-	gnbN2Address string,
-	gnbN3Address string,
-) (*GnodeB, error) {
-	rem, err := sctp.ResolveSCTPAddr("sctp", coreN2Address)
+type StartOpts struct {
+	GnbID         string
+	MCC           string
+	MNC           string
+	SST           int32
+	SD            string
+	Slices        []SliceOpt
+	DNN           string
+	TAC           string
+	Name          string
+	CoreN2Address string
+	GnbN2Address  string
+	GnbN3Address  string
+}
+
+func Start(opts *StartOpts) (*GnodeB, error) {
+	rem, err := sctp.ResolveSCTPAddr("sctp", opts.CoreN2Address)
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve Ella Core SCTP address: %w", err)
 	}
 
 	localAddr := &sctp.SCTPAddr{
 		IPAddrs: []net.IPAddr{
-			{IP: net.ParseIP(gnbN2Address)},
+			{IP: net.ParseIP(opts.GnbN2Address)},
 		},
 	}
 
@@ -281,32 +285,33 @@ func Start(
 
 	var gnbN3IPAddress netip.Addr
 
-	if gnbN3Address != "" {
+	if opts.GnbN3Address != "" {
 		laddr := &net.UDPAddr{
-			IP:   net.ParseIP(gnbN3Address),
+			IP:   net.ParseIP(opts.GnbN3Address),
 			Port: 2152,
 		}
 
 		n3Conn, err = net.ListenUDP("udp", laddr)
 		if err != nil {
-			return nil, fmt.Errorf("could not listen on GTP-U UDP address %s: %v", gnbN3Address, err)
+			return nil, fmt.Errorf("could not listen on GTP-U UDP address %s: %v", opts.GnbN3Address, err)
 		}
 
-		gnbN3IPAddress, err = netip.ParseAddr(gnbN3Address)
+		gnbN3IPAddress, err = netip.ParseAddr(opts.GnbN3Address)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse gNB N3 IP address: %v", err)
 		}
 	}
 
 	gnodeB := &GnodeB{
-		GnbID:     GnbID,
-		MCC:       MCC,
-		MNC:       MNC,
-		SST:       SST,
-		SD:        SD,
-		DNN:       DNN,
-		TAC:       TAC,
-		Name:      Name,
+		GnbID:     opts.GnbID,
+		MCC:       opts.MCC,
+		MNC:       opts.MNC,
+		SST:       opts.SST,
+		SD:        opts.SD,
+		Slices:    opts.Slices,
+		DNN:       opts.DNN,
+		TAC:       opts.TAC,
+		Name:      opts.Name,
 		N2Conn:    n2Conn,
 		N3Conn:    n3Conn,
 		tunnels:   make(map[uint32]*Tunnel),
@@ -320,27 +325,28 @@ func Start(
 
 	gnodeB.ListenAndServe(n2Conn)
 
-	opts := &NGSetupRequestOpts{
-		GnbID: gnodeB.GnbID,
-		Mcc:   gnodeB.MCC,
-		Mnc:   gnodeB.MNC,
-		Sst:   gnodeB.SST,
-		Tac:   gnodeB.TAC,
-		Name:  gnodeB.Name,
+	ngSetupOpts := &NGSetupRequestOpts{
+		GnbID:  gnodeB.GnbID,
+		Mcc:    gnodeB.MCC,
+		Mnc:    gnodeB.MNC,
+		Sst:    gnodeB.SST,
+		Tac:    gnodeB.TAC,
+		Name:   gnodeB.Name,
+		Slices: gnodeB.Slices,
 	}
 
-	err = gnodeB.SendNGSetupRequest(opts)
+	err = gnodeB.SendNGSetupRequest(ngSetupOpts)
 	if err != nil {
 		return nil, fmt.Errorf("could not send NGSetupRequest: %v", err)
 	}
 
 	logger.GnbLogger.Debug(
 		"Sent NGSetupRequest",
-		zap.String("MCC", opts.Mcc),
-		zap.String("MNC", opts.Mnc),
-		zap.Int32("SST", opts.Sst),
-		zap.String("TAC", opts.Tac),
-		zap.String("Name", opts.Name),
+		zap.String("MCC", ngSetupOpts.Mcc),
+		zap.String("MNC", ngSetupOpts.Mnc),
+		zap.Int32("SST", ngSetupOpts.Sst),
+		zap.String("TAC", ngSetupOpts.Tac),
+		zap.String("Name", ngSetupOpts.Name),
 	)
 
 	return gnodeB, nil

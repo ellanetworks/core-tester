@@ -66,19 +66,18 @@ func (t NGSetupResponse) Run(ctx context.Context, env engine.Env) error {
 }
 
 func ngSetupTest(env engine.Env, index int) error {
-	gNodeB, err := gnb.Start(
-		fmt.Sprintf("%06x", index+1),
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		DefaultDNN,
-		DefaultTAC,
-		fmt.Sprintf("Ella-Core-Tester-%d", index),
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		"",
-	)
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         fmt.Sprintf("%06x", index+1),
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           DefaultSST,
+		SD:            DefaultSD,
+		DNN:           DefaultDNN,
+		TAC:           DefaultTAC,
+		Name:          fmt.Sprintf("Ella-Core-Tester-%d", index),
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}

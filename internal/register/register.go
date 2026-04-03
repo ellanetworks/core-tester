@@ -47,19 +47,19 @@ type RegisterConfig struct {
 }
 
 func Register(ctx context.Context, cfg RegisterConfig) error {
-	gNodeB, err := gnb.Start(
-		GNBID,
-		cfg.MCC,
-		cfg.MNC,
-		cfg.SST,
-		cfg.SD,
-		cfg.DNN,
-		cfg.TAC,
-		"Ella-Core-Tester",
-		cfg.EllaCoreN2Address,
-		cfg.GnbN2Address,
-		cfg.GnbN3Address,
-	)
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         GNBID,
+		MCC:           cfg.MCC,
+		MNC:           cfg.MNC,
+		SST:           cfg.SST,
+		SD:            cfg.SD,
+		DNN:           cfg.DNN,
+		TAC:           cfg.TAC,
+		Name:          "Ella-Core-Tester",
+		CoreN2Address: cfg.EllaCoreN2Address,
+		GnbN2Address:  cfg.GnbN2Address,
+		GnbN3Address:  cfg.GnbN3Address,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}

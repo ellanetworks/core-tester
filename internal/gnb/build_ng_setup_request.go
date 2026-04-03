@@ -9,15 +9,21 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
+type SliceOpt struct {
+	Sst int32
+	Sd  string
+}
+
 type NGSetupRequestOpts struct {
-	Name  string
-	GnbID string
-	ID    int64
-	Mcc   string
-	Mnc   string
-	Tac   string
-	Sst   int32
-	Sd    string
+	Name   string
+	GnbID  string
+	ID     int64
+	Mcc    string
+	Mnc    string
+	Tac    string
+	Sst    int32
+	Sd     string
+	Slices []SliceOpt // If non-empty, overrides Sst/Sd with multiple slices
 }
 
 func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
@@ -34,13 +40,14 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 		return ngapType.NGAPPDU{}, fmt.Errorf("could not get plmnID in octets: %v", err)
 	}
 
-	if opts.Sst == 0 {
-		return ngapType.NGAPPDU{}, fmt.Errorf("SST is required to build NGSetupRequest")
-	}
+	// Build slice list: use Slices if provided, otherwise fall back to single Sst/Sd.
+	slices := opts.Slices
+	if len(slices) == 0 {
+		if opts.Sst == 0 {
+			return ngapType.NGAPPDU{}, fmt.Errorf("SST is required to build NGSetupRequest")
+		}
 
-	sst, sd, err := GetSliceInBytes(opts.Sst, opts.Sd)
-	if err != nil {
-		return ngapType.NGAPPDU{}, fmt.Errorf("could not get slice info in bytes: %v", err)
+		slices = []SliceOpt{{Sst: opts.Sst, Sd: opts.Sd}}
 	}
 
 	if opts.Tac == "" {
@@ -114,15 +121,23 @@ func BuildNGSetupRequest(opts *NGSetupRequestOpts) (ngapType.NGAPPDU, error) {
 	broadcastPLMNItem.PLMNIdentity.Value = plmnID
 
 	sliceSupportList := &broadcastPLMNItem.TAISliceSupportList
-	sliceSupportItem := ngapType.SliceSupportItem{}
-	sliceSupportItem.SNSSAI.SST.Value = sst
 
-	if sd != nil {
-		sliceSupportItem.SNSSAI.SD = new(ngapType.SD)
-		sliceSupportItem.SNSSAI.SD.Value = sd
+	for _, s := range slices {
+		sst, sd, err := GetSliceInBytes(s.Sst, s.Sd)
+		if err != nil {
+			return ngapType.NGAPPDU{}, fmt.Errorf("could not get slice info in bytes: %v", err)
+		}
+
+		sliceSupportItem := ngapType.SliceSupportItem{}
+		sliceSupportItem.SNSSAI.SST.Value = sst
+
+		if sd != nil {
+			sliceSupportItem.SNSSAI.SD = new(ngapType.SD)
+			sliceSupportItem.SNSSAI.SD.Value = sd
+		}
+
+		sliceSupportList.List = append(sliceSupportList.List, sliceSupportItem)
 	}
-
-	sliceSupportList.List = append(sliceSupportList.List, sliceSupportItem)
 
 	broadcastPLMNList.List = append(broadcastPLMNList.List, broadcastPLMNItem)
 

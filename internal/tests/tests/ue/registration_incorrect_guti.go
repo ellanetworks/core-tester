@@ -42,19 +42,19 @@ func (t RegistrationIncorrectGUTI) Run(ctx context.Context, env engine.Env) erro
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(
-		GNBID,
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		DefaultDNN,
-		DefaultTAC,
-		"Ella-Core-Tester",
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		env.Config.Gnb.N3Address,
-	)
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         GNBID,
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           DefaultSST,
+		SD:            DefaultSD,
+		DNN:           DefaultDNN,
+		TAC:           DefaultTAC,
+		Name:          "Ella-Core-Tester",
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+		GnbN3Address:  env.Config.Gnb.N3Address,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -203,7 +203,7 @@ func runInitialRegistrationWithIdentityRequest(opts *InitialRegistrationWithIden
 		return fmt.Errorf("validation failed for registration accept: %v", err)
 	}
 
-	err = opts.UE.SendPDUSessionEstablishmentRequest(opts.GnodeB.GetAMFUENGAPID(opts.RANUENGAPID), opts.RANUENGAPID, opts.UE.PDUSessionID, opts.UE.DNN)
+	err = opts.UE.SendPDUSessionEstablishmentRequest(opts.GnodeB.GetAMFUENGAPID(opts.RANUENGAPID), opts.RANUENGAPID, opts.UE.PDUSessionID, opts.UE.DNN, opts.UE.Snssai)
 	if err != nil {
 		return fmt.Errorf("could not build PDU Session Establishment Request NAS PDU: %v", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/openapi/models"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,7 @@ type ConnectivityMultiPDUSession struct{}
 func (ConnectivityMultiPDUSession) Meta() engine.Meta {
 	return engine.Meta{
 		ID:      "ue/connectivity_multi_pdu_session",
-		Summary: "Single UE establishes two PDU sessions on different DNNs and validates data plane connectivity on both",
+		Summary: "Single UE establishes two PDU sessions on different DNNs and slices, validates data plane connectivity on both",
 		Timeout: 60 * time.Second,
 	}
 }
@@ -37,6 +38,14 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		dnn2    = "enterprise"
 		ipPool1 = "10.45.0.0/16"
 		ipPool2 = "10.46.0.0/16"
+
+		slice1Name = DefaultSliceName
+		slice1SST  = DefaultSST
+		slice1SD   = DefaultSD
+
+		slice2Name = "enterprise-slice"
+		slice2SST  = int32(1)
+		slice2SD   = "204060"
 
 		pduSessionID1 uint8 = 1
 		pduSessionID2 uint8 = 2
@@ -74,9 +83,14 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		},
 		Slices: []core.SliceConfig{
 			{
-				Name: DefaultSliceName,
-				SST:  DefaultSST,
-				SD:   DefaultSD,
+				Name: slice1Name,
+				SST:  slice1SST,
+				SD:   slice1SD,
+			},
+			{
+				Name: slice2Name,
+				SST:  slice2SST,
+				SD:   slice2SD,
 			},
 		},
 		DataNetworks: []core.DataNetworkConfig{
@@ -97,7 +111,7 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 			{
 				Name:                DefaultPolicyName,
 				ProfileName:         DefaultProfileName,
-				SliceName:           DefaultSliceName,
+				SliceName:           slice1Name,
 				SessionAmbrUplink:   "100 Mbps",
 				SessionAmbrDownlink: "100 Mbps",
 				Var5qi:              9,
@@ -107,7 +121,7 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 			{
 				Name:                "enterprise",
 				ProfileName:         DefaultProfileName,
-				SliceName:           DefaultSliceName,
+				SliceName:           slice2Name,
 				SessionAmbrUplink:   "30 Mbps",
 				SessionAmbrDownlink: "60 Mbps",
 				Var5qi:              7,
@@ -131,20 +145,24 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	// Start gNodeB with the first DNN as default
-	gNodeB, err := gnb.Start(
-		GNBID,
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		dnn1,
-		DefaultTAC,
-		"Ella-Core-Tester",
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		env.Config.Gnb.N3Address,
-	)
+	// Start gNodeB with both slices advertised
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         GNBID,
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           slice1SST,
+		SD:            slice1SD,
+		DNN:           dnn1,
+		TAC:           DefaultTAC,
+		Name:          "Ella-Core-Tester",
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+		GnbN3Address:  env.Config.Gnb.N3Address,
+		Slices: []gnb.SliceOpt{
+			{Sst: slice1SST, Sd: slice1SD},
+			{Sst: slice2SST, Sd: slice2SD},
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
@@ -247,10 +265,12 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		zap.Uint8("PDU Session ID", pduSessionID1),
 	)
 
-	// Step 2: Establish second PDU session on dnn2
+	// Step 2: Establish second PDU session on dnn2 with slice2
 	amfUENGAPID := gNodeB.GetAMFUENGAPID(ranUENGAPID)
 
-	err = newUE.SendPDUSessionEstablishmentRequest(amfUENGAPID, ranUENGAPID, pduSessionID2, dnn2)
+	slice2Snssai := models.Snssai{Sst: slice2SST, Sd: slice2SD}
+
+	err = newUE.SendPDUSessionEstablishmentRequest(amfUENGAPID, ranUENGAPID, pduSessionID2, dnn2, slice2Snssai)
 	if err != nil {
 		return fmt.Errorf("could not send PDU Session Establishment Request for session 2: %v", err)
 	}
@@ -265,8 +285,8 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		PDUSessionType:             PDUSessionType,
 		UeIPSubnet:                 network2,
 		Dnn:                        dnn2,
-		Sst:                        DefaultSST,
-		Sd:                         DefaultSD,
+		Sst:                        slice2SST,
+		Sd:                         slice2SD,
 		MaximumBitRateUplinkMbps:   30,
 		MaximumBitRateDownlinkMbps: 60,
 		Qfi:                        1,

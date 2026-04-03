@@ -38,19 +38,19 @@ func (t AuthenticationWrongKey) Run(ctx context.Context, env engine.Env) error {
 
 	logger.Logger.Debug("Created EllaCore environment")
 
-	gNodeB, err := gnb.Start(
-		GNBID,
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		DefaultDNN,
-		DefaultTAC,
-		"Ella-Core-Tester",
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		"0.0.0.0",
-	)
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         GNBID,
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           DefaultSST,
+		SD:            DefaultSD,
+		DNN:           DefaultDNN,
+		TAC:           DefaultTAC,
+		Name:          "Ella-Core-Tester",
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+		GnbN3Address:  "0.0.0.0",
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}

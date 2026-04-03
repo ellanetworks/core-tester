@@ -159,19 +159,19 @@ func Simulate(ctx context.Context, cfg SimulateConfig, cl *client.Client) error 
 		zap.String("DNN", cfg.DNN),
 	)
 
-	gNodeB, err := gnb.Start(
-		gnbID,
-		cfg.MCC,
-		cfg.MNC,
-		cfg.SST,
-		cfg.SD,
-		cfg.DNN,
-		cfg.TAC,
-		"Ella-Core-Tester",
-		cfg.EllaCoreN2Address,
-		cfg.GnbN2Address,
-		cfg.GnbN3Address,
-	)
+	gNodeB, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         gnbID,
+		MCC:           cfg.MCC,
+		MNC:           cfg.MNC,
+		SST:           cfg.SST,
+		SD:            cfg.SD,
+		DNN:           cfg.DNN,
+		TAC:           cfg.TAC,
+		Name:          "Ella-Core-Tester",
+		CoreN2Address: cfg.EllaCoreN2Address,
+		GnbN2Address:  cfg.GnbN2Address,
+		GnbN3Address:  cfg.GnbN3Address,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}

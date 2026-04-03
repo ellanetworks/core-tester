@@ -57,19 +57,19 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	logger.Logger.Debug("Created EllaCore environment")
 
 	// Start source gNB with N3 for GTP-U
-	sourceGnb, err := gnb.Start(
-		xnHandoverSourceGnbID,
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		DefaultDNN,
-		DefaultTAC,
-		"Source-gNB",
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		env.Config.Gnb.N3Address,
-	)
+	sourceGnb, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         xnHandoverSourceGnbID,
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           DefaultSST,
+		SD:            DefaultSD,
+		DNN:           DefaultDNN,
+		TAC:           DefaultTAC,
+		Name:          "Source-gNB",
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+		GnbN3Address:  env.Config.Gnb.N3Address,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting source gNB: %v", err)
 	}
@@ -84,19 +84,19 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	logger.Logger.Debug("Source gNB: NG Setup complete")
 
 	// Start target gNB with its own N3 address
-	targetGnb, err := gnb.Start(
-		xnHandoverTargetGnbID,
-		DefaultMCC,
-		DefaultMNC,
-		DefaultSST,
-		DefaultSD,
-		DefaultDNN,
-		DefaultTAC,
-		"Target-gNB",
-		env.Config.EllaCore.N2Address,
-		env.Config.Gnb.N2Address,
-		env.Config.Gnb.N3AddressSecondary,
-	)
+	targetGnb, err := gnb.Start(&gnb.StartOpts{
+		GnbID:         xnHandoverTargetGnbID,
+		MCC:           DefaultMCC,
+		MNC:           DefaultMNC,
+		SST:           DefaultSST,
+		SD:            DefaultSD,
+		DNN:           DefaultDNN,
+		TAC:           DefaultTAC,
+		Name:          "Target-gNB",
+		CoreN2Address: env.Config.EllaCore.N2Address,
+		GnbN2Address:  env.Config.Gnb.N2Address,
+		GnbN3Address:  env.Config.Gnb.N3AddressSecondary,
+	})
 	if err != nil {
 		return fmt.Errorf("error starting target gNB: %v", err)
 	}

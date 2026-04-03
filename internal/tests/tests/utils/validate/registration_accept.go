@@ -12,13 +12,19 @@ import (
 	"github.com/free5gc/nas/nasType"
 )
 
+type ExpectedSlice struct {
+	Sst int32
+	Sd  string
+}
+
 type RegistrationAcceptOpts struct {
-	NASMsg *nas.Message
-	UE     *ue.UE
-	Sst    int32
-	Sd     string
-	Mcc    string
-	Mnc    string
+	NASMsg         *nas.Message
+	UE             *ue.UE
+	Sst            int32
+	Sd             string
+	Mcc            string
+	Mnc            string
+	ExpectedSlices []ExpectedSlice // If set, validates all allowed NSSAI entries
 }
 
 func RegistrationAccept(opts *RegistrationAcceptOpts) error {
@@ -81,21 +87,35 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) error {
 		return fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, prefix)
 	}
 
-	snssai := opts.NASMsg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
+	snssaiBytes := opts.NASMsg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
 
-	if len(snssai) == 0 {
+	if len(snssaiBytes) == 0 {
 		return fmt.Errorf("allowed NSSAI is missing")
 	}
 
-	sst := int32(snssai[1])
-	sd := fmt.Sprintf("%x%x%x", snssai[2], snssai[3], snssai[4])
-
-	if sst != opts.Sst {
-		return fmt.Errorf("allowed NSSAI SST not the expected value, got: %d, want: %d", sst, opts.Sst)
+	parsedSlices, err := parseAllowedNSSAI(snssaiBytes)
+	if err != nil {
+		return fmt.Errorf("could not parse allowed NSSAI: %v", err)
 	}
 
-	if sd != opts.Sd {
-		return fmt.Errorf("allowed NSSAI SD not the expected value, got: %s, want: %s", sd, opts.Sd)
+	// Build expected slice list from either ExpectedSlices or single Sst/Sd.
+	expected := opts.ExpectedSlices
+	if len(expected) == 0 {
+		expected = []ExpectedSlice{{Sst: opts.Sst, Sd: opts.Sd}}
+	}
+
+	if len(parsedSlices) != len(expected) {
+		return fmt.Errorf("allowed NSSAI count mismatch: got %d, want %d", len(parsedSlices), len(expected))
+	}
+
+	for i, exp := range expected {
+		if parsedSlices[i].Sst != exp.Sst {
+			return fmt.Errorf("allowed NSSAI[%d] SST not the expected value, got: %d, want: %d", i, parsedSlices[i].Sst, exp.Sst)
+		}
+
+		if parsedSlices[i].Sd != exp.Sd {
+			return fmt.Errorf("allowed NSSAI[%d] SD not the expected value, got: %s, want: %s", i, parsedSlices[i].Sd, exp.Sd)
+		}
 	}
 
 	if opts.NASMsg.T3512Value == nil {
@@ -141,4 +161,37 @@ func nasToAmfId(regionID uint8, setID uint16, pointer uint8) string {
 	b2 := uint8((setID&0x3)<<6) | (pointer & 0x3F)
 
 	return fmt.Sprintf("%02x%02x%02x", b0, b1, b2)
+}
+
+// parseAllowedNSSAI parses the NAS AllowedNSSAI value bytes into a list of slices.
+// Each entry is: [length, SST, (SD[0], SD[1], SD[2])?]
+func parseAllowedNSSAI(data []byte) ([]ExpectedSlice, error) {
+	var result []ExpectedSlice
+
+	offset := 0
+
+	for offset < len(data) {
+		if offset >= len(data) {
+			return nil, fmt.Errorf("unexpected end of allowed NSSAI data")
+		}
+
+		length := int(data[offset])
+		offset++
+
+		if offset+length > len(data) {
+			return nil, fmt.Errorf("allowed NSSAI entry length %d exceeds remaining data at offset %d", length, offset)
+		}
+
+		sst := int32(data[offset])
+		sd := ""
+
+		if length >= 4 {
+			sd = fmt.Sprintf("%02x%02x%02x", data[offset+1], data[offset+2], data[offset+3])
+		}
+
+		result = append(result, ExpectedSlice{Sst: sst, Sd: sd})
+		offset += length
+	}
+
+	return result, nil
 }

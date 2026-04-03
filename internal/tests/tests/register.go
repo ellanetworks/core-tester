@@ -29,6 +29,7 @@ func RegisterAll(include []string, exclude []string) error {
 		ue.RegistrationSuccess150Parallel{},
 		ue.RegistrationSuccessMultiplePolicies{},
 		ue.RegistrationSuccessMultiplePoliciesPerProfile{},
+		ue.RegistrationSuccessMultipleSlices{},
 		ue.RegistrationSuccessMultipleDataNetworks{},
 		ue.RegistrationSuccessProfileA{},
 		ue.RegistrationRejectInvalidHomeNetworkPublicKey{},
