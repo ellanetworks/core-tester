@@ -65,8 +65,8 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		Profiles: []core.ProfileConfig{
 			{
 				Name:           DefaultProfileName,
-				UeAmbrUplink:   DefaultProfileUeAmbrUplink,
-				UeAmbrDownlink: DefaultProfileUeAmbrDownlink,
+				UeAmbrUplink:   "500 Mbps",
+				UeAmbrDownlink: "500 Mbps",
 			},
 		},
 		Slices: []core.SliceConfig{
@@ -224,6 +224,17 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 	})
 	if err != nil {
 		return fmt.Errorf("PDU session 1 NAS validation failed: %v", err)
+	}
+
+	// Validate UE-level AMBR (profile-level, distinct from session AMBR)
+	ueAmbr := gNodeB.GetUEAmbr(ranUENGAPID)
+
+	err = validate.UEAmbr(ueAmbr, &validate.ExpectedUEAmbr{
+		UplinkBps:   500_000_000,
+		DownlinkBps: 500_000_000,
+	})
+	if err != nil {
+		return fmt.Errorf("UE AMBR validation failed: %v", err)
 	}
 
 	logger.Logger.Debug(

@@ -42,6 +42,7 @@ type GnodeB struct {
 	cond              *sync.Cond
 	N3Address         netip.Addr
 	PDUSessions       map[int64]map[int64]*PDUSessionInformation // RANUENGAPID -> PDUSessionID -> PDUSessionInformation
+	UEAmbr            map[int64]*UEAmbrInformation               // RANUENGAPID -> UE AMBR
 }
 
 func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInformation) {
@@ -58,6 +59,33 @@ func (g *GnodeB) StorePDUSession(ranUeId int64, pduSessionInfo *PDUSessionInform
 
 	g.PDUSessions[ranUeId][pduSessionInfo.PDUSessionID] = pduSessionInfo
 	g.cond.Broadcast()
+}
+
+type UEAmbrInformation struct {
+	UplinkBps   int64
+	DownlinkBps int64
+}
+
+func (g *GnodeB) StoreUEAmbr(ranUeId int64, ambr *UEAmbrInformation) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.UEAmbr == nil {
+		g.UEAmbr = make(map[int64]*UEAmbrInformation)
+	}
+
+	g.UEAmbr[ranUeId] = ambr
+}
+
+func (g *GnodeB) GetUEAmbr(ranUeId int64) *UEAmbrInformation {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.UEAmbr == nil {
+		return nil
+	}
+
+	return g.UEAmbr[ranUeId]
 }
 
 func (g *GnodeB) GetPDUSession(ranUeId int64, pduSessionID int64) *PDUSessionInformation {

@@ -14,6 +14,7 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		ranueNGAPID                                   *ngapType.RANUENGAPID
 		protocolIEIDPDUSessionResourceSetupListCxtReq *ngapType.PDUSessionResourceSetupListCxtReq
 		nasPDU                                        *ngapType.NASPDU
+		ueAggregateMaximumBitRate                     *ngapType.UEAggregateMaximumBitRate
 	)
 
 	for _, ie := range initialContextSetupRequest.ProtocolIEs.List {
@@ -26,6 +27,8 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 			protocolIEIDPDUSessionResourceSetupListCxtReq = ie.Value.PDUSessionResourceSetupListCxtReq
 		case ngapType.ProtocolIEIDNASPDU:
 			nasPDU = ie.Value.NASPDU
+		case ngapType.ProtocolIEIDUEAggregateMaximumBitRate:
+			ueAggregateMaximumBitRate = ie.Value.UEAggregateMaximumBitRate
 		}
 	}
 
@@ -41,6 +44,13 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		zap.Int64("AMFUENGAPID", amfueNGAPID.Value),
 		zap.Int64("RANUENGAPID", ranueNGAPID.Value),
 	)
+
+	if ueAggregateMaximumBitRate != nil {
+		gnb.StoreUEAmbr(ranueNGAPID.Value, &UEAmbrInformation{
+			UplinkBps:   ueAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value,
+			DownlinkBps: ueAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value,
+		})
+	}
 
 	if protocolIEIDPDUSessionResourceSetupListCxtReq != nil {
 		for _, pduSession := range protocolIEIDPDUSessionResourceSetupListCxtReq.List {
