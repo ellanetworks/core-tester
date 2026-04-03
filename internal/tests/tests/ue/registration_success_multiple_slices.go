@@ -259,7 +259,7 @@ func (t RegistrationSuccessMultipleSlices) Run(ctx context.Context, env engine.E
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("Registration Accept validation failed for UE %d: %v", i, err)
+			return fmt.Errorf("registration accept validation failed for UE %d: %v", i, err)
 		}
 
 		// Step 5: PDU Session Establishment Accept
