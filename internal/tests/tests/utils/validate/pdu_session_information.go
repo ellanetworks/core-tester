@@ -21,8 +21,8 @@ func PDUSessionInformation(got *gnb.PDUSessionInformation, expected *ExpectedPDU
 		return fmt.Errorf("unexpected NGAP ARP Priority Level: got %d, expected %d", got.PriArp, expected.PriArp)
 	}
 
-	if got.QosId != expected.QFI {
-		return fmt.Errorf("unexpected NGAP QoS Flow Identifier: got %d, expected %d", got.QosId, expected.QFI)
+	if got.QFI != expected.QFI {
+		return fmt.Errorf("unexpected NGAP QoS Flow Identifier: got %d, expected %d", got.QFI, expected.QFI)
 	}
 
 	return nil

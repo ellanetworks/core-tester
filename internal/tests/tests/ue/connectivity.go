@@ -207,6 +207,16 @@ func runConnectivityTest(
 		return fmt.Errorf("initial registration procedure failed: %v", err)
 	}
 
+	ueAmbr := gNodeB.GetUEAmbr(ranUENGAPID)
+
+	err = validate.UEAmbr(ueAmbr, &validate.ExpectedUEAmbr{
+		UplinkBps:   100_000_000,
+		DownlinkBps: 100_000_000,
+	})
+	if err != nil {
+		return fmt.Errorf("UE AMBR validation failed: %v", err)
+	}
+
 	logger.Logger.Debug(
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),

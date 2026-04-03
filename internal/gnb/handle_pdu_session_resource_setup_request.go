@@ -199,6 +199,7 @@ func getPDUSessionInfoFromSetupRequestTransfer(transfer aper.OctetString) (*PDUS
 		ULTeid:     ulTeid,
 		UpfAddress: upfIp,
 		QosId:      qosId,
+		QFI:        qosId,
 		FiveQi:     fiveQi,
 		PriArp:     priArp,
 		PduSType:   pduSType,

@@ -64,7 +64,10 @@ func (t ConnectivityMultiPDUSession) Run(ctx context.Context, env engine.Env) er
 		},
 		Profiles: []core.ProfileConfig{
 			{
-				Name:           DefaultProfileName,
+				Name: DefaultProfileName,
+				// UE AMBR deliberately set to 500 Mbps (different from Session AMBRs of
+				// 100/100 and 30/60) to verify ella-core does not confuse UE-level and
+				// session-level AMBR.
 				UeAmbrUplink:   "500 Mbps",
 				UeAmbrDownlink: "500 Mbps",
 			},
