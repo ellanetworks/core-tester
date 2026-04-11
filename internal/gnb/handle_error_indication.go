@@ -16,8 +16,13 @@ func handleErrorIndication(errorIndication *ngapType.ErrorIndication) error {
 		}
 	}
 
+	causeStr := "(none)"
+	if cause != nil {
+		causeStr = causeToString(*cause)
+	}
+
 	logger.GnbLogger.Error("Received ErrorIndication",
-		zap.String("Cause", causeToString(*cause)),
+		zap.String("Cause", causeStr),
 	)
 
 	return nil

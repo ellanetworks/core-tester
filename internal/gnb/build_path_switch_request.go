@@ -14,13 +14,59 @@ type PathSwitchRequestOpts struct {
 	PDUSessions            [16]*PDUSessionInformation
 	N3GnbIp                netip.Addr
 	UESecurityCapabilities *ngapType.UESecurityCapabilities
+	Mcc                    string
+	Mnc                    string
+	Tac                    string
+	GnbID                  string
 }
 
 func BuildPathSwitchRequest(opts *PathSwitchRequestOpts) (ngapType.NGAPPDU, error) {
 	pdu := ngapType.NGAPPDU{}
 
+	if opts.Mcc == "" {
+		return pdu, fmt.Errorf("MCC is required to build PathSwitchRequest")
+	}
+
+	if opts.Mnc == "" {
+		return pdu, fmt.Errorf("MNC is required to build PathSwitchRequest")
+	}
+
+	if opts.Tac == "" {
+		return pdu, fmt.Errorf("TAC is required to build PathSwitchRequest")
+	}
+
+	if opts.GnbID == "" {
+		return pdu, fmt.Errorf("GNB ID is required to build PathSwitchRequest")
+	}
+
+	plmnID, err := GetMccAndMncInOctets(opts.Mcc, opts.Mnc)
+	if err != nil {
+		return pdu, fmt.Errorf("failed to get plmnID: %+v", err)
+	}
+
+	plmnIdentity := GetPLMNIdentity(opts.Mcc, opts.Mnc)
+
+	tac, err := GetTacInBytes(opts.Tac)
+	if err != nil {
+		return pdu, fmt.Errorf("failed to get tac: %+v", err)
+	}
+
+	nrCellID, err := GetNRCellIdentity(opts.GnbID)
+	if err != nil {
+		return pdu, fmt.Errorf("failed to get nrCellID: %+v", err)
+	}
+
 	ranUeNgapID := &ngapType.RANUENGAPID{Value: opts.RANUENGAPID}
 	sourceAmfUeNgapID := &ngapType.AMFUENGAPID{Value: opts.SourceAMFUENGAPID}
+
+	userLocationInformation := &ngapType.UserLocationInformation{
+		Present:                   ngapType.UserLocationInformationPresentUserLocationInformationNR,
+		UserLocationInformationNR: &ngapType.UserLocationInformationNR{},
+	}
+	userLocationInformation.UserLocationInformationNR.NRCGI.PLMNIdentity = plmnIdentity
+	userLocationInformation.UserLocationInformationNR.NRCGI.NRCellIdentity = nrCellID
+	userLocationInformation.UserLocationInformationNR.TAI.PLMNIdentity.Value = plmnID
+	userLocationInformation.UserLocationInformationNR.TAI.TAC.Value = tac
 
 	pduSessionDLList := &ngapType.PDUSessionResourceToBeSwitchedDLList{}
 
@@ -49,6 +95,7 @@ func BuildPathSwitchRequest(opts *PathSwitchRequestOpts) (ngapType.NGAPPDU, erro
 		pduSessionDLList,
 		nil, // no failed list
 		opts.UESecurityCapabilities,
+		userLocationInformation,
 	)
 
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
@@ -98,6 +145,7 @@ func buildPathSwitchRequest(
 	pduSessionDLList *ngapType.PDUSessionResourceToBeSwitchedDLList,
 	failedList *ngapType.PDUSessionResourceFailedToSetupListPSReq,
 	uESecurityCapabilities *ngapType.UESecurityCapabilities,
+	userLocationInformation *ngapType.UserLocationInformation,
 ) *ngapType.PathSwitchRequest {
 	msg := &ngapType.PathSwitchRequest{}
 	ies := &msg.ProtocolIEs
@@ -117,6 +165,15 @@ func buildPathSwitchRequest(
 		ie.Criticality.Value = ngapType.CriticalityPresentReject
 		ie.Value.Present = ngapType.PathSwitchRequestIEsPresentSourceAMFUENGAPID
 		ie.Value.SourceAMFUENGAPID = sourceAmfUeNgapID
+		ies.List = append(ies.List, ie)
+	}
+
+	if userLocationInformation != nil {
+		ie := ngapType.PathSwitchRequestIEs{}
+		ie.Id.Value = ngapType.ProtocolIEIDUserLocationInformation
+		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
+		ie.Value.Present = ngapType.PathSwitchRequestIEsPresentUserLocationInformation
+		ie.Value.UserLocationInformation = userLocationInformation
 		ies.List = append(ies.List, ie)
 	}
 
