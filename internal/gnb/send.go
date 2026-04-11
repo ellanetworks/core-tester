@@ -109,6 +109,11 @@ func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSet
 }
 
 func (g *GnodeB) SendPathSwitchRequest(opts *PathSwitchRequestOpts) error {
+	opts.Mcc = g.MCC
+	opts.Mnc = g.MNC
+	opts.Tac = g.TAC
+	opts.GnbID = g.GnbID
+
 	pdu, err := BuildPathSwitchRequest(opts)
 	if err != nil {
 		return fmt.Errorf("couldn't build PathSwitchRequest: %s", err.Error())
