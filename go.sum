@@ -5,10 +5,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ellanetworks/core v1.7.0 h1:4wz+Gg7k3ez8uHsSzr0jmQPEWK4T7FtjzjxUBTU/CWU=
-github.com/ellanetworks/core v1.7.0/go.mod h1:+pHw3neBUbas2xcQ6vB8KG++ce7egZp8ahYOCjbBp8s=
-github.com/ellanetworks/core v1.8.2-0.20260402141832-4b48cf51c2b4 h1:XlQE1k1p7tnYvKpbY1p1IUjwZR8Zt6D2dRESbdP7olk=
-github.com/ellanetworks/core v1.8.2-0.20260402141832-4b48cf51c2b4/go.mod h1:TfQu1FwfsFFG2r8em7wEyhmWwtP8dm5EckLF/rmjbU4=
+github.com/ellanetworks/core v1.9.1 h1:0zlfwSmUJMolfOeawTSEquUelURzxw+kWKXa5y+ni0U=
+github.com/ellanetworks/core v1.9.1/go.mod h1:Oe+zg04HqAiZ8eb0xlWeHESwgEN2Ho2e7OmaS4POpFM=
 github.com/free5gc/aper v1.1.0 h1:X36hts0PYQuN3d+VXpYsUZaibrokP8nbBVIQBVY2bNI=
 github.com/free5gc/aper v1.1.0/go.mod h1:v7xVwA5XaD9lBnZDOzvDF0Nw6GOcn32IrL7tM6zHPyM=
 github.com/free5gc/nas v1.2.2 h1:r2+9CHY1TRfTM/X2Pc+vBizeqweUJRuLo1DGub1vk5s=
