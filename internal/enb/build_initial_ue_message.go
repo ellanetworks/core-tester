@@ -141,7 +141,7 @@ func BuildInitialUEMessage(opts *InitialUEMessageOpts) (ngapType.NGAPPDU, error)
 			BitLength: 10,
 		}
 		fiveGSTMSI.AMFPointer.Value = aper.BitString{
-			Bytes:     []byte{opts.Guti5g.GetAMFPointer()},
+			Bytes:     []byte{opts.Guti5g.GetAMFPointer() << 2},
 			BitLength: 6,
 		}
 		tmsi := opts.Guti5g.GetTMSI5G()
