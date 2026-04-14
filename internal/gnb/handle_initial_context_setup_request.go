@@ -56,7 +56,7 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		for _, pduSession := range protocolIEIDPDUSessionResourceSetupListCxtReq.List {
 			pduSessionID := pduSession.PDUSessionID.Value
 
-			pduSessionInfo, err := getPDUSessionInfoFromSetupRequestTransfer(pduSession.PDUSessionResourceSetupRequestTransfer)
+			pduSessionInfo, err := getPDUSessionInfoFromSetupRequestTransfer(gnb, pduSession.PDUSessionResourceSetupRequestTransfer)
 			if err != nil {
 				return fmt.Errorf("could not validate PDU Session Resource Setup Transfer: %v", err)
 			}
@@ -87,7 +87,16 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 		sessions := gnb.GetPDUSessions(ranueNGAPID.Value)
 		for _, s := range sessions {
 			if s.PDUSessionID >= 1 && s.PDUSessionID <= 15 {
-				pduSessions[s.PDUSessionID] = s
+				pduSessions[s.PDUSessionID] = &PDUSessionInformation{
+					PDUSessionID: s.PDUSessionID,
+					DLTeid:       s.DLTeid,
+					N3GnbIp:      gnb.N3Address,
+					QosId:        s.QosId,
+					QFI:          s.QFI,
+					FiveQi:       s.FiveQi,
+					PriArp:       s.PriArp,
+					PduSType:     s.PduSType,
+				}
 			}
 		}
 	}
@@ -95,7 +104,6 @@ func handleInitialContextSetupRequest(gnb *GnodeB, initialContextSetupRequest *n
 	err := gnb.SendInitialContextSetupResponse(&InitialContextSetupResponseOpts{
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
-		N3GnbIp:     gnb.N3Address,
 		PDUSessions: pduSessions,
 	})
 	if err != nil {

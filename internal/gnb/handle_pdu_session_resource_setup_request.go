@@ -3,6 +3,7 @@ package gnb
 import (
 	"encoding/binary"
 	"fmt"
+	"net/netip"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/aper"
@@ -82,7 +83,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 		// If the transfer is missing we can't build UPF/TEID info; log and skip
 		// storing PDU session information rather than failing the whole NGAP
 		// handling flow.
-		pduSessionInfo, err := getPDUSessionInfoFromSetupRequestTransfer(pduSession.PDUSessionResourceSetupRequestTransfer)
+		pduSessionInfo, err := getPDUSessionInfoFromSetupRequestTransfer(gnb, pduSession.PDUSessionResourceSetupRequestTransfer)
 		if err != nil {
 			logger.GnbLogger.Debug("could not validate PDU Session Resource Setup Transfer, skipping PDU session store", zap.Error(err), zap.Any("pduSession", pduSession))
 
@@ -123,6 +124,7 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 			pduSessions[s.PDUSessionID] = &PDUSessionInformation{
 				PDUSessionID: s.PDUSessionID,
 				DLTeid:       s.DLTeid,
+				N3GnbIp:      gnb.N3Address,
 				QFI:          1,
 			}
 		}
@@ -131,7 +133,6 @@ func handlePDUSessionResourceSetupRequest(gnb *GnodeB, pduSessionResourceSetupRe
 	err = gnb.SendPDUSessionResourceSetupResponse(&PDUSessionResourceSetupResponseOpts{
 		AMFUENGAPID: amfueNGAPID.Value,
 		RANUENGAPID: ranueNGAPID.Value,
-		N3GnbIp:     gnb.N3Address,
 		PDUSessions: pduSessions,
 	})
 	if err != nil {
@@ -152,6 +153,7 @@ type PDUSessionInformation struct {
 	ULTeid       uint32
 	DLTeid       uint32
 	UpfAddress   string
+	N3GnbIp      netip.Addr
 	QosId        int64
 	QFI          int64
 	FiveQi       int64
@@ -160,7 +162,7 @@ type PDUSessionInformation struct {
 	PDUSessionID int64
 }
 
-func getPDUSessionInfoFromSetupRequestTransfer(transfer aper.OctetString) (*PDUSessionInformation, error) {
+func getPDUSessionInfoFromSetupRequestTransfer(gnb *GnodeB, transfer aper.OctetString) (*PDUSessionInformation, error) {
 	if transfer == nil {
 		return nil, fmt.Errorf("PDU Session Resource Setup Request Transfer is missing")
 	}
@@ -203,15 +205,83 @@ func getPDUSessionInfoFromSetupRequestTransfer(transfer aper.OctetString) (*PDUS
 		}
 	}
 
-	upfIp := fmt.Sprintf("%d.%d.%d.%d", upfAddress[0], upfAddress[1], upfAddress[2], upfAddress[3])
+	if gnb == nil {
+		return nil, fmt.Errorf("gnb is nil, cannot determine N3 address family")
+	}
+
+	upfIp, err := parseUPFAddress(upfAddress, gnb.N3Address)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse UPF address: %v", err)
+	}
 
 	return &PDUSessionInformation{
 		ULTeid:     ulTeid,
 		UpfAddress: upfIp,
+		N3GnbIp:    gnb.N3Address,
 		QosId:      qosId,
 		QFI:        qosId,
 		FiveQi:     fiveQi,
 		PriArp:     priArp,
 		PduSType:   pduSType,
 	}, nil
+}
+
+// parseUPFAddress selects the UPF IP address from a 3GPP TransportLayerAddress BIT STRING
+// that matches the IP family of the given gNB N3 address.
+//
+// The encoding per 3GPP TS 38.414 is:
+//   - 4 bytes  → IPv4 only
+//   - 16 bytes → IPv6 only
+//   - 20 bytes → dual-stack: first 4 bytes are IPv4, next 16 bytes are IPv6
+//
+// Returns an error when the UPF provides no address for the requested family.
+func parseUPFAddress(upfAddressBytes []byte, n3Addr netip.Addr) (string, error) {
+	if len(upfAddressBytes) == 0 {
+		return "", fmt.Errorf("UPF transport layer address is empty")
+	}
+
+	if !n3Addr.IsValid() {
+		return "", fmt.Errorf("gNB N3 address is not set")
+	}
+
+	var ipv4Addr, ipv6Addr netip.Addr
+
+	switch len(upfAddressBytes) {
+	case 4:
+		var arr [4]byte
+		copy(arr[:], upfAddressBytes)
+		ipv4Addr = netip.AddrFrom4(arr)
+	case 16:
+		var arr [16]byte
+		copy(arr[:], upfAddressBytes)
+		ipv6Addr = netip.AddrFrom16(arr)
+	case 20:
+		var arr4 [4]byte
+		copy(arr4[:], upfAddressBytes[:4])
+		ipv4Addr = netip.AddrFrom4(arr4)
+
+		var arr16 [16]byte
+		copy(arr16[:], upfAddressBytes[4:])
+		ipv6Addr = netip.AddrFrom16(arr16)
+	default:
+		return "", fmt.Errorf("unexpected UPF transport layer address length: %d bytes", len(upfAddressBytes))
+	}
+
+	if n3Addr.Is4() {
+		if !ipv4Addr.IsValid() {
+			return "", fmt.Errorf("gNB N3 address is IPv4 but UPF provided no IPv4 address")
+		}
+
+		return ipv4Addr.String(), nil
+	}
+
+	if n3Addr.Is6() {
+		if !ipv6Addr.IsValid() {
+			return "", fmt.Errorf("gNB N3 address is IPv6 but UPF provided no IPv6 address")
+		}
+
+		return ipv6Addr.String(), nil
+	}
+
+	return "", fmt.Errorf("gNB N3 address is neither IPv4 nor IPv6: %s", n3Addr)
 }
