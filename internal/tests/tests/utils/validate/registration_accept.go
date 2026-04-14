@@ -82,9 +82,9 @@ func RegistrationAccept(opts *RegistrationAcceptOpts) error {
 
 	guti5GStr := buildGUTI5G(*opts.NASMsg.RegistrationAccept.GUTI5G)
 
-	prefix := fmt.Sprintf("%s%scafe", opts.Mcc, opts.Mnc)
+	prefix := opts.Mcc + opts.Mnc
 	if !strings.HasPrefix(guti5GStr, prefix) {
-		return fmt.Errorf("GUTI5G MCC/MNC/AMF ID not the expected value, got: %s, want prefix: %s", guti5GStr, prefix)
+		return fmt.Errorf("GUTI5G PLMN not the expected value, got: %s, want prefix: %s", guti5GStr, prefix)
 	}
 
 	snssaiBytes := opts.NASMsg.RegistrationAccept.AllowedNSSAI.GetSNSSAIValue()
