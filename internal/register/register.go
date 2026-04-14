@@ -64,6 +64,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("error starting gNB: %v", err)
 	}
 
+	logger.Logger.Info("started gNodeB")
+
 	defer func() {
 		gNodeB.Close()
 		logger.Logger.Info("closed gNodeB")
@@ -73,6 +75,8 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	if err != nil {
 		return fmt.Errorf("did not receive SCTP frame: %v", err)
 	}
+
+	logger.Logger.Info("received NGSetupResponse")
 
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:         gNodeB,
@@ -109,10 +113,12 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	}
 
 	gNodeB.AddUE(RANUENGAPID, newUE)
+	logger.Logger.Info("added new UE to gNodeB")
 
 	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID: RANUENGAPID,
-		UE:          newUE,
+		RANUENGAPID:  RANUENGAPID,
+		PDUSessionID: PDUSessionID,
+		UE:           newUE,
 	})
 	if err != nil {
 		return fmt.Errorf("initial registration procedure failed: %v", err)

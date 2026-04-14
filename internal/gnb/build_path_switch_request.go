@@ -75,9 +75,17 @@ func BuildPathSwitchRequest(opts *PathSwitchRequestOpts) (ngapType.NGAPPDU, erro
 			continue
 		}
 
-		ip4 := opts.N3GnbIp.As4()
+		var ipBytes []byte
 
-		transfer, err := buildPathSwitchRequestTransfer(pduSession.DLTeid, ip4[:])
+		if opts.N3GnbIp.Is4() {
+			ip4 := opts.N3GnbIp.As4()
+			ipBytes = ip4[:]
+		} else {
+			ip6 := opts.N3GnbIp.As16()
+			ipBytes = ip6[:]
+		}
+
+		transfer, err := buildPathSwitchRequestTransfer(pduSession.DLTeid, ipBytes)
 		if err != nil {
 			return pdu, fmt.Errorf("failed to build PathSwitchRequestTransfer: %v", err)
 		}
