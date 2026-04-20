@@ -209,7 +209,7 @@ func getPDUSessionInfoFromSetupRequestTransfer(gnb *GnodeB, transfer aper.OctetS
 		return nil, fmt.Errorf("gnb is nil, cannot determine N3 address family")
 	}
 
-	upfIp, err := parseUPFAddress(upfAddress, gnb.N3Address)
+	upfIp, err := ParseUPFAddress(upfAddress, gnb.N3Address)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse UPF address: %v", err)
 	}
@@ -226,7 +226,7 @@ func getPDUSessionInfoFromSetupRequestTransfer(gnb *GnodeB, transfer aper.OctetS
 	}, nil
 }
 
-// parseUPFAddress selects the UPF IP address from a 3GPP TransportLayerAddress BIT STRING
+// ParseUPFAddress selects the UPF IP address from a 3GPP TransportLayerAddress BIT STRING
 // that matches the IP family of the given gNB N3 address.
 //
 // The encoding per 3GPP TS 38.414 is:
@@ -235,7 +235,7 @@ func getPDUSessionInfoFromSetupRequestTransfer(gnb *GnodeB, transfer aper.OctetS
 //   - 20 bytes → dual-stack: first 4 bytes are IPv4, next 16 bytes are IPv6
 //
 // Returns an error when the UPF provides no address for the requested family.
-func parseUPFAddress(upfAddressBytes []byte, n3Addr netip.Addr) (string, error) {
+func ParseUPFAddress(upfAddressBytes []byte, n3Addr netip.Addr) (string, error) {
 	if len(upfAddressBytes) == 0 {
 		return "", fmt.Errorf("UPF transport layer address is empty")
 	}
