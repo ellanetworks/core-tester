@@ -278,7 +278,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 	logger.Logger.Debug("Target gNB: received PathSwitchRequestAcknowledge")
 
 	// Parse the PathSwitchRequestAcknowledge to get the new UPF UL tunnel info
-	newULTeid, newUpfAddress, err := parsePathSwitchRequestAcknowledge(ackFrame, sourceGnbPDUSession.PDUSessionID)
+	newULTeid, newUpfAddress, err := parsePathSwitchRequestAcknowledge(ackFrame, sourceGnbPDUSession.PDUSessionID, targetN3Addr)
 	if err != nil {
 		return fmt.Errorf("could not parse PathSwitchRequestAcknowledge: %v", err)
 	}
@@ -337,7 +337,7 @@ func (t XnHandoverConnectivity) Run(ctx context.Context, env engine.Env) error {
 
 // parsePathSwitchRequestAcknowledge extracts the UPF UL tunnel information
 // (TEID + IP address) from the PathSwitchRequestAcknowledge for the given PDU session.
-func parsePathSwitchRequestAcknowledge(frame gnb.SCTPFrame, expectedPDUSessionID int64) (uint32, string, error) {
+func parsePathSwitchRequestAcknowledge(frame gnb.SCTPFrame, expectedPDUSessionID int64, n3Addr netip.Addr) (uint32, string, error) {
 	pdu, err := ngap.Decoder(frame.Data)
 	if err != nil {
 		return 0, "", fmt.Errorf("could not decode NGAP: %v", err)
@@ -385,7 +385,10 @@ func parsePathSwitchRequestAcknowledge(frame gnb.SCTPFrame, expectedPDUSessionID
 			teid := binary.BigEndian.Uint32(transfer.ULNGUUPTNLInformation.GTPTunnel.GTPTEID.Value)
 			ipBytes := transfer.ULNGUUPTNLInformation.GTPTunnel.TransportLayerAddress.Value.Bytes
 
-			upfAddress := fmt.Sprintf("%d.%d.%d.%d", ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3])
+			upfAddress, err := gnb.ParseUPFAddress(ipBytes, n3Addr)
+			if err != nil {
+				return 0, "", fmt.Errorf("could not parse UPF address: %v", err)
+			}
 
 			return teid, upfAddress, nil
 		}
