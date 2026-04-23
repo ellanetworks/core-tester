@@ -1,11 +1,7 @@
 # Ella Core Tester
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/ellanetworks/core/main/docs/images/logo.png" alt="Ella Core Logo" width="150"/>
-</p>
-
-> :construction: **Beta Notice**
-> Ella Core and Ella Core tester are currently in beta. If you encounter any issues, please [report them here](https://github.com/ellanetworks/core-tester/issues/new/choose).
+> :construction: **Warning**
+> This project is deprecated. Integration tests for Ella Core are now maintained in the [Ella Core repository](https://github.com/ellanetworks/core).
 
 Ella Core Tester is a tool for testing [Ella Core](https://github.com/ellanetworks/core)'s functionality, reliability, and performance. It acts as a 5G radio (gNodeB) and User Equipment (UE) to simulate real-world 3GPP-compliant interactions between the radio/UE and Ella Core.
 
