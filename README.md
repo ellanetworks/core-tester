@@ -1,9 +1,6 @@
 # Ella Core Tester
 
-> :construction: **Warning**
-> This project is deprecated. Integration tests for Ella Core are now maintained in the [Ella Core repository](https://github.com/ellanetworks/core).
-
-Ella Core Tester is a tool for testing [Ella Core](https://github.com/ellanetworks/core)'s functionality, reliability, and performance. It acts as a 5G radio (gNodeB) and User Equipment (UE) to simulate real-world 3GPP-compliant interactions between the radio/UE and Ella Core.
+Ella Core Tester is a tool for validating 3GPP connectivity with [Ella Core](https://github.com/ellanetworks/core). It acts as a 5G radio (gNodeB) and User Equipment (UE) to perform a 3GPP-compliant registration against Ella Core and establish a GTP tunnel for the UE.
 
 ## Getting Started
 
@@ -14,66 +11,45 @@ sudo apt install libpcap-dev
 ```
 
 Build the project:
+
 ```shell
 go build cmd/core-tester/main.go
 ```
 
-Run all tests:
+Register a subscriber and create a GTP tunnel:
 
 ```shell
-./main test \
-  --ella-core-api-address="http://127.0.0.1:5002" \
-  --ella-core-api-token="ellacore_RiUPGOgfaLI2_smqVyiHoR8V5vf3TyDUFKAhS" \
-  --ella-core-n2-address="192.168.40.6:38412" \
+sudo ./main register \
+  --imsi="001010100007487" \
+  --key="5122250214c33e723a5dd523fc145fc0" \
+  --opc="981d464c7c52eb6e5036234984ad0bcf" \
+  --sqn="000000000023" \
+  --profile-name="default" \
+  --mcc="001" \
+  --mnc="01" \
+  --sst=1 \
+  --sd="102030" \
+  --tac="000001" \
+  --dnn="internet" \
   --gnb-n2-address="192.168.40.6" \
-  --gnb-n3-address="127.0.0.1"
+  --gnb-n3-address="127.0.0.1" \
+  --ella-core-n2-address="192.168.40.6:38412"
 ```
 
-Example output:
-
-```shell
-PASSED  gnb/sctp  (1ms)
-PASSED  gnb/ngap/setup_response  (1ms)
-PASSED  gnb/ngap/reset  (1ms)
-PASSED  ue/registration_reject/unknown_ue  (262ms)
-PASSED  ue/registration/periodic/signalling  (1.078s)
-PASSED  ue/deregistration  (695ms)
-PASSED  ue/service_request/data  (875ms)
-PASSED  gnb/ngap/setup_failure/unknown_plmn  (1ms)
-PASSED  ue/registration_success  (659ms)
-PASSED  ue/authentication/wrong_key  (225ms)
-PASSED  ue/registration/incorrect_guti  (430ms)
-PASSED  ue/context/release  (678ms)
-```
-
-## How-to Guides
-
-## Add a new test
-
-To add a new test, follow these steps:
-
-1. Create a new .go file in the `internal/tests/tests/gnb/` or `internal/tests/tests/ue/` directory depending on the type of test.
-2. Define a new struct that implements the `engine.Test` interface.
-3. Implement the `Meta()` method to provide metadata about the test.
-4. Implement the `Run()` method to define the test logic.
-5. Register the test in the `tests/register.go` file.
-
-> Note: Use the existing tests as references for how to structure your test.
+The subscriber must already exist in Ella Core. The tester will not create or delete any resources in Ella Core. Press `Ctrl-C` to deregister the UE and tear down the tunnel.
 
 ## Reference
 
 ### CLI
 
-Ella Core Tester provides a command-line interface (CLI) with the following commands:
+Ella Core Tester provides the following commands:
 
-- `test`: run all the available tests against the Ella Core instance. This command is useful for testing Ella Core's functionality. You can optionally specify an output file to write the test results in JSON format. This command will modify the state of Ella Core by creating and deleting subscribers and sessions. Do not use this command in a production environment.
-- `register`: register a subscriber in Ella Core and create a GTP tunnel. This command is useful to validate connectivity with the private network. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.
-- `simulate`: simulate multiple UEs connected to Ella Core. This command provisions subscribers, connects a gNB, registers all UEs with GTP tunnels, and generates periodic traffic. The simulation runs indefinitely until interrupted, then gracefully cleans up all resources.
+- `register`: register a subscriber in Ella Core and create a GTP tunnel. The subscriber must already exist in Ella Core; the tester does not create or delete resources in Ella Core.
 - `help`: display help information about Ella Core Tester or a specific command.
 
 ### Acknowledgements
 
-Ella Core tester could not have been possible without the following open-source projects:
+Ella Core Tester could not have been possible without the following open-source projects:
 - [PacketRusher](https://github.com/HewlettPackard/PacketRusher)
 - [free5gc](https://github.com/free5gc/free5gc)
 - [UProot](https://github.com/ghislainbourgeois/uproot)
