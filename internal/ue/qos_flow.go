@@ -1,4 +1,4 @@
-package utils
+package ue
 
 import (
 	"encoding/binary"
@@ -7,31 +7,31 @@ import (
 
 // ---- QFD constants (TS 24.501 §9.11.4.12) ----
 const (
-	QFDParamID5QI    uint8 = 0x01
-	QFDParamIDGfbrUl uint8 = 0x02
-	QFDParamIDGfbrDl uint8 = 0x03
-	QFDParamIDMfbrUl uint8 = 0x04
-	QFDParamIDMfbrDl uint8 = 0x05
-	QFDParamIDAvgWnd uint8 = 0x06
-	QFDParamIDEpsBId uint8 = 0x07
+	qfdParamID5QI    uint8 = 0x01
+	qfdParamIDGfbrUl uint8 = 0x02
+	qfdParamIDGfbrDl uint8 = 0x03
+	qfdParamIDMfbrUl uint8 = 0x04
+	qfdParamIDMfbrDl uint8 = 0x05
+	qfdParamIDAvgWnd uint8 = 0x06
+	qfdParamIDEpsBId uint8 = 0x07
 )
 
 const (
-	QFDQfiBitmask    uint8 = 0x3f // bits 6..1
-	QFDOpCodeBitmask uint8 = 0xe0 // bits 8..6
-	QFDEbit          uint8 = 0x40 // bit 6 in the NumOfParam octet
+	qfdQfiBitmask    uint8 = 0x3f // bits 6..1
+	qfdOpCodeBitmask uint8 = 0xe0 // bits 8..6
+	qfdEbit          uint8 = 0x40 // bit 6 in the NumOfParam octet
 )
 
-const QFDFixLen uint8 = 0x03
+const qfdFixLen uint8 = 0x03
 
 // Unit codes used in rate params
 const (
-	QFRateUnit1Kbps uint8 = 0x01
-	QFRateUnit1Mbps uint8 = 0x06
-	QFRateUnit1Gbps uint8 = 0x0B
+	qfRateUnit1Kbps uint8 = 0x01
+	qfRateUnit1Mbps uint8 = 0x06
+	qfRateUnit1Gbps uint8 = 0x0B
 )
 
-type QosFlowParameter struct {
+type qosFlowParameter struct {
 	ParamID  uint8
 	ParamLen uint8
 
@@ -44,8 +44,8 @@ type QosFlowParameter struct {
 	EpsBearerID *uint8
 }
 
-type QoSFlowDescription struct {
-	ParamList  []QosFlowParameter
+type qoSFlowDescription struct {
+	ParamList  []qosFlowParameter
 	Qfi        uint8
 	OpCode     uint8
 	EBit       bool
@@ -53,8 +53,8 @@ type QoSFlowDescription struct {
 	QFDLen     uint8
 }
 
-func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, error) { // nolint:gocognit
-	var descs []QoSFlowDescription
+func parseAuthorizedQosFlowDescriptions(content []byte) ([]qoSFlowDescription, error) { //nolint:gocognit
+	var descs []qoSFlowDescription
 
 	i := 0
 
@@ -63,12 +63,12 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 			return nil, fmt.Errorf("qfd: truncated header at off=%d (have %d, need 3)", i, len(content[i:]))
 		}
 
-		var d QoSFlowDescription
+		var d qoSFlowDescription
 
-		d.QFDLen = QFDFixLen
+		d.QFDLen = qfdFixLen
 
 		// QFI (mask to bits 6..1)
-		d.Qfi = content[i] & QFDQfiBitmask
+		d.Qfi = content[i] & qfdQfiBitmask
 		i++
 
 		// OpCode
@@ -79,11 +79,11 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 		// NumOfParam: E-bit + count(6 bits)
 		num := content[i]
 		i++
-		d.EBit = (num & QFDEbit) != 0
+		d.EBit = (num & qfdEbit) != 0
 		d.ParamCount = num & 0x3F
 
 		// Parameters
-		d.ParamList = make([]QosFlowParameter, 0, int(d.ParamCount))
+		d.ParamList = make([]qosFlowParameter, 0, int(d.ParamCount))
 		for p := 0; p < int(d.ParamCount); p++ {
 			if len(content[i:]) < 2 {
 				return nil, fmt.Errorf("qfd: truncated parameter header at off=%d", i)
@@ -101,14 +101,13 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 			copy(raw, content[i:i+int(plen)])
 			i += int(plen)
 
-			param := QosFlowParameter{
+			param := qosFlowParameter{
 				ParamID:  pid,
 				ParamLen: plen,
 			}
 
 			switch pid {
-			case QFDParamID5QI:
-				// length must be 1
+			case qfdParamID5QI:
 				if plen != 1 {
 					break
 				}
@@ -116,8 +115,7 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 				v := raw[0]
 				param.FiveQI = &v
 
-			case QFDParamIDGfbrUl, QFDParamIDGfbrDl, QFDParamIDMfbrUl, QFDParamIDMfbrDl:
-				// length must be 3: [unit][MSB][LSB]
+			case qfdParamIDGfbrUl, qfdParamIDGfbrDl, qfdParamIDMfbrUl, qfdParamIDMfbrDl:
 				if plen != 3 {
 					break
 				}
@@ -127,19 +125,18 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 
 				if kbps, ok := toKbps(unit, val); ok {
 					switch pid {
-					case QFDParamIDGfbrUl:
+					case qfdParamIDGfbrUl:
 						param.GfbrUlKbps = &kbps
-					case QFDParamIDGfbrDl:
+					case qfdParamIDGfbrDl:
 						param.GfbrDlKbps = &kbps
-					case QFDParamIDMfbrUl:
+					case qfdParamIDMfbrUl:
 						param.MfbrUlKbps = &kbps
-					case QFDParamIDMfbrDl:
+					case qfdParamIDMfbrDl:
 						param.MfbrDlKbps = &kbps
 					}
 				}
 
-			case QFDParamIDAvgWnd:
-				// spec uses 2 bytes (ms). If your PCF uses different, adjust here.
+			case qfdParamIDAvgWnd:
 				if plen != 2 {
 					break
 				}
@@ -147,8 +144,7 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 				ms := binary.BigEndian.Uint16(raw)
 				param.AvgWindowMs = &ms
 
-			case QFDParamIDEpsBId:
-				// typically 1 byte (EBI 0..15 in EPS context)
+			case qfdParamIDEpsBId:
 				if plen != 1 {
 					break
 				}
@@ -157,7 +153,6 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 				param.EpsBearerID = &ebi
 			}
 
-			// QFDLen accounting: +2 (ID+Len) + content
 			d.QFDLen += 2 + plen
 			d.ParamList = append(d.ParamList, param)
 		}
@@ -168,14 +163,13 @@ func ParseAuthorizedQosFlowDescriptions(content []byte) ([]QoSFlowDescription, e
 	return descs, nil
 }
 
-// convert (unit, value16) → kbps
 func toKbps(unit uint8, v uint16) (kbps uint64, ok bool) {
 	switch unit {
-	case QFRateUnit1Kbps:
+	case qfRateUnit1Kbps:
 		return uint64(v), true
-	case QFRateUnit1Mbps:
+	case qfRateUnit1Mbps:
 		return uint64(v) * 1000, true
-	case QFRateUnit1Gbps:
+	case qfRateUnit1Gbps:
 		return uint64(v) * 1000 * 1000, true
 	default:
 		return 0, false

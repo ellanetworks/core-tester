@@ -9,8 +9,6 @@ import (
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasMessage"
@@ -98,11 +96,11 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		Sst:              cfg.SST,
 		Sd:               cfg.SD,
 		IMEISV:           "3569380356438091",
-		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
-			Integrity: utils.IntegrityAlgorithms{
+		UeSecurityCapability: getUESecurityCapability(&UeSecurityCapability{
+			Integrity: IntegrityAlgorithms{
 				Nia2: true,
 			},
-			Ciphering: utils.CipheringAlgorithms{
+			Ciphering: CipheringAlgorithms{
 				Nea0: true,
 				Nea2: true,
 			},
@@ -115,7 +113,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	gNodeB.AddUE(RANUENGAPID, newUE)
 	logger.Logger.Info("added new UE to gNodeB")
 
-	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
+	_, err = initialRegistration(&initialRegistrationOpts{
 		RANUENGAPID:  RANUENGAPID,
 		PDUSessionID: PDUSessionID,
 		UE:           newUE,
@@ -125,7 +123,7 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	}
 
 	defer func() {
-		err = procedure.Deregistration(&procedure.DeregistrationOpts{
+		err = deregistration(&deregistrationOpts{
 			AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
 			RANUENGAPID: RANUENGAPID,
 			UE:          newUE,

@@ -1,4 +1,4 @@
-package utils
+package register
 
 import (
 	"github.com/free5gc/nas/nasMessage"
@@ -24,7 +24,7 @@ type UeSecurityCapability struct {
 	Ciphering CipheringAlgorithms
 }
 
-func GetUESecurityCapability(secCap *UeSecurityCapability) *nasType.UESecurityCapability {
+func getUESecurityCapability(secCap *UeSecurityCapability) *nasType.UESecurityCapability {
 	UESecurityCapability := &nasType.UESecurityCapability{
 		Iei:    nasMessage.RegistrationRequestUESecurityCapabilityType,
 		Len:    2,
@@ -49,7 +49,6 @@ func GetUESecurityCapability(secCap *UeSecurityCapability) *nasType.UESecurityCa
 func boolToUint8(boolean bool) uint8 {
 	if boolean {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
