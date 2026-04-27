@@ -41,7 +41,7 @@ func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 func (g *GnodeB) SendNGSetupRequest(opts *NGSetupRequestOpts) error {
 	pdu, err := BuildNGSetupRequest(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build NGSetupRequest: %s", err.Error())
+		return fmt.Errorf("couldn't build NGSetupRequest: %w", err)
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureNGSetupRequest)
@@ -50,7 +50,7 @@ func (g *GnodeB) SendNGSetupRequest(opts *NGSetupRequestOpts) error {
 func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {
 	pdu, err := BuildUplinkNasTransport(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build UplinkNasTransport: %s", err.Error())
+		return fmt.Errorf("couldn't build UplinkNasTransport: %w", err)
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureUplinkNASTransport)
@@ -59,7 +59,7 @@ func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {
 func (g *GnodeB) SendInitialContextSetupResponse(opts *InitialContextSetupResponseOpts) error {
 	pdu, err := BuildInitialContextSetupResponse(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build InitialContextSetupResponse: %s", err.Error())
+		return fmt.Errorf("couldn't build InitialContextSetupResponse: %w", err)
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureInitialContextSetupResponse)
@@ -68,7 +68,7 @@ func (g *GnodeB) SendInitialContextSetupResponse(opts *InitialContextSetupRespon
 func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSetupResponseOpts) error {
 	pdu, err := BuildPDUSessionResourceSetupResponse(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build PDUSessionResourceSetupResponse: %s", err.Error())
+		return fmt.Errorf("couldn't build PDUSessionResourceSetupResponse: %w", err)
 	}
 
 	return g.SendMessage(pdu, NGAPProcedurePDUSessionResourceSetupResponse)
@@ -77,12 +77,12 @@ func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSet
 func (g *GnodeB) SendUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) error {
 	pdu, err := BuildUEContextReleaseComplete(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build UEContextReleaseComplete: %s", err.Error())
+		return fmt.Errorf("couldn't build UEContextReleaseComplete: %w", err)
 	}
 
 	err = g.SendMessage(pdu, NGAPProcedureUEContextReleaseComplete)
 	if err != nil {
-		return fmt.Errorf("couldn't send UEContextReleaseComplete: %s", err.Error())
+		return fmt.Errorf("couldn't send UEContextReleaseComplete: %w", err)
 	}
 
 	return nil
@@ -91,12 +91,12 @@ func (g *GnodeB) SendUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts
 func (g *GnodeB) SendMessage(pdu ngapType.NGAPPDU, procedure NGAPProcedure) error {
 	bytes, err := ngap.Encoder(pdu)
 	if err != nil {
-		return fmt.Errorf("couldn't encode message for procedure %s: %s", procedure, err.Error())
+		return fmt.Errorf("couldn't encode message for procedure %s: %w", procedure, err)
 	}
 
 	err = g.SendToRan(bytes, procedure)
 	if err != nil {
-		return fmt.Errorf("couldn't send packet to ran: %s", err.Error())
+		return fmt.Errorf("couldn't send packet to ran: %w", err)
 	}
 
 	return nil
@@ -113,7 +113,7 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 
 	sid, err := getSCTPStreamID(msgType)
 	if err != nil {
-		return fmt.Errorf("could not determine SCTP stream ID from NGAP message type (%s): %s", msgType, err.Error())
+		return fmt.Errorf("could not determine SCTP stream ID from NGAP message type (%s): %w", msgType, err)
 	}
 
 	if len(packet) == 0 {
@@ -125,7 +125,7 @@ func (g *GnodeB) SendToRan(packet []byte, msgType NGAPProcedure) error {
 		PPID:   ngap.PPID,
 	}
 	if _, err := g.N2Conn.SCTPWrite(packet, &info); err != nil {
-		return fmt.Errorf("send write to sctp connection: %s", err.Error())
+		return fmt.Errorf("send write to sctp connection: %w", err)
 	}
 
 	return nil

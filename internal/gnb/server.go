@@ -461,7 +461,7 @@ func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *
 
 	pdu, err := BuildInitialUEMessage(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
+		return fmt.Errorf("couldn't build InitialUEMessage: %w", err)
 	}
 
 	err = g.SendMessage(pdu, NGAPProcedureInitialUEMessage)

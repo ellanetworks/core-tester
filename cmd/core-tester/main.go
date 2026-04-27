@@ -71,19 +71,26 @@ func main() {
 	registerCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
 	registerCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
 	registerCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
-	_ = registerCmd.MarkFlagRequired("imsi")
-	_ = registerCmd.MarkFlagRequired("key")
-	_ = registerCmd.MarkFlagRequired("opc")
-	_ = registerCmd.MarkFlagRequired("sqn")
-	_ = registerCmd.MarkFlagRequired("profile-name")
-	_ = registerCmd.MarkFlagRequired("mcc")
-	_ = registerCmd.MarkFlagRequired("mnc")
-	_ = registerCmd.MarkFlagRequired("sst")
-	_ = registerCmd.MarkFlagRequired("tac")
-	_ = registerCmd.MarkFlagRequired("dnn")
-	_ = registerCmd.MarkFlagRequired("gnb-n2-address")
-	_ = registerCmd.MarkFlagRequired("gnb-n3-address")
-	_ = registerCmd.MarkFlagRequired("ella-core-n2-address")
+
+	for _, name := range []string{
+		"imsi",
+		"key",
+		"opc",
+		"sqn",
+		"profile-name",
+		"mcc",
+		"mnc",
+		"sst",
+		"tac",
+		"dnn",
+		"gnb-n2-address",
+		"gnb-n3-address",
+		"ella-core-n2-address",
+	} {
+		if err := registerCmd.MarkFlagRequired(name); err != nil {
+			panic(fmt.Sprintf("failed to mark flag %q required: %v", name, err))
+		}
+	}
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
