@@ -3,11 +3,9 @@ package gnb
 import (
 	"fmt"
 
-	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/ishidawataru/sctp"
-	"go.uber.org/zap"
 )
 
 type NGAPProcedure string
@@ -15,7 +13,6 @@ type NGAPProcedure string
 const (
 	// Non-UE associated NGAP procedures
 	NGAPProcedureNGSetupRequest NGAPProcedure = "NGSetupRequest"
-	NGAPProcedureNGReset        NGAPProcedure = "NGReset"
 
 	// UE-associated NGAP procedures
 	NGAPProcedureInitialUEMessage                NGAPProcedure = "InitialUEMessage"
@@ -23,21 +20,18 @@ const (
 	NGAPProcedureInitialContextSetupResponse     NGAPProcedure = "InitialContextSetupResponse"
 	NGAPProcedurePDUSessionResourceSetupResponse NGAPProcedure = "PDUSessionResourceSetupResponse"
 	NGAPProcedureUEContextReleaseComplete        NGAPProcedure = "UEContextReleaseComplete"
-	NGAPProcedureUEContextReleaseRequest         NGAPProcedure = "UEContextReleaseRequest"
-	NGAPProcedurePathSwitchRequest               NGAPProcedure = "PathSwitchRequest"
 )
 
 func getSCTPStreamID(msgType NGAPProcedure) (uint16, error) {
 	switch msgType {
 	// Non-UE procedures
-	case NGAPProcedureNGSetupRequest, NGAPProcedureNGReset:
+	case NGAPProcedureNGSetupRequest:
 		return 0, nil
 
 	// UE-associated procedures
 	case NGAPProcedureInitialUEMessage, NGAPProcedureUplinkNASTransport,
 		NGAPProcedureInitialContextSetupResponse, NGAPProcedurePDUSessionResourceSetupResponse,
-		NGAPProcedureUEContextReleaseComplete, NGAPProcedureUEContextReleaseRequest,
-		NGAPProcedurePathSwitchRequest:
+		NGAPProcedureUEContextReleaseComplete:
 		return 1, nil
 	default:
 		return 0, fmt.Errorf("NGAP message type (%s) not supported", msgType)
@@ -51,34 +45,6 @@ func (g *GnodeB) SendNGSetupRequest(opts *NGSetupRequestOpts) error {
 	}
 
 	return g.SendMessage(pdu, NGAPProcedureNGSetupRequest)
-}
-
-func (g *GnodeB) SendNGReset(opts *NGResetOpts) error {
-	pdu, err := BuildNGReset(opts)
-	if err != nil {
-		return fmt.Errorf("couldn't build NGReset: %s", err.Error())
-	}
-
-	return g.SendMessage(pdu, NGAPProcedureNGReset)
-}
-
-func (g *GnodeB) SendUEContextReleaseRequest(opts *UEContextReleaseRequestOpts) error {
-	pdu, err := BuildUEContextReleaseRequest(opts)
-	if err != nil {
-		return fmt.Errorf("couldn't build UEContextReleaseRequest: %s", err.Error())
-	}
-
-	err = g.SendMessage(pdu, NGAPProcedureUEContextReleaseRequest)
-	if err != nil {
-		return fmt.Errorf("couldn't send UEContextReleaseRequest: %s", err.Error())
-	}
-
-	logger.GnbLogger.Debug("Sent UE Context Release Request",
-		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-		zap.Int64("AMF UE NGAP ID", opts.AMFUENGAPID),
-	)
-
-	return nil
 }
 
 func (g *GnodeB) SendUplinkNASTransport(opts *UplinkNasTransportOpts) error {
@@ -106,30 +72,6 @@ func (g *GnodeB) SendPDUSessionResourceSetupResponse(opts *PDUSessionResourceSet
 	}
 
 	return g.SendMessage(pdu, NGAPProcedurePDUSessionResourceSetupResponse)
-}
-
-func (g *GnodeB) SendPathSwitchRequest(opts *PathSwitchRequestOpts) error {
-	opts.Mcc = g.MCC
-	opts.Mnc = g.MNC
-	opts.Tac = g.TAC
-	opts.GnbID = g.GnbID
-
-	pdu, err := BuildPathSwitchRequest(opts)
-	if err != nil {
-		return fmt.Errorf("couldn't build PathSwitchRequest: %s", err.Error())
-	}
-
-	err = g.SendMessage(pdu, NGAPProcedurePathSwitchRequest)
-	if err != nil {
-		return fmt.Errorf("couldn't send PathSwitchRequest: %s", err.Error())
-	}
-
-	logger.GnbLogger.Debug("Sent Path Switch Request",
-		zap.Int64("RAN UE NGAP ID", opts.RANUENGAPID),
-		zap.Int64("Source AMF UE NGAP ID", opts.SourceAMFUENGAPID),
-	)
-
-	return nil
 }
 
 func (g *GnodeB) SendUEContextReleaseComplete(opts *UEContextReleaseCompleteOpts) error {

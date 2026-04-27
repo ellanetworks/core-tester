@@ -14,7 +14,6 @@ import (
 	"github.com/ellanetworks/core-tester/internal/logger"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/ngap/ngapType"
@@ -695,43 +694,6 @@ func (ue *UE) SendRegistrationRequest(ranUENGAPID int64, regType uint8) error {
 	logger.UeLogger.Debug(
 		"Sent Registration Request NAS message",
 		zap.String("IMSI", ue.UeSecurity.Supi),
-	)
-
-	return nil
-}
-
-func (ue *UE) SendServiceRequest(ranUENGAPID int64, pduSessionStatus [16]bool, serviceType uint8) error {
-	serviceRequest, err := BuildServiceRequest(&ServiceRequestOpts{
-		ServiceType:      serviceType,
-		AMFSetID:         ue.GetAmfSetId(),
-		AMFPointer:       ue.GetAmfPointer(),
-		TMSI5G:           ue.GetTMSI5G(),
-		PDUSessionStatus: &pduSessionStatus,
-		UESecurity:       ue.UeSecurity,
-	})
-	if err != nil {
-		return fmt.Errorf("could not build Service Request NAS PDU: %v", err)
-	}
-
-	encodedPdu, err := ue.EncodeNasPduWithSecurity(serviceRequest, nas.SecurityHeaderTypeIntegrityProtected)
-	if err != nil {
-		return fmt.Errorf("error encoding %s IMSI UE  NAS Security Mode Complete message: %v", ue.UeSecurity.Supi, err)
-	}
-
-	establishmentCause := ngapType.RRCEstablishmentCausePresentMoData
-	if serviceType == nasMessage.ServiceTypeMobileTerminatedServices {
-		establishmentCause = ngapType.RRCEstablishmentCausePresentMtAccess
-	}
-
-	err = ue.Gnb.SendInitialUEMessage(encodedPdu, ranUENGAPID, ue.UeSecurity.Guti, establishmentCause)
-	if err != nil {
-		return fmt.Errorf("could not send UplinkNASTransport: %v", err)
-	}
-
-	logger.UeLogger.Debug(
-		"Sent Service Request NAS message",
-		zap.String("IMSI", ue.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
 	return nil

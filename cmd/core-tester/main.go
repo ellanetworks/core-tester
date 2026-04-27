@@ -46,7 +46,7 @@ var rootCmd = &cobra.Command{
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register a subscriber in Ella Core and create a GTP tunnel",
-	Long:  "Register a subscriber in Ella Core and create a GTP tunnel. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ela Core.",
+	Long:  "Register a subscriber in Ella Core and create a GTP tunnel. The subscriber needs to already be created in Ella Core. This procedure will not try to create and delete resources in Ella Core.",
 	Args:  cobra.NoArgs,
 	Run:   Register,
 }
@@ -97,7 +97,7 @@ func main() {
 func Register(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
-	registerConfig := register.RegisterConfig{
+	registerConfig := register.Config{
 		IMSI:              imsi,
 		Key:               key,
 		OPC:               opc,
@@ -114,7 +114,7 @@ func Register(cmd *cobra.Command, args []string) {
 		EllaCoreN2Address: ellaCoreN2Address,
 	}
 
-	err := register.Register(ctx, registerConfig)
+	err := register.Run(ctx, registerConfig)
 	if err != nil {
 		logger.Logger.Fatal("Could not register", zap.Error(err))
 	}

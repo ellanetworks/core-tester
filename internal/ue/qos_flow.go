@@ -17,9 +17,8 @@ const (
 )
 
 const (
-	qfdQfiBitmask    uint8 = 0x3f // bits 6..1
-	qfdOpCodeBitmask uint8 = 0xe0 // bits 8..6
-	qfdEbit          uint8 = 0x40 // bit 6 in the NumOfParam octet
+	qfdQfiBitmask uint8 = 0x3f // bits 6..1
+	qfdEbit       uint8 = 0x40 // bit 6 in the NumOfParam octet
 )
 
 const qfdFixLen uint8 = 0x03
