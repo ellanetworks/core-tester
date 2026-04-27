@@ -3,14 +3,12 @@ package register
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ellanetworks/core-tester/internal/gnb"
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils/procedure"
 	"github.com/ellanetworks/core-tester/internal/ue"
 	"github.com/ellanetworks/core-tester/internal/ue/sidf"
 	"github.com/free5gc/nas/nasMessage"
@@ -19,17 +17,19 @@ import (
 )
 
 const (
-	RANUENGAPID  = 1
-	GNBID        = "000008"
-	PDUSessionID = 1
+	ranUENGAPID  = 1
+	gnbID        = "000008"
+	pduSessionID = 1
 )
 
 const (
-	GTPInterfaceName = "ellatester0"
-	GTPUPort         = 2152
+	gtpInterfaceName = "ellatester0"
+	gtpuPort         = 2152
 )
 
-type RegisterConfig struct {
+// Config holds the parameters required to register a single UE and bring up
+// its GTP tunnel.
+type Config struct {
 	IMSI              string
 	Key               string
 	OPC               string
@@ -46,9 +46,15 @@ type RegisterConfig struct {
 	EllaCoreN2Address string
 }
 
-func Register(ctx context.Context, cfg RegisterConfig) error {
+// Run performs the full register-and-tunnel flow and blocks until ctx is
+// cancelled or an interrupt signal is received.
+func Run(ctx context.Context, cfg Config) error {
+	if len(cfg.IMSI) < 6 {
+		return fmt.Errorf("invalid IMSI %q: must be at least 6 digits", cfg.IMSI)
+	}
+
 	gNodeB, err := gnb.Start(&gnb.StartOpts{
-		GnbID:         GNBID,
+		GnbID:         gnbID,
 		MCC:           cfg.MCC,
 		MNC:           cfg.MNC,
 		SST:           cfg.SST,
@@ -98,11 +104,11 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		Sst:              cfg.SST,
 		Sd:               cfg.SD,
 		IMEISV:           "3569380356438091",
-		UeSecurityCapability: utils.GetUESecurityCapability(&utils.UeSecurityCapability{
-			Integrity: utils.IntegrityAlgorithms{
+		UeSecurityCapability: getUESecurityCapability(&UeSecurityCapability{
+			Integrity: IntegrityAlgorithms{
 				Nia2: true,
 			},
-			Ciphering: utils.CipheringAlgorithms{
+			Ciphering: CipheringAlgorithms{
 				Nea0: true,
 				Nea2: true,
 			},
@@ -112,12 +118,12 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 		return fmt.Errorf("could not create UE: %v", err)
 	}
 
-	gNodeB.AddUE(RANUENGAPID, newUE)
+	gNodeB.AddUE(ranUENGAPID, newUE)
 	logger.Logger.Info("added new UE to gNodeB")
 
-	_, err = procedure.InitialRegistration(&procedure.InitialRegistrationOpts{
-		RANUENGAPID:  RANUENGAPID,
-		PDUSessionID: PDUSessionID,
+	_, err = initialRegistration(&initialRegistrationOpts{
+		RANUENGAPID:  ranUENGAPID,
+		PDUSessionID: pduSessionID,
 		UE:           newUE,
 	})
 	if err != nil {
@@ -125,9 +131,9 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	}
 
 	defer func() {
-		err = procedure.Deregistration(&procedure.DeregistrationOpts{
-			AMFUENGAPID: gNodeB.GetAMFUENGAPID(RANUENGAPID),
-			RANUENGAPID: RANUENGAPID,
+		err = deregistration(&deregistrationOpts{
+			AMFUENGAPID: gNodeB.GetAMFUENGAPID(ranUENGAPID),
+			RANUENGAPID: ranUENGAPID,
 			UE:          newUE,
 		})
 		if err != nil {
@@ -140,25 +146,25 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 	logger.Logger.Info(
 		"Completed Initial Registration Procedure",
 		zap.String("IMSI", newUE.UeSecurity.Supi),
-		zap.Int64("RAN UE NGAP ID", RANUENGAPID),
+		zap.Int64("RAN UE NGAP ID", ranUENGAPID),
 	)
 
-	pduSession := gNodeB.GetPDUSession(RANUENGAPID, int64(PDUSessionID))
+	pduSession := gNodeB.GetPDUSession(ranUENGAPID, int64(pduSessionID))
 
-	uePduSession := newUE.GetPDUSession(PDUSessionID)
+	uePduSession := newUE.GetPDUSession(pduSessionID)
 	ueIP := uePduSession.UEIP + "/16"
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
 		UpfIP:            pduSession.UpfAddress,
-		TunInterfaceName: GTPInterfaceName,
+		TunInterfaceName: gtpInterfaceName,
 		ULteid:           pduSession.ULTeid,
 		DLteid:           pduSession.DLTeid,
 		MTU:              uePduSession.MTU,
 		QFI:              uePduSession.QFI,
 	})
 	if err != nil {
-		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", GTPInterfaceName, pduSession.DLTeid, err)
+		return fmt.Errorf("could not create GTP tunnel (name: %s, DL TEID: %d): %v", gtpInterfaceName, pduSession.DLTeid, err)
 	}
 
 	defer func() {
@@ -172,19 +178,21 @@ func Register(ctx context.Context, cfg RegisterConfig) error {
 
 	logger.Logger.Info(
 		"Created GTP tunnel",
-		zap.String("interface", GTPInterfaceName),
+		zap.String("interface", gtpInterfaceName),
 		zap.String("UE IP", ueIP),
 		zap.String("gNB IP", cfg.GnbN3Address),
 		zap.String("UPF IP", pduSession.UpfAddress),
 		zap.Uint32("LTEID", pduSession.ULTeid),
 		zap.Uint32("RTEID", pduSession.DLTeid),
-		zap.Uint16("GTPU Port", GTPUPort),
+		zap.Uint16("GTPU Port", gtpuPort),
 		zap.Uint16("MTU", uePduSession.MTU),
 	)
 
-	sctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
+	sctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	<-sctx.Done()
-	logger.Logger.Info("received interrupt signal, shutting down")
+	logger.Logger.Info("shutting down")
 
 	return nil
 }

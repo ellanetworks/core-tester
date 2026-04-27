@@ -1,1 +1,4 @@
 main
+*.rock
+results.json
+coverage.out

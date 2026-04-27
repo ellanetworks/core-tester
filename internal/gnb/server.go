@@ -208,38 +208,6 @@ type SCTPFrame struct {
 	Info *sctp.SndRcvInfo
 }
 
-func NewGnodeB(
-	gnbID string,
-	mcc string,
-	mnc string,
-	sst int32,
-	sd string,
-	dnn string,
-	tac string,
-	name string,
-	n2Conn *sctp.SCTPConn,
-	n3Conn *net.UDPConn,
-	n3Address netip.Addr,
-) *GnodeB {
-	g := &GnodeB{
-		GnbID:     gnbID,
-		MCC:       mcc,
-		MNC:       mnc,
-		SST:       sst,
-		SD:        sd,
-		DNN:       dnn,
-		TAC:       tac,
-		Name:      name,
-		N2Conn:    n2Conn,
-		N3Conn:    n3Conn,
-		tunnels:   make(map[uint32]*Tunnel),
-		N3Address: n3Address,
-	}
-	g.cond = sync.NewCond(&g.mu)
-
-	return g
-}
-
 type StartOpts struct {
 	GnbID         string
 	MCC           string
@@ -493,7 +461,7 @@ func (g *GnodeB) SendInitialUEMessage(nasPDU []byte, ranUENGAPID int64, guti5G *
 
 	pdu, err := BuildInitialUEMessage(opts)
 	if err != nil {
-		return fmt.Errorf("couldn't build InitialUEMessage: %s", err.Error())
+		return fmt.Errorf("couldn't build InitialUEMessage: %w", err)
 	}
 
 	err = g.SendMessage(pdu, NGAPProcedureInitialUEMessage)

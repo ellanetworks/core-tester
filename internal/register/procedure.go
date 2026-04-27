@@ -1,4 +1,4 @@
-package procedure
+package register
 
 import (
 	"fmt"
@@ -11,13 +11,13 @@ import (
 
 const timeoutPerMessage = 8 * time.Second
 
-type InitialRegistrationOpts struct {
+type initialRegistrationOpts struct {
 	RANUENGAPID  int64
 	PDUSessionID uint8
 	UE           *ue.UE
 }
 
-func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
+func initialRegistration(opts *initialRegistrationOpts) (*nas.Message, error) {
 	err := opts.UE.SendRegistrationRequest(opts.RANUENGAPID, nasMessage.RegistrationType5GSInitialRegistration)
 	if err != nil {
 		return nil, fmt.Errorf("could not build Registration Request NAS PDU: %v", err)
@@ -47,4 +47,24 @@ func InitialRegistration(opts *InitialRegistrationOpts) (*nas.Message, error) {
 	}
 
 	return msg, nil
+}
+
+type deregistrationOpts struct {
+	UE          *ue.UE
+	AMFUENGAPID int64
+	RANUENGAPID int64
+}
+
+func deregistration(opts *deregistrationOpts) error {
+	err := opts.UE.SendDeregistrationRequest(opts.AMFUENGAPID, opts.RANUENGAPID)
+	if err != nil {
+		return fmt.Errorf("could not build Deregistration Request NAS PDU: %v", err)
+	}
+
+	err = opts.UE.WaitForRRCRelease(2 * time.Second)
+	if err != nil {
+		return fmt.Errorf("did not receive RRC Release for UE %s: %v", opts.UE.UeSecurity.Supi, err)
+	}
+
+	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ellanetworks/core-tester/internal/logger"
-	"github.com/ellanetworks/core-tester/internal/tests/tests/utils"
 	"github.com/free5gc/nas"
 	"go.uber.org/zap"
 )
@@ -12,7 +11,7 @@ import (
 func handleDLNASTransport(ue *UE, msg *nas.Message) error {
 	pduSessionID := msg.DLNASTransport.GetPduSessionID2Value()
 
-	payloadContainer, err := utils.GetNasPduFromPduAccept(msg)
+	payloadContainer, err := getNasPduFromDLNASTransport(msg)
 	if err != nil {
 		return fmt.Errorf("could not get PDU Session establishment accept: %v", err)
 	}

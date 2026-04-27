@@ -1,4 +1,4 @@
-package utils
+package ue
 
 import (
 	"encoding/binary"
@@ -8,10 +8,9 @@ import (
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasConvert"
 	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap/ngapType"
 )
 
-func GetNasPduFromPduAccept(dlNas *nas.Message) (*nas.Message, error) {
+func getNasPduFromDLNASTransport(dlNas *nas.Message) (*nas.Message, error) {
 	payload := dlNas.DLNASTransport.GetPayloadContainerContents()
 	m := new(nas.Message)
 
@@ -23,33 +22,7 @@ func GetNasPduFromPduAccept(dlNas *nas.Message) (*nas.Message, error) {
 	return m, nil
 }
 
-func GetNASPDUFromDownlinkNasTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.NASPDU {
-	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDNASPDU:
-			return ie.Value.NASPDU
-		default:
-			continue
-		}
-	}
-
-	return nil
-}
-
-func GetAMFUENGAPIDFromDownlinkNASTransport(downlinkNASTransport *ngapType.DownlinkNASTransport) *ngapType.AMFUENGAPID {
-	for _, ie := range downlinkNASTransport.ProtocolIEs.List {
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDAMFUENGAPID:
-			return ie.Value.AMFUENGAPID
-		default:
-			continue
-		}
-	}
-
-	return nil
-}
-
-func UEIPFromNAS(ip [12]uint8) (netip.Addr, error) {
+func ueIPFromNAS(ip [12]uint8) (netip.Addr, error) {
 	ueIPString := fmt.Sprintf("%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3])
 
 	ueIP, err := netip.ParseAddr(ueIPString)
@@ -60,7 +33,7 @@ func UEIPFromNAS(ip [12]uint8) (netip.Addr, error) {
 	return ueIP, nil
 }
 
-func MTUFromExtendProtocolConfigurationOptionsContents(pco_buf []byte) (uint16, error) {
+func mtuFromExtendProtocolConfigurationOptionsContents(pco_buf []byte) (uint16, error) {
 	pco := nasConvert.NewProtocolConfigurationOptions()
 
 	err := pco.UnMarshal(pco_buf)
@@ -78,8 +51,4 @@ func MTUFromExtendProtocolConfigurationOptionsContents(pco_buf []byte) (uint16, 
 	}
 
 	return 0, nil
-}
-
-func SDFromNAS(sd [3]uint8) string {
-	return fmt.Sprintf("%x%x%x", sd[0], sd[1], sd[2])
 }
