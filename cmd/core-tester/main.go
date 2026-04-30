@@ -27,6 +27,7 @@ var (
 	gnbN2Address      string
 	gnbN3Address      string
 	ellaCoreN2Address string
+	pduSessionType    string
 	verbose           bool
 )
 
@@ -71,6 +72,7 @@ func main() {
 	registerCmd.Flags().StringVar(&gnbN2Address, "gnb-n2-address", "", "gNB N2 address")
 	registerCmd.Flags().StringVar(&gnbN3Address, "gnb-n3-address", "", "gNB N3 address")
 	registerCmd.Flags().StringVar(&ellaCoreN2Address, "ella-core-n2-address", "", "Ella Core N2 address")
+	registerCmd.Flags().StringVar(&pduSessionType, "pdu-session-type", "ipv4", "PDU session type: ipv4, ipv6, or ipv4v6")
 
 	for _, name := range []string{
 		"imsi",
@@ -86,6 +88,7 @@ func main() {
 		"gnb-n2-address",
 		"gnb-n3-address",
 		"ella-core-n2-address",
+		"pdu-session-type",
 	} {
 		if err := registerCmd.MarkFlagRequired(name); err != nil {
 			panic(fmt.Sprintf("failed to mark flag %q required: %v", name, err))
@@ -119,6 +122,7 @@ func Register(cmd *cobra.Command, args []string) {
 		GnbN2Address:      gnbN2Address,
 		GnbN3Address:      gnbN3Address,
 		EllaCoreN2Address: ellaCoreN2Address,
+		PDUSessionType:    pduSessionType,
 	}
 
 	err := register.Run(ctx, registerConfig)

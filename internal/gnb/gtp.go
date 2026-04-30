@@ -31,6 +31,7 @@ type Tunnel struct {
 
 type NewTunnelOpts struct {
 	UEIP             string
+	UEIPV6           string
 	UpfIP            string
 	TunInterfaceName string
 	ULteid           uint32
@@ -56,24 +57,43 @@ func (g *GnodeB) AddTunnel(opts *NewTunnelOpts) (*Tunnel, error) {
 		return nil, fmt.Errorf("cannot read TUN interface: %v", err)
 	}
 
-	ueAddr, err := netlink.ParseAddr(opts.UEIP)
+	err = netlink.LinkSetUp(eth)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse UE address: %v", err)
+		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
 	}
 
-	err = netlink.AddrAdd(eth, ueAddr)
+	err = delAutoLinkLocal(eth)
 	if err != nil {
-		return nil, fmt.Errorf("could not assign UE address to TUN interface: %v", err)
+		return nil, fmt.Errorf("could not clean up auto-assigned link-local addresses: %v", err)
+	}
+
+	if opts.UEIP != "" {
+		ueAddr, err := netlink.ParseAddr(opts.UEIP)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse UE IPv4 address: %v", err)
+		}
+
+		err = netlink.AddrAdd(eth, ueAddr)
+		if err != nil {
+			return nil, fmt.Errorf("could not assign UE IPv4 address to TUN interface: %v", err)
+		}
+	}
+
+	if opts.UEIPV6 != "" {
+		ueAddrV6, err := netlink.ParseAddr(opts.UEIPV6)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse UE IPv6 address: %v", err)
+		}
+
+		err = netlink.AddrAdd(eth, ueAddrV6)
+		if err != nil {
+			return nil, fmt.Errorf("could not assign UE IPv6 address to TUN interface: %v", err)
+		}
 	}
 
 	err = netlink.LinkSetMTU(eth, int(opts.MTU))
 	if err != nil {
 		return nil, fmt.Errorf("could not set MTU on TUN interface: %v", err)
-	}
-
-	err = netlink.LinkSetUp(eth)
-	if err != nil {
-		return nil, fmt.Errorf("could not set TUN interface UP: %v", err)
 	}
 
 	tunnel := &Tunnel{
@@ -264,4 +284,23 @@ func tunToGtp(conn *net.UDPConn, t *Tunnel) {
 			zap.Int("TEID", int(t.ulteid)),
 		)
 	}
+}
+
+func delAutoLinkLocal(eth netlink.Link) error {
+	addrs, err := netlink.AddrList(eth, netlink.FAMILY_V6)
+	if err != nil {
+		return fmt.Errorf("could not list IPv6 addresses: %v", err)
+	}
+
+	for _, addr := range addrs {
+		if addr.IP.IsLinkLocalUnicast() && !addr.IP.Equal(net.ParseIP("fe80::")) {
+			if err := netlink.AddrDel(eth, &addr); err != nil {
+				return fmt.Errorf("could not delete auto-assigned link-local address %s: %v", addr.IP.String(), err)
+			}
+
+			logger.GnbLogger.Debug("Deleted auto-assigned link-local address", zap.String("address", addr.IP.String()))
+		}
+	}
+
+	return nil
 }
