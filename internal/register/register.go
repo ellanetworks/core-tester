@@ -44,11 +44,16 @@ type Config struct {
 	GnbN2Address      string
 	GnbN3Address      string
 	EllaCoreN2Address string
+	PDUSessionType    string
 }
 
 // Run performs the full register-and-tunnel flow and blocks until ctx is
 // cancelled or an interrupt signal is received.
 func Run(ctx context.Context, cfg Config) error {
+	if err := validatePDUSessionType(cfg.PDUSessionType); err != nil {
+		return err
+	}
+
 	if len(cfg.IMSI) < 6 {
 		return fmt.Errorf("invalid IMSI %q: must be at least 6 digits", cfg.IMSI)
 	}
@@ -84,10 +89,12 @@ func Run(ctx context.Context, cfg Config) error {
 
 	logger.Logger.Info("received NGSetupResponse")
 
+	pduSessionType := convertPDUSessionType(cfg.PDUSessionType)
+
 	newUE, err := ue.NewUE(&ue.UEOpts{
 		GnodeB:         gNodeB,
 		PDUSessionID:   1,
-		PDUSessionType: nasMessage.PDUSessionTypeIPv4,
+		PDUSessionType: pduSessionType,
 		Msin:           cfg.IMSI[5:],
 		K:              cfg.Key,
 		OpC:            cfg.OPC,
@@ -152,10 +159,25 @@ func Run(ctx context.Context, cfg Config) error {
 	pduSession := gNodeB.GetPDUSession(ranUENGAPID, int64(pduSessionID))
 
 	uePduSession := newUE.GetPDUSession(pduSessionID)
-	ueIP := uePduSession.UEIP + "/16"
+
+	var (
+		ueIP   string
+		ueIPV6 string
+	)
+
+	switch uePduSession.PDUSessionVersion {
+	case nasMessage.PDUSessionTypeIPv4:
+		ueIP = uePduSession.UEIP + "/16"
+	case nasMessage.PDUSessionTypeIPv6:
+		ueIPV6 = uePduSession.UEIPV6 + "/64"
+	case nasMessage.PDUSessionTypeIPv4IPv6:
+		ueIP = uePduSession.UEIP + "/16"
+		ueIPV6 = uePduSession.UEIPV6 + "/64"
+	}
 
 	_, err = gNodeB.AddTunnel(&gnb.NewTunnelOpts{
 		UEIP:             ueIP,
+		UEIPV6:           ueIPV6,
 		UpfIP:            pduSession.UpfAddress,
 		TunInterfaceName: gtpInterfaceName,
 		ULteid:           pduSession.ULTeid,
@@ -180,6 +202,7 @@ func Run(ctx context.Context, cfg Config) error {
 		"Created GTP tunnel",
 		zap.String("interface", gtpInterfaceName),
 		zap.String("UE IP", ueIP),
+		zap.String("UE IP (IPv6)", ueIPV6),
 		zap.String("gNB IP", cfg.GnbN3Address),
 		zap.String("UPF IP", pduSession.UpfAddress),
 		zap.Uint32("LTEID", pduSession.ULTeid),
@@ -195,4 +218,24 @@ func Run(ctx context.Context, cfg Config) error {
 	logger.Logger.Info("shutting down")
 
 	return nil
+}
+
+func convertPDUSessionType(sessionType string) uint8 {
+	switch sessionType {
+	case "ipv6":
+		return nasMessage.PDUSessionTypeIPv6
+	case "ipv4v6":
+		return nasMessage.PDUSessionTypeIPv4IPv6
+	default:
+		return nasMessage.PDUSessionTypeIPv4
+	}
+}
+
+func validatePDUSessionType(sessionType string) error {
+	switch sessionType {
+	case "ipv4", "ipv6", "ipv4v6":
+		return nil
+	default:
+		return fmt.Errorf("invalid PDU session type %q: must be ipv4, ipv6, or ipv4v6", sessionType)
+	}
 }

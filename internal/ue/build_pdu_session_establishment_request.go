@@ -39,6 +39,11 @@ func BuildPduSessionEstablishmentRequest(opts *PduSessionEstablishmentRequestOpt
 	protocolConfigurationOptions := nasConvert.NewProtocolConfigurationOptions()
 	protocolConfigurationOptions.AddIPAddressAllocationViaNASSignallingUL()
 	protocolConfigurationOptions.AddDNSServerIPv4AddressRequest()
+
+	if opts.PDUSessionType == nasMessage.PDUSessionTypeIPv6 || opts.PDUSessionType == nasMessage.PDUSessionTypeIPv4IPv6 {
+		protocolConfigurationOptions.AddDNSServerIPv6AddressRequest()
+	}
+
 	pcoContents := protocolConfigurationOptions.Marshal()
 	pcoContentsLength := len(pcoContents)
 	pduSessionEstablishmentRequest.ExtendedProtocolConfigurationOptions.SetLen(uint16(pcoContentsLength))
