@@ -1,13 +1,13 @@
 module github.com/ellanetworks/core-tester
 
-go 1.26.1
+go 1.26.2
 
 require (
-	github.com/free5gc/aper v1.1.0
-	github.com/free5gc/nas v1.2.2
-	github.com/free5gc/ngap v1.1.2
-	github.com/free5gc/openapi v1.2.3
-	github.com/free5gc/util v1.3.1
+	github.com/free5gc/aper v1.1.1
+	github.com/free5gc/nas v1.2.3
+	github.com/free5gc/ngap v1.1.3
+	github.com/free5gc/openapi v1.2.4
+	github.com/free5gc/util v1.3.2
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/cobra v1.10.2
