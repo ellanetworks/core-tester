@@ -6,7 +6,7 @@ require (
 	github.com/free5gc/aper v1.1.1
 	github.com/free5gc/nas v1.2.3
 	github.com/free5gc/ngap v1.1.3
-	github.com/free5gc/openapi v1.2.4
+	github.com/free5gc/openapi v1.3.0
 	github.com/free5gc/util v1.3.2
 	github.com/ishidawataru/sctp v0.0.0-20250303034628-ecf9ed6df987
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
@@ -28,5 +28,5 @@ require (
 	github.com/tim-ywliu/nested-logrus-formatter v1.3.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 )
